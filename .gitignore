@@ -1,0 +1,36 @@
+# ---- Python / Django ----
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+*.sqlite3
+db.sqlite3
+staticfiles/
+media/
+
+# Entorno
+.env
+backend/.env
+
+# ---- Node / Frontend ----
+node_modules/
+dist/
+.vite/
+*.local
+
+# ---- Editor / SO ----
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Pytest
+.pytest_cache/
+
+# Claude Code
+.claude/
+
+# Logs
+*.log
