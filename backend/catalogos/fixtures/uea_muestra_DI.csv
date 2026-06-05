@@ -1,0 +1,19 @@
+clave,nombre,licenciatura_clave,trimestre,etapa,tipo,creditos
+1400001,Taller de Exploración y Representación del Diseño I,DI,1,TG,OBL,8
+1400002,Taller de Exploración y Representación del Diseño II,DI,2,TG,OBL,8
+1400003,Fundamentos del Diseño,DI,1,TG,OBL,6
+1400004,Elementos de Expresión Visual,DI,1,TG,OBL,6
+1400005,Estructura y Forma,DI,2,TG,OBL,6
+1400006,Historia del Diseño y la Arquitectura I,DI,1,TG,OBL,4
+1400007,Historia del Diseño y la Arquitectura II,DI,2,TG,OBL,4
+1400008,Lógica y Razonamiento Simbólico I,DI,1,TG,OBL,4
+1400009,Lógica y Razonamiento Simbólico II,DI,2,TG,OBL,4
+1403001,Diseño de Objetos I,DI,3,TB,OBL,10
+1403002,Diseño de Objetos II,DI,4,TB,OBL,10
+1403003,Diseño de Objetos III,DI,5,TB,OBL,10
+1403004,Tecnología de Materiales I,DI,3,TB,OBL,8
+1403005,Tecnología de Materiales II,DI,4,TB,OBL,8
+1403006,Tecnología de Materiales III,DI,5,TB,OBL,8
+1403007,Análisis del Objeto,DI,3,TB,OBL,6
+1403008,Ergonomía,DI,4,TB,OBL,6
+1403009,Metodología del Diseño,DI,3,TB,OBL,6

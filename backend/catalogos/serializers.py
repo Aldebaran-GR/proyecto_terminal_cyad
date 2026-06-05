@@ -1,0 +1,59 @@
+"""Serializers de catálogos institucionales."""
+
+from rest_framework import serializers
+
+from .models import Departamento, Licenciatura, Periodo, UEA
+
+
+class DepartamentoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Departamento
+        fields = ["id", "clave", "nombre", "estado", "created_at", "updated_at"]
+        read_only_fields = ["id", "created_at", "updated_at"]
+
+
+class LicenciaturaSerializer(serializers.ModelSerializer):
+    departamento_nombre = serializers.CharField(
+        source="departamento.nombre", read_only=True, default=None
+    )
+
+    class Meta:
+        model = Licenciatura
+        fields = [
+            "id", "clave", "nombre", "departamento", "departamento_nombre",
+            "estado", "created_at", "updated_at",
+        ]
+        read_only_fields = ["id", "created_at", "updated_at"]
+
+
+class UEASerializer(serializers.ModelSerializer):
+    licenciatura_nombre = serializers.CharField(
+        source="licenciatura.nombre", read_only=True
+    )
+
+    class Meta:
+        model = UEA
+        fields = [
+            "id", "clave", "nombre", "licenciatura", "licenciatura_nombre",
+            "trimestre", "etapa", "tipo", "creditos", "estado",
+            "created_at", "updated_at",
+        ]
+        read_only_fields = ["id", "created_at", "updated_at"]
+
+
+class PeriodoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Periodo
+        fields = [
+            "id", "clave", "fecha_inicio", "fecha_fin", "activo", "estado",
+            "created_at", "updated_at",
+        ]
+        read_only_fields = ["id", "created_at", "updated_at"]
+
+    def validate(self, attrs):
+        if attrs.get("fecha_inicio") and attrs.get("fecha_fin"):
+            if attrs["fecha_inicio"] >= attrs["fecha_fin"]:
+                raise serializers.ValidationError(
+                    {"fecha_fin": "La fecha de fin debe ser posterior a la de inicio."}
+                )
+        return attrs

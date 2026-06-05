@@ -1,0 +1,93 @@
+[
+  {
+    "model": "catalogos.periodo",
+    "pk": 1,
+    "fields": {
+      "clave": "24-I",
+      "fecha_inicio": "2024-01-08",
+      "fecha_fin": "2024-04-12",
+      "activo": false,
+      "estado": true,
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "catalogos.periodo",
+    "pk": 2,
+    "fields": {
+      "clave": "24-P",
+      "fecha_inicio": "2024-04-29",
+      "fecha_fin": "2024-08-09",
+      "activo": false,
+      "estado": true,
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "catalogos.periodo",
+    "pk": 3,
+    "fields": {
+      "clave": "24-O",
+      "fecha_inicio": "2024-08-26",
+      "fecha_fin": "2024-12-06",
+      "activo": false,
+      "estado": true,
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "catalogos.periodo",
+    "pk": 4,
+    "fields": {
+      "clave": "25-I",
+      "fecha_inicio": "2025-01-13",
+      "fecha_fin": "2025-04-18",
+      "activo": false,
+      "estado": true,
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "catalogos.periodo",
+    "pk": 5,
+    "fields": {
+      "clave": "25-P",
+      "fecha_inicio": "2025-04-28",
+      "fecha_fin": "2025-08-08",
+      "activo": false,
+      "estado": true,
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "catalogos.periodo",
+    "pk": 6,
+    "fields": {
+      "clave": "25-O",
+      "fecha_inicio": "2025-08-25",
+      "fecha_fin": "2025-12-05",
+      "activo": false,
+      "estado": true,
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "catalogos.periodo",
+    "pk": 7,
+    "fields": {
+      "clave": "26-I",
+      "fecha_inicio": "2026-01-12",
+      "fecha_fin": "2026-04-17",
+      "activo": true,
+      "estado": true,
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
+    }
+  }
+]
