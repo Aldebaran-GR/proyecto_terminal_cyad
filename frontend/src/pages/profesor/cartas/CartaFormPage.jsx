@@ -13,7 +13,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   getCarta, createCarta, updateCarta,
 } from '../../../api/documentos'
-import { getUEA, getPeriodos } from '../../../api/catalogos'
+import { getUEA, getPeriodosActivos } from '../../../api/catalogos'
 import Button from '../../../components/ui/Button'
 import Alert from '../../../components/ui/Alert'
 import FormField, { inputCls } from '../../../components/ui/FormField'
@@ -96,10 +96,13 @@ export default function CartaFormPage() {
     queryKey: ['uea-list'],
     queryFn: () => getUEA({ estado: true }).then((r) => r.data?.results ?? r.data ?? []),
   })
-  const { data: periodos = [] } = useQuery({
-    queryKey: ['periodos-list'],
-    queryFn: () => getPeriodos().then((r) => r.data?.results ?? r.data ?? []),
+  // El periodo de la Carta Temática se asigna automáticamente desde el
+  // periodo marcado como "activo para Cartas Temáticas" por el admin.
+  const { data: activos } = useQuery({
+    queryKey: ['periodos-activos'],
+    queryFn: () => getPeriodosActivos().then((r) => r.data),
   })
+  const periodoCartas = activos?.cartas ?? null
 
   /* ── Cargar carta existente (edición) ── */
   const { data: cartaExistente } = useQuery({
@@ -112,7 +115,6 @@ export default function CartaFormPage() {
     if (cartaExistente) {
       reset({
         uea: String(cartaExistente.uea),
-        periodo: String(cartaExistente.periodo),
         nombre_grupo: cartaExistente.nombre_grupo,
         id_grupo: cartaExistente.id_grupo,
         horario: cartaExistente.horario,
@@ -177,14 +179,23 @@ export default function CartaFormPage() {
   const onSubmit = (baseData) => {
     setApiError(null)
 
+    if (!isEdit && !periodoCartas) {
+      setApiError(
+        'No hay un periodo activo para Cartas Temáticas. Pide al administrador ' +
+        'que active uno en Catálogos → Periodos.'
+      )
+      return
+    }
+
     if (criterios.length > 0 && sumPonderaciones !== 100) {
       setApiError(`La suma de ponderaciones debe ser 100% (actualmente: ${sumPonderaciones}%).`)
       return
     }
 
+    // `periodo` no se envía: el backend lo asigna automáticamente al periodo
+    // activo para Cartas Temáticas en el momento de creación.
     const payload = {
       uea: Number(baseData.uea),
-      periodo: Number(baseData.periodo),
       nombre_grupo: baseData.nombre_grupo,
       id_grupo: baseData.id_grupo,
       horario: baseData.horario,
@@ -251,15 +262,24 @@ export default function CartaFormPage() {
               </select>
             </FormField>
 
-            <FormField label="Periodo" error={errors.periodo?.message} required>
-              <select {...register('periodo', { required: 'Requerido' })} className={inputCls}>
-                <option value="">-- Selecciona --</option>
-                {periodos.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.clave}
-                  </option>
-                ))}
-              </select>
+            <FormField label="Periodo (asignado automáticamente)">
+              {isEdit && cartaExistente ? (
+                <div className="rounded-lg bg-slate-50 border border-slate-200 px-3 py-2 text-sm text-slate-700">
+                  {cartaExistente.periodo_clave ?? '—'}
+                  <span className="ml-2 text-xs text-slate-400">(no editable)</span>
+                </div>
+              ) : periodoCartas ? (
+                <div className="rounded-lg bg-indigo-50 border border-indigo-200 px-3 py-2 text-sm text-indigo-800">
+                  {periodoCartas.clave}
+                  <span className="ml-2 text-xs text-indigo-600/70">
+                    activo para Cartas Temáticas
+                  </span>
+                </div>
+              ) : (
+                <div className="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-sm text-amber-800">
+                  Sin periodo activo para Cartas Temáticas. Contacta al administrador.
+                </div>
+              )}
             </FormField>
 
             <FormField label="Nombre del grupo" error={errors.nombre_grupo?.message} required>

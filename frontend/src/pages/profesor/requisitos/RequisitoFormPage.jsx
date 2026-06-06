@@ -6,7 +6,7 @@ import { useNavigate, useParams, Link } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getRequisito, createRequisito, updateRequisito } from '../../../api/documentos'
-import { getUEA, getPeriodos } from '../../../api/catalogos'
+import { getUEA, getPeriodosActivos } from '../../../api/catalogos'
 import Button from '../../../components/ui/Button'
 import Alert from '../../../components/ui/Alert'
 import FormField, { inputCls } from '../../../components/ui/FormField'
@@ -40,10 +40,13 @@ export default function RequisitoFormPage() {
     queryKey: ['uea-list'],
     queryFn: () => getUEA({ estado: true }).then((r) => r.data?.results ?? r.data ?? []),
   })
-  const { data: periodos = [] } = useQuery({
-    queryKey: ['periodos-list'],
-    queryFn: () => getPeriodos().then((r) => r.data?.results ?? r.data ?? []),
+  // El periodo del Requisito de Recuperación se asigna automáticamente desde
+  // el periodo marcado como "activo para Requisitos" por el admin.
+  const { data: activos } = useQuery({
+    queryKey: ['periodos-activos'],
+    queryFn: () => getPeriodosActivos().then((r) => r.data),
   })
+  const periodoRequisitos = activos?.requisitos ?? null
 
   /* ── Cargar existente ── */
   const { data: requisito } = useQuery({
@@ -56,7 +59,6 @@ export default function RequisitoFormPage() {
     if (requisito) {
       reset({
         uea: String(requisito.uea),
-        periodo: String(requisito.periodo),
         nombre_grupo: requisito.nombre_grupo,
         id_grupo: requisito.id_grupo,
         horario: requisito.horario,
@@ -90,9 +92,16 @@ export default function RequisitoFormPage() {
 
   const onSubmit = (baseData) => {
     setApiError(null)
+    if (!isEdit && !periodoRequisitos) {
+      setApiError(
+        'No hay un periodo activo para Requisitos de Recuperación. Pide al ' +
+        'administrador que active uno en Catálogos → Periodos.'
+      )
+      return
+    }
+    // `periodo` lo asigna el backend según el periodo activo para Requisitos.
     mutation.mutate({
       uea: Number(baseData.uea),
-      periodo: Number(baseData.periodo),
       nombre_grupo: baseData.nombre_grupo,
       id_grupo: baseData.id_grupo,
       horario: baseData.horario,
@@ -138,13 +147,24 @@ export default function RequisitoFormPage() {
               </select>
             </FormField>
 
-            <FormField label="Periodo" error={errors.periodo?.message} required>
-              <select {...register('periodo', { required: 'Requerido' })} className={inputCls}>
-                <option value="">-- Selecciona --</option>
-                {periodos.map((p) => (
-                  <option key={p.id} value={p.id}>{p.clave}</option>
-                ))}
-              </select>
+            <FormField label="Periodo (asignado automáticamente)">
+              {isEdit && requisito ? (
+                <div className="rounded-lg bg-slate-50 border border-slate-200 px-3 py-2 text-sm text-slate-700">
+                  {requisito.periodo_clave ?? '—'}
+                  <span className="ml-2 text-xs text-slate-400">(no editable)</span>
+                </div>
+              ) : periodoRequisitos ? (
+                <div className="rounded-lg bg-indigo-50 border border-indigo-200 px-3 py-2 text-sm text-indigo-800">
+                  {periodoRequisitos.clave}
+                  <span className="ml-2 text-xs text-indigo-600/70">
+                    activo para Requisitos de Recuperación
+                  </span>
+                </div>
+              ) : (
+                <div className="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-sm text-amber-800">
+                  Sin periodo activo para Requisitos. Contacta al administrador.
+                </div>
+              )}
             </FormField>
 
             <FormField label="Nombre del grupo" error={errors.nombre_grupo?.message} required>
