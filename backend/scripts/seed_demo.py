@@ -126,12 +126,19 @@ periodo, created = Periodo.objects.get_or_create(
     defaults={
         "fecha_inicio": date(2026, 1, 12),
         "fecha_fin": date(2026, 4, 17),
-        "activo": True,
+        # Por defecto, el periodo demo está activo para los 3 recursos.
+        # El admin puede luego repartir los flags entre periodos (ej. dejar
+        # 26-P activo para Requisitos+AE y 26-O activo para Cartas).
+        "activo_cartas": True,
+        "activo_requisitos": True,
+        "activo_autoevaluacion": True,
         "estado": True,
     },
 )
-if not periodo.activo:
-    periodo.activo = True
+if not (periodo.activo_cartas and periodo.activo_requisitos and periodo.activo_autoevaluacion):
+    periodo.activo_cartas = True
+    periodo.activo_requisitos = True
+    periodo.activo_autoevaluacion = True
     periodo.save()
 print(f"  [{'CREADO' if created else 'ACTIVO'}] Periodo {periodo.clave}")
 

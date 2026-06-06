@@ -169,9 +169,9 @@ if form_id:
 # ─── 7) Documentos: crear Carta Temática ──────────────────────────────────
 section("Documentos")
 if uea_id and periodo_activo:
+    # `periodo` ya no se envía (lo asigna el backend según el flag activo_cartas).
     payload = {
         "uea": uea_id,
-        "periodo": periodo_activo["id"],
         "nombre_grupo": f"SMOKE-{os.getpid()}",
         "id_grupo": f"CT{os.getpid()}",
         "horario": "Lun-Mie 10:00-12:00",
