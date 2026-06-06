@@ -37,8 +37,8 @@ const emptyPregunta = (orden = 1) => ({
   tipo: 'OPCION_UNICA', texto: '', ayuda: '', obligatoria: true, orden,
   config: {}, opciones: [],
 })
-const emptyNivel = () => ({
-  nombre: '', porcentaje_min: '', porcentaje_max: '', observacion: '', color: 'gray', orden: 0,
+const emptyNivel = (orden = 0) => ({
+  nombre: '', porcentaje_min: '', porcentaje_max: '', observacion: '', color: 'gray', orden,
 })
 
 /* ─── Editor de opciones (dentro del modal de pregunta) ───── */
@@ -237,7 +237,7 @@ export default function FormularioBuilderPage() {
     mutationFn: (nid) => deleteNivelDesempeno(nid),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['niveles', id] }),
   })
-  const openNewNivel = () => { setEditingN(null); setNForm(emptyNivel()); setNModal(true) }
+  const openNewNivel = () => { setEditingN(null); setNForm(emptyNivel(niveles.length)); setNModal(true) }
   const openEditNivel = (n) => { setEditingN(n); setNForm({ nombre: n.nombre, porcentaje_min: n.porcentaje_min, porcentaje_max: n.porcentaje_max, observacion: n.observacion, color: n.color, orden: n.orden }); setNModal(true) }
 
   const isPublicado = formulario?.estado === 'PUBLICADO'
@@ -480,9 +480,8 @@ export default function FormularioBuilderPage() {
           <FormField label="Observación" required>
             <textarea value={nForm.observacion} onChange={(e) => setNForm((p) => ({ ...p, observacion: e.target.value }))} rows={3} className={inputCls} placeholder="Mensaje que verá el profesor al obtener este nivel." />
           </FormField>
-          <FormField label="Orden">
-            <input type="number" min={0} value={nForm.orden} onChange={(e) => setNForm((p) => ({ ...p, orden: Number(e.target.value) }))} className={inputCls + ' w-20'} />
-          </FormField>
+          {/* "Orden" se asigna automáticamente al final de la lista al crear,
+              y se conserva al editar. No se solicita al usuario. */}
         </div>
       </Modal>
     </div>
