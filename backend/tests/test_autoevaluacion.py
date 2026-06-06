@@ -69,7 +69,7 @@ def periodo(db):
         clave="26-IAE",
         fecha_inicio="2026-01-12",
         fecha_fin="2026-04-17",
-        activo=True,
+        activo_autoevaluacion=True,
     )
 
 

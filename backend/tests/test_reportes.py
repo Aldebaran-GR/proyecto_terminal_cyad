@@ -48,11 +48,15 @@ def licenciatura(db, depto):
 
 @pytest.fixture
 def periodo(db):
+    # Activo para todos los recursos para emular el comportamiento original
+    # del flag único `activo` en las pruebas de reportes.
     return Periodo.objects.create(
         clave="26-IRPT",
         fecha_inicio="2026-01-12",
         fecha_fin="2026-04-17",
-        activo=True,
+        activo_cartas=True,
+        activo_requisitos=True,
+        activo_autoevaluacion=True,
     )
 
 

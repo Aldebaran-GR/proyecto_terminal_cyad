@@ -59,7 +59,10 @@ def uea(db, licenciatura):
 @pytest.fixture
 def periodo(db):
     return Periodo.objects.create(
-        clave="26-ID", fecha_inicio="2026-01-12", fecha_fin="2026-04-17", activo=True
+        clave="26-ID", fecha_inicio="2026-01-12", fecha_fin="2026-04-17",
+        # Activo para los 3 recursos: las pruebas crean tanto Cartas como
+        # Requisitos y la auto-asignación de periodo necesita el flag correcto.
+        activo_cartas=True, activo_requisitos=True, activo_autoevaluacion=True,
     )
 
 
