@@ -3,9 +3,11 @@
 import csv
 import io
 
+from django.db import transaction
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters, status, viewsets
 from rest_framework.decorators import action
+from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
@@ -137,4 +139,110 @@ class PeriodoViewSet(viewsets.ModelViewSet):
     serializer_class = PeriodoSerializer
     permission_classes = [IsAdminOrReadOnly]
     filter_backends = [DjangoFilterBackend]
-    filterset_fields = ["activo", "estado"]
+    filterset_fields = [
+        "activo", "estado",
+        "activo_cartas", "activo_requisitos", "activo_autoevaluacion",
+    ]
+
+    def _is_activo_para_algun_recurso(self, periodo):
+        return any([
+            periodo.activo_cartas,
+            periodo.activo_requisitos,
+            periodo.activo_autoevaluacion,
+        ])
+
+    def _conteo_dependencias(self, periodo):
+        """Conteo de documentos y respuestas asociadas al periodo (para preview)."""
+        # Import local para evitar ciclos.
+        from autoevaluacion.models import Formulario, Respuesta
+        from documentos.models import CartaTematica, RequisitoRecuperacion
+
+        cartas = CartaTematica.objects.filter(periodo=periodo).count()
+        requisitos = RequisitoRecuperacion.objects.filter(periodo=periodo).count()
+        formularios = Formulario.objects.filter(periodo=periodo).count()
+        respuestas = Respuesta.objects.filter(formulario__periodo=periodo).count()
+        return {
+            "cartas_tematicas": cartas,
+            "requisitos_recuperacion": requisitos,
+            "formularios_autoevaluacion": formularios,
+            "respuestas_autoevaluacion": respuestas,
+        }
+
+    @action(detail=True, methods=["get"], url_path="preview-eliminacion")
+    def preview_eliminacion(self, request, pk=None):
+        """GET /api/v1/periodos/{id}/preview-eliminacion/
+
+        Devuelve si el periodo se puede eliminar y cuántos documentos/respuestas
+        se borrarán en cascada si lo es. Pensado para que el frontend muestre
+        un diálogo de confirmación informado.
+        """
+        periodo = self.get_object()
+        activo = self._is_activo_para_algun_recurso(periodo)
+        return Response({
+            "periodo": {"id": periodo.id, "clave": periodo.clave},
+            "puede_eliminar": not activo,
+            "razon_bloqueo": (
+                "El periodo está activo para al menos un recurso. "
+                "Desactívalo antes de eliminarlo."
+            ) if activo else None,
+            "dependencias": self._conteo_dependencias(periodo),
+        })
+
+    def perform_destroy(self, instance):
+        """Elimina el periodo y todos sus documentos/formularios/respuestas en cascada.
+
+        Bloquea la operación si el periodo sigue activo para algún recurso.
+        Las relaciones a Periodo son PROTECT, así que el borrado se hace
+        explícitamente en orden seguro dentro de una transacción.
+        """
+        if self._is_activo_para_algun_recurso(instance):
+            raise ValidationError({
+                "detail": (
+                    "No se puede eliminar el periodo "
+                    f"'{instance.clave}' porque está activo para al menos un "
+                    "recurso (Cartas, Requisitos o Autoevaluación). "
+                    "Desactívalo primero."
+                )
+            })
+
+        from autoevaluacion.models import Formulario, Respuesta
+        from documentos.models import CartaTematica, RequisitoRecuperacion
+
+        with transaction.atomic():
+            # Orden inverso a las dependencias PROTECT:
+            # 1) Respuestas (PROTECTed por Formulario)
+            Respuesta.objects.filter(formulario__periodo=instance).delete()
+            # 2) Formularios (PROTECTed por Periodo) — Secciones/Preguntas
+            #    bajan en cascada porque sus FK son CASCADE.
+            Formulario.objects.filter(periodo=instance).delete()
+            # 3) Documentos del profesor (PROTECTed por Periodo)
+            CartaTematica.objects.filter(periodo=instance).delete()
+            RequisitoRecuperacion.objects.filter(periodo=instance).delete()
+            # 4) Finalmente el periodo
+            instance.delete()
+
+    @action(detail=False, methods=["get"], url_path="activos")
+    def activos(self, request):
+        """GET /api/v1/periodos/activos/
+
+        Devuelve el periodo activo para cada tipo de recurso, o null si no hay.
+        Pensado para que el frontend pre-seleccione el periodo correcto al
+        crear cada tipo de documento.
+        """
+        def _serializar(p):
+            if not p:
+                return None
+            return {
+                "id": p.id,
+                "clave": p.clave,
+                "fecha_inicio": p.fecha_inicio,
+                "fecha_fin": p.fecha_fin,
+            }
+
+        return Response({
+            "cartas": _serializar(Periodo.get_activo(Periodo.Recurso.CARTAS)),
+            "requisitos": _serializar(Periodo.get_activo(Periodo.Recurso.REQUISITOS)),
+            "autoevaluacion": _serializar(
+                Periodo.get_activo(Periodo.Recurso.AUTOEVALUACION)
+            ),
+        })
