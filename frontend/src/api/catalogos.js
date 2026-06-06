@@ -31,3 +31,8 @@ export const createPeriodo = (data) => client.post('/periodos/', data)
 export const updatePeriodo = (id, data) => client.patch(`/periodos/${id}/`, data)
 export const deletePeriodo = (id) => client.delete(`/periodos/${id}/`)
 export const getPeriodoActivo = () => client.get('/periodos/', { params: { activo: true } })
+// Devuelve el periodo activo de cada recurso: { cartas, requisitos, autoevaluacion }
+export const getPeriodosActivos = () => client.get('/periodos/activos/')
+// Previsualiza qué se borraría en cascada al eliminar este periodo.
+export const previewEliminacionPeriodo = (id) =>
+  client.get(`/periodos/${id}/preview-eliminacion/`)
