@@ -68,7 +68,9 @@ class CartaTematicaSerializer(serializers.ModelSerializer):
             "temas", "bibliografias", "criterios",
             "created_at", "updated_at",
         ]
-        read_only_fields = ["id", "profesor", "created_at", "updated_at"]
+        # `periodo` ahora es asignado automáticamente por el ViewSet en base
+        # al periodo activo para Cartas Temáticas.
+        read_only_fields = ["id", "profesor", "periodo", "created_at", "updated_at"]
 
     def validate(self, attrs):
         if self.instance and self.instance.estado == CartaTematica.Estado.ENVIADO:
@@ -148,7 +150,9 @@ class RequisitoRecuperacionSerializer(serializers.ModelSerializer):
             "espacio_modalidad", "indicaciones", "estado",
             "items", "created_at", "updated_at",
         ]
-        read_only_fields = ["id", "profesor", "created_at", "updated_at"]
+        # `periodo` ahora es asignado automáticamente por el ViewSet en base
+        # al periodo activo para Requisitos de Recuperación.
+        read_only_fields = ["id", "profesor", "periodo", "created_at", "updated_at"]
 
     def validate(self, attrs):
         if self.instance and self.instance.estado == RequisitoRecuperacion.Estado.ENVIADO:

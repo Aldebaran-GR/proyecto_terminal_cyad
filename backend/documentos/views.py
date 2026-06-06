@@ -9,6 +9,7 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+from catalogos.models import Periodo
 from core.permissions import IsOwnerProfesorOrAdminReadOnly
 
 from .models import CartaTematica, RequisitoRecuperacion
@@ -17,7 +18,14 @@ from .serializers import CartaTematicaSerializer, RequisitoRecuperacionSerialize
 
 class DocumentoMixin:
     """Comportamiento compartido: filtrar por profesor dueño (PROFESOR)
-    o devolver todos (ADMIN), y asignar profesor automáticamente al crear."""
+    o devolver todos (ADMIN), asignar profesor y periodo automáticamente al crear.
+
+    Cada ViewSet declara `recurso_activo` (Periodo.Recurso.*) para indicar de
+    qué tipo de recurso es el documento; al crear, el periodo se toma del
+    Periodo con el flag correspondiente activado.
+    """
+
+    recurso_activo = None  # Sobrescrito por cada ViewSet concreto.
 
     def get_queryset(self):
         user = self.request.user
@@ -29,13 +37,27 @@ class DocumentoMixin:
                 return qs.none()
         return qs  # ADMIN ve todo
 
+    def _resolver_periodo(self):
+        """Periodo activo para el recurso de este viewset. None si no hay."""
+        if not self.recurso_activo:
+            return None
+        return Periodo.get_activo(self.recurso_activo)
+
     def perform_create(self, serializer):
         user = self.request.user
+        periodo = self._resolver_periodo()
+        if periodo is None:
+            raise ValidationError({
+                "periodo": [
+                    "No hay un periodo activo para este tipo de documento. "
+                    "Pide al administrador que marque un periodo como activo."
+                ]
+            })
         try:
+            extra = {"periodo": periodo}
             if user.es_profesor:
-                serializer.save(profesor=user.perfil_profesor)
-            else:
-                serializer.save()
+                extra["profesor"] = user.perfil_profesor
+            serializer.save(**extra)
         except IntegrityError:
             raise ValidationError(
                 {"non_field_errors": ["Ya existe un documento para este profesor, periodo, UEA y grupo."]}
@@ -81,6 +103,7 @@ class CartaTematicaViewSet(DocumentoMixin, viewsets.ModelViewSet):
     filterset_fields = ["estado", "periodo", "uea"]
     search_fields = ["nombre_grupo", "id_grupo", "uea__nombre"]
     ordering_fields = ["created_at", "updated_at", "estado"]
+    recurso_activo = Periodo.Recurso.CARTAS
 
 
 class RequisitoRecuperacionViewSet(DocumentoMixin, viewsets.ModelViewSet):
@@ -93,3 +116,4 @@ class RequisitoRecuperacionViewSet(DocumentoMixin, viewsets.ModelViewSet):
     filterset_fields = ["estado", "periodo", "uea"]
     search_fields = ["nombre_grupo", "id_grupo", "uea__nombre"]
     ordering_fields = ["created_at", "updated_at", "estado"]
+    recurso_activo = Periodo.Recurso.REQUISITOS
