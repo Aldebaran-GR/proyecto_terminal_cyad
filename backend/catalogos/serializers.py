@@ -45,10 +45,14 @@ class PeriodoSerializer(serializers.ModelSerializer):
     class Meta:
         model = Periodo
         fields = [
-            "id", "clave", "fecha_inicio", "fecha_fin", "activo", "estado",
+            "id", "clave", "fecha_inicio", "fecha_fin",
+            "activo_cartas", "activo_requisitos", "activo_autoevaluacion",
+            "activo", "estado",
             "created_at", "updated_at",
         ]
-        read_only_fields = ["id", "created_at", "updated_at"]
+        # `activo` ahora es derivado (OR de los tres flags por recurso);
+        # nunca debería enviarse desde el cliente.
+        read_only_fields = ["id", "activo", "created_at", "updated_at"]
 
     def validate(self, attrs):
         if attrs.get("fecha_inicio") and attrs.get("fecha_fin"):

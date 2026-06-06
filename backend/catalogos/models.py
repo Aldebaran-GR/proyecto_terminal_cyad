@@ -81,12 +81,42 @@ class UEA(TimeStampedModel, EstadoActivoModel):
 
 
 class Periodo(TimeStampedModel):
-    """Periodo académico trimestral (ej. 24-I, 24-P, 24-O)."""
+    """Periodo académico trimestral (ej. 24-I, 24-P, 24-O).
+
+    A diferencia de un único flag "activo", un periodo puede estar activo de
+    forma independiente para cada tipo de recurso:
+      - Cartas Temáticas
+      - Requisitos de Recuperación
+      - Autoevaluación
+
+    Esto refleja el ciclo real CyAD: durante el trimestre N suelen estar abiertos
+    requisitos y autoevaluación del trimestre N, pero las cartas temáticas que
+    los profesores preparan corresponden al siguiente trimestre N+1.
+
+    La restricción de unicidad es por flag (a lo más un Periodo con cada flag).
+    """
+
+    class Recurso(models.TextChoices):
+        CARTAS = "CARTAS", "Cartas Temáticas"
+        REQUISITOS = "REQUISITOS", "Requisitos de Recuperación"
+        AUTOEVALUACION = "AUTOEVALUACION", "Autoevaluación"
+
+    _RECURSO_FIELD = {
+        Recurso.CARTAS: "activo_cartas",
+        Recurso.REQUISITOS: "activo_requisitos",
+        Recurso.AUTOEVALUACION: "activo_autoevaluacion",
+    }
 
     clave = models.CharField("Clave", max_length=10, unique=True)
     fecha_inicio = models.DateField("Fecha de inicio")
     fecha_fin = models.DateField("Fecha de fin")
-    activo = models.BooleanField("Periodo activo", default=False)
+    # Flags por recurso — el activo se decide individualmente por cada uno.
+    activo_cartas = models.BooleanField("Activo para Cartas Temáticas", default=False)
+    activo_requisitos = models.BooleanField("Activo para Requisitos de Recuperación", default=False)
+    activo_autoevaluacion = models.BooleanField("Activo para Autoevaluación", default=False)
+    # Flag legado: True si el periodo está activo para CUALQUIER recurso.
+    # Se mantiene sincronizado en save() para no romper queries antiguas.
+    activo = models.BooleanField("Activo (cualquier recurso)", default=False, editable=False)
     estado = models.BooleanField("Habilitado", default=True)
 
     class Meta:
@@ -97,8 +127,32 @@ class Periodo(TimeStampedModel):
     def __str__(self):
         return self.clave
 
+    # ── Helpers ──────────────────────────────────────────────────────────
+    @classmethod
+    def get_activo(cls, recurso):
+        """Devuelve el Periodo activo para el recurso indicado (o None)."""
+        field = cls._RECURSO_FIELD.get(recurso)
+        if not field:
+            return None
+        return cls.objects.filter(**{field: True, "estado": True}).first()
+
     def save(self, *args, **kwargs):
-        """Garantiza que solo exista un periodo activo a la vez."""
-        if self.activo:
-            Periodo.objects.exclude(pk=self.pk).filter(activo=True).update(activo=False)
+        """Garantiza unicidad por recurso: solo un Periodo con cada flag en True.
+        Mantiene `activo` (legado) sincronizado como OR de los tres flags,
+        incluyendo en los periodos a los que se les apaga algún flag.
+        """
+        per_resource_fields = ("activo_cartas", "activo_requisitos", "activo_autoevaluacion")
+        afectados = set()
+        for field in per_resource_fields:
+            if getattr(self, field):
+                qs = Periodo.objects.exclude(pk=self.pk).filter(**{field: True})
+                afectados.update(qs.values_list("pk", flat=True))
+                qs.update(**{field: False})
+        # Recomputa `activo` en los periodos a los que les bajamos algún flag
+        # (update() bypassea save(), así que lo hacemos manualmente).
+        for p in Periodo.objects.filter(pk__in=afectados):
+            nuevo_activo = any(getattr(p, f) for f in per_resource_fields)
+            if p.activo != nuevo_activo:
+                Periodo.objects.filter(pk=p.pk).update(activo=nuevo_activo)
+        self.activo = any(getattr(self, f) for f in per_resource_fields)
         super().save(*args, **kwargs)

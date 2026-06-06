@@ -26,5 +26,11 @@ class UEAAdmin(admin.ModelAdmin):
 
 @admin.register(Periodo)
 class PeriodoAdmin(admin.ModelAdmin):
-    list_display = ("clave", "fecha_inicio", "fecha_fin", "activo", "estado")
-    list_filter = ("activo", "estado")
+    list_display = (
+        "clave", "fecha_inicio", "fecha_fin",
+        "activo_cartas", "activo_requisitos", "activo_autoevaluacion",
+        "estado",
+    )
+    list_filter = (
+        "activo_cartas", "activo_requisitos", "activo_autoevaluacion", "estado",
+    )
