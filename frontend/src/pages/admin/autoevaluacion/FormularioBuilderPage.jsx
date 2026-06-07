@@ -8,7 +8,7 @@ import { Link, useParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   getFormulario, updateFormulario,
-  publicarFormulario, despublicarFormulario, cerrarFormulario, reabrirFormulario,
+  publicarFormulario, despublicarFormulario, reabrirFormulario,
   createPregunta, updatePregunta, deletePregunta,
   getNivelesDesempeno, createNivelDesempeno, updateNivelDesempeno, deleteNivelDesempeno,
   getFormularioEstadisticas,
@@ -190,8 +190,8 @@ export default function FormularioBuilderPage() {
     onError: (e) => setApiError(e.response?.data?.non_field_errors?.[0] || msg),
   })
   const pubMut = makeMut(publicarFormulario, 'Error al publicar.')
-  const desMut = makeMut(despublicarFormulario, 'Error al despublicar.')
-  const cerMut = makeMut(cerrarFormulario, 'Error al cerrar.')
+  // "Cerrar" en la UI = despublicar en backend (PUBLICADO → BORRADOR).
+  const desMut = makeMut(despublicarFormulario, 'Error al cerrar el formulario.')
   const reaMut = makeMut(reabrirFormulario, 'Error al reabrir.')
 
   /* ── Preguntas ── */
@@ -276,41 +276,26 @@ export default function FormularioBuilderPage() {
             </Button>
           )}
           {isPublicado && (
-            <>
-              <Button
-                variant="secondary"
-                loading={cerMut.isPending}
-                title="Detener la recepción de nuevas respuestas. Los profesores podrán seguir viendo el formulario y su resultado si ya respondieron."
-                onClick={() => {
-                  if (window.confirm(
-                    'Al cerrar el formulario los profesores dejarán de poder enviar respuestas nuevas. ' +
-                    'Quienes ya enviaron pueden seguir consultando su resultado. ¿Continuar?'
-                  )) {
-                    cerMut.mutate()
-                  }
-                }}
-              >
-                Cerrar
-              </Button>
-              <Button
-                variant="secondary"
-                loading={desMut.isPending}
-                title="Volver a BORRADOR para editar; deja de ser visible para los profesores."
-                onClick={() => {
-                  if (window.confirm('Al despublicar, los profesores dejarán de ver este formulario hasta que vuelvas a publicarlo. ¿Continuar?')) {
-                    desMut.mutate()
-                  }
-                }}
-              >
-                Despublicar
-              </Button>
-            </>
+            <Button
+              variant="secondary"
+              loading={desMut.isPending}
+              title="Cerrar el formulario: deja de aceptar respuestas y vuelve a Borrador para que puedas editarlo."
+              onClick={() => {
+                if (window.confirm(
+                  'Al cerrar el formulario los profesores dejarán de poder enviarlo y desaparecerá de su lista. ¿Continuar?'
+                )) {
+                  desMut.mutate()
+                }
+              }}
+            >
+              Cerrar
+            </Button>
           )}
           {isCerrado && (
             <>
               <Button
                 loading={reaMut.isPending}
-                title="Volver a aceptar respuestas sin tocar la versión ni las respuestas ya enviadas."
+                title="Volver a aceptar respuestas."
                 onClick={() => {
                   if (window.confirm('Al reabrir, los profesores pendientes podrán enviar respuestas otra vez. ¿Continuar?')) {
                     reaMut.mutate()
@@ -322,13 +307,14 @@ export default function FormularioBuilderPage() {
               <Button
                 variant="secondary"
                 loading={desMut.isPending}
+                title="Cerrar definitivamente: vuelve a Borrador para edición."
                 onClick={() => {
-                  if (window.confirm('Despublicar lo regresa a BORRADOR para edición. Se ocultará a los profesores. ¿Continuar?')) {
+                  if (window.confirm('Al cerrarlo se ocultará a los profesores y volverá a Borrador para que puedas editarlo. ¿Continuar?')) {
                     desMut.mutate()
                   }
                 }}
               >
-                Despublicar
+                Cerrar
               </Button>
             </>
           )}
@@ -360,16 +346,14 @@ export default function FormularioBuilderPage() {
         <div className="space-y-3">
           {isPublicado && (
             <div className="rounded-lg bg-amber-50 border border-amber-200 px-4 py-2 text-sm text-amber-800">
-              El formulario está <strong>PUBLICADO</strong> y aceptando respuestas.
-              Para modificar preguntas u opciones, <em>Despublica</em> primero. Si solo quieres
-              dejar de recibir respuestas nuevas, usa <em>Cerrar</em>.
+              El formulario está <strong>PUBLICADO</strong> y aceptando respuestas. Para modificar
+              preguntas u opciones, <em>Cierra</em> el formulario primero (regresará a Borrador).
             </div>
           )}
           {isCerrado && (
             <div className="rounded-lg bg-slate-50 border border-slate-200 px-4 py-2 text-sm text-slate-700">
-              El formulario está <strong>CERRADO</strong>. Los profesores siguen viéndolo (solo lectura)
-              pero ya no pueden enviar nuevas respuestas. Usa <em>Reabrir</em> para volver a aceptarlas
-              o <em>Despublicar</em> para editar.
+              El formulario está <strong>CERRADO</strong>. Usa <em>Reabrir</em> para volver a aceptar
+              respuestas o <em>Cerrar</em> para regresarlo a Borrador y poder editarlo.
             </div>
           )}
           {editable && (

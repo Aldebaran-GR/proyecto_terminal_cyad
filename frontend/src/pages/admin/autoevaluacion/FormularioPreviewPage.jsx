@@ -188,9 +188,8 @@ export default function FormularioPreviewPage() {
   const onEditClick = () => {
     const estado = formulario?.estado
     if (estado === 'PUBLICADO' || estado === 'CERRADO') {
-      const verbo = estado === 'PUBLICADO' ? 'despublicará' : 'pasará de cerrado a borrador'
       if (!window.confirm(
-        `Este formulario está ${estado}. Para editarlo se ${verbo} primero ` +
+        `Este formulario está ${estado}. Para editarlo se cerrará primero ` +
         '(dejará de aparecer para los profesores). ¿Continuar?'
       )) return
     }

@@ -91,9 +91,8 @@ export default function AutoevaluacionAdminPage() {
 
   const onEditClick = (row) => {
     if (needsDespublicar(row)) {
-      const verbo = row.estado === 'PUBLICADO' ? 'despublicará' : 'pasará de cerrado a borrador'
       if (!window.confirm(
-        `Este formulario está ${row.estado}. Para editarlo se ${verbo} primero ` +
+        `Este formulario está ${row.estado}. Para editarlo se cerrará primero ` +
         '(dejará de aparecer para los profesores). ¿Continuar?'
       )) return
     }
@@ -104,9 +103,9 @@ export default function AutoevaluacionAdminPage() {
     const total = row.total_respuestas ?? 0
     let aviso
     if (needsDespublicar(row) && total > 0) {
-      aviso = `Este formulario está ${row.estado} y tiene ${total} respuesta(s). Se despublicará, el historial se borrará y se eliminará. ¿Continuar?`
+      aviso = `Este formulario está ${row.estado} y tiene ${total} respuesta(s). Se cerrará, el historial se borrará y se eliminará. ¿Continuar?`
     } else if (needsDespublicar(row)) {
-      aviso = `Este formulario está ${row.estado}. Se despublicará y eliminará. ¿Continuar?`
+      aviso = `Este formulario está ${row.estado}. Se cerrará y eliminará. ¿Continuar?`
     } else if (total > 0) {
       aviso = `Este formulario tiene ${total} respuesta(s). Si lo eliminas, se borrará el historial. ¿Continuar?`
     } else {
