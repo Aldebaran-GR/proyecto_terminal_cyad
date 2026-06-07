@@ -25,6 +25,7 @@ import RequisitosAdminPage from './pages/admin/documentos/RequisitosAdminPage'
 // M8 — Admin: Autoevaluación
 import AutoevaluacionAdminPage from './pages/admin/autoevaluacion/AutoevaluacionAdminPage'
 import FormularioBuilderPage from './pages/admin/autoevaluacion/FormularioBuilderPage'
+import FormularioPreviewPage from './pages/admin/autoevaluacion/FormularioPreviewPage'
 
 // M8 — Admin: Reportes
 import ReportesPage from './pages/admin/reportes/ReportesPage'
@@ -32,14 +33,20 @@ import ReportesPage from './pages/admin/reportes/ReportesPage'
 // M7 — Profesor: Cartas Temáticas
 import CartasListPage from './pages/profesor/cartas/CartasListPage'
 import CartaFormPage from './pages/profesor/cartas/CartaFormPage'
+import CartaPreviewPage from './pages/profesor/cartas/CartaPreviewPage'
 
 // M7 — Profesor: Requisitos de Recuperación
 import RequisitosListPage from './pages/profesor/requisitos/RequisitosListPage'
 import RequisitoFormPage from './pages/profesor/requisitos/RequisitoFormPage'
+import RequisitoPreviewPage from './pages/profesor/requisitos/RequisitoPreviewPage'
 
 // M7 — Profesor: Autoevaluación
 import AutoevaluacionListPage from './pages/profesor/autoevaluacion/AutoevaluacionListPage'
 import AutoevaluacionFormPage from './pages/profesor/autoevaluacion/AutoevaluacionFormPage'
+
+// Vistas públicas (sin auth)
+import PublicCartaPage from './pages/publico/PublicCartaPage'
+import PublicRequisitoPage from './pages/publico/PublicRequisitoPage'
 
 /* ─── Wrapper helper ─────────────────────────────────────── */
 function AdminRoute({ children }) {
@@ -63,6 +70,10 @@ export default function App() {
     <Routes>
       {/* Pública */}
       <Route path="/login" element={<LoginPage />} />
+
+      {/* Vistas públicas de documentos publicados (sin login) */}
+      <Route path="/publico/cartas/:id" element={<PublicCartaPage />} />
+      <Route path="/publico/requisitos/:id" element={<PublicRequisitoPage />} />
 
       {/* ── Admin ──────────────────────────────────────────── */}
       <Route
@@ -91,6 +102,7 @@ export default function App() {
         {/* Autoevaluación */}
         <Route path="autoevaluacion" element={<AutoevaluacionAdminPage />} />
         <Route path="autoevaluacion/:id" element={<FormularioBuilderPage />} />
+        <Route path="autoevaluacion/:id/preview" element={<FormularioPreviewPage />} />
 
         {/* Reportes */}
         <Route path="reportes" element={<ReportesPage />} />
@@ -111,11 +123,13 @@ export default function App() {
         <Route path="cartas" element={<CartasListPage />} />
         <Route path="cartas/nueva" element={<CartaFormPage />} />
         <Route path="cartas/:id" element={<CartaFormPage />} />
+        <Route path="cartas/:id/preview" element={<CartaPreviewPage />} />
 
         {/* Requisitos de Recuperación */}
         <Route path="requisitos" element={<RequisitosListPage />} />
         <Route path="requisitos/nuevo" element={<RequisitoFormPage />} />
         <Route path="requisitos/:id" element={<RequisitoFormPage />} />
+        <Route path="requisitos/:id/preview" element={<RequisitoPreviewPage />} />
 
         {/* Autoevaluación */}
         <Route path="autoevaluacion" element={<AutoevaluacionListPage />} />
