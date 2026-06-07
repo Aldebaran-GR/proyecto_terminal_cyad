@@ -35,7 +35,7 @@ class UEASerializer(serializers.ModelSerializer):
         model = UEA
         fields = [
             "id", "clave", "nombre", "licenciatura", "licenciatura_nombre",
-            "trimestre", "etapa", "tipo", "creditos", "estado",
+            "trimestre", "etapa", "tipo", "creditos", "liga", "estado",
             "created_at", "updated_at",
         ]
         read_only_fields = ["id", "created_at", "updated_at"]

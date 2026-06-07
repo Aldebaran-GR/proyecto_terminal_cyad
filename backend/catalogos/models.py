@@ -70,6 +70,9 @@ class UEA(TimeStampedModel, EstadoActivoModel):
         "Tipo", max_length=4, choices=Tipo.choices, default=Tipo.OBLIGATORIA
     )
     creditos = models.PositiveSmallIntegerField("Créditos", null=True, blank=True)
+    # Liga oficial a la página de la UEA (opcional). Se muestra en la vista
+    # pública de Cartas Temáticas asociadas a esta UEA.
+    liga = models.URLField("Liga / página oficial", max_length=500, blank=True)
 
     class Meta:
         verbose_name = "UEA"
