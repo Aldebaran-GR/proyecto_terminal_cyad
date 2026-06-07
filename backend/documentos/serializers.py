@@ -1,46 +1,16 @@
-"""Serializers de documentos académicos con escritura anidada."""
+"""Serializers de documentos académicos.
+
+Después del rediseño los documentos son planos (sin sub-modelos): solo campos
+de texto libre. Esto simplifica drásticamente create/update.
+
+Adicionalmente, se exponen dos serializers de **vista pública** que devuelven
+solo los campos seguros (sin IDs internos del usuario) y un campo
+`tipo_documento` constante para que la UI pública lo muestre como título.
+"""
 
 from rest_framework import serializers
 
-from .models import (
-    Bibliografia,
-    CartaTematica,
-    CriterioEvaluacion,
-    RequisitoItem,
-    RequisitoRecuperacion,
-    Subtema,
-    Tema,
-)
-
-
-# ---------------------------------------------------------------------------
-# Sub-modelos de Carta Temática
-# ---------------------------------------------------------------------------
-
-class SubtemaSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Subtema
-        fields = ["id", "orden", "descripcion"]
-
-
-class TemaSerializer(serializers.ModelSerializer):
-    subtemas = SubtemaSerializer(many=True, required=False)
-
-    class Meta:
-        model = Tema
-        fields = ["id", "orden", "nombre", "objetivo", "num_sesiones", "subtemas"]
-
-
-class BibliografiaSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Bibliografia
-        fields = ["id", "tipo", "referencia"]
-
-
-class CriterioEvaluacionSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = CriterioEvaluacion
-        fields = ["id", "descripcion", "ponderacion"]
+from .models import CartaTematica, RequisitoRecuperacion
 
 
 # ---------------------------------------------------------------------------
@@ -48,135 +18,157 @@ class CriterioEvaluacionSerializer(serializers.ModelSerializer):
 # ---------------------------------------------------------------------------
 
 class CartaTematicaSerializer(serializers.ModelSerializer):
-    temas = TemaSerializer(many=True, required=False)
-    bibliografias = BibliografiaSerializer(many=True, required=False)
-    criterios = CriterioEvaluacionSerializer(many=True, required=False)
+    """Serializer interno (profesor / admin) — incluye todos los campos."""
 
     profesor_nombre = serializers.CharField(
         source="profesor.nombre_completo", read_only=True
     )
     uea_nombre = serializers.CharField(source="uea.nombre", read_only=True)
+    uea_clave = serializers.CharField(source="uea.clave", read_only=True)
+    uea_liga = serializers.CharField(source="uea.liga", read_only=True)
     periodo_clave = serializers.CharField(source="periodo.clave", read_only=True)
 
     class Meta:
         model = CartaTematica
         fields = [
             "id", "profesor", "profesor_nombre",
-            "uea", "uea_nombre", "periodo", "periodo_clave",
+            "uea", "uea_nombre", "uea_clave", "uea_liga",
+            "periodo", "periodo_clave",
             "nombre_grupo", "id_grupo", "horario", "modalidad",
-            "objetivo_general", "presentacion", "estado",
-            "temas", "bibliografias", "criterios",
+            # Contenido (10 campos de texto libre)
+            "descripcion_uea", "objetivo_general", "objetivos_particulares",
+            "contenido_sintetico", "objetivos_aprendizaje", "requerimientos",
+            "conocimientos_previos", "modalidad_evaluacion",
+            "revisiones_asesorias", "bibliografia", "calendarizacion_actividades",
+            "estado",
             "created_at", "updated_at",
         ]
-        # `periodo` ahora es asignado automáticamente por el ViewSet en base
-        # al periodo activo para Cartas Temáticas.
+        # `periodo` lo asigna el ViewSet (auto desde el periodo activo).
         read_only_fields = ["id", "profesor", "periodo", "created_at", "updated_at"]
 
     def validate(self, attrs):
-        if self.instance and self.instance.estado == CartaTematica.Estado.ENVIADO:
+        # Solo se puede editar mientras esté en BORRADOR. Si el profesor quiere
+        # cambiar una carta PUBLICADA, primero debe despublicarla (cambiar-estado
+        # → BORRADOR). Esto fuerza el flujo "bajar del espacio público antes de
+        # editar".
+        if self.instance and self.instance.estado != CartaTematica.Estado.BORRADOR:
             raise serializers.ValidationError(
-                "No se puede modificar un documento en estado ENVIADO."
+                "Solo se pueden editar documentos en BORRADOR. "
+                "Despublica la carta primero."
             )
         return attrs
-
-    def _save_temas(self, carta, temas_data):
-        carta.temas.all().delete()
-        for tema_data in temas_data:
-            subtemas_data = tema_data.pop("subtemas", [])
-            tema = Tema.objects.create(carta=carta, **tema_data)
-            for s in subtemas_data:
-                Subtema.objects.create(tema=tema, **s)
-
-    def _save_bibliografias(self, carta, bib_data):
-        carta.bibliografias.all().delete()
-        for b in bib_data:
-            Bibliografia.objects.create(carta=carta, **b)
-
-    def _save_criterios(self, carta, crit_data):
-        carta.criterios.all().delete()
-        for c in crit_data:
-            CriterioEvaluacion.objects.create(carta=carta, **c)
-
-    def create(self, validated_data):
-        temas_data = validated_data.pop("temas", [])
-        bib_data = validated_data.pop("bibliografias", [])
-        crit_data = validated_data.pop("criterios", [])
-        carta = CartaTematica.objects.create(**validated_data)
-        self._save_temas(carta, temas_data)
-        self._save_bibliografias(carta, bib_data)
-        self._save_criterios(carta, crit_data)
-        return carta
-
-    def update(self, instance, validated_data):
-        temas_data = validated_data.pop("temas", None)
-        bib_data = validated_data.pop("bibliografias", None)
-        crit_data = validated_data.pop("criterios", None)
-        for attr, val in validated_data.items():
-            setattr(instance, attr, val)
-        instance.save()
-        if temas_data is not None:
-            self._save_temas(instance, temas_data)
-        if bib_data is not None:
-            self._save_bibliografias(instance, bib_data)
-        if crit_data is not None:
-            self._save_criterios(instance, crit_data)
-        return instance
 
 
 # ---------------------------------------------------------------------------
 # Requisito de Recuperación
 # ---------------------------------------------------------------------------
 
-class RequisitoItemSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = RequisitoItem
-        fields = ["id", "orden", "descripcion"]
-
-
 class RequisitoRecuperacionSerializer(serializers.ModelSerializer):
-    items = RequisitoItemSerializer(many=True, required=False)
     profesor_nombre = serializers.CharField(
         source="profesor.nombre_completo", read_only=True
     )
     uea_nombre = serializers.CharField(source="uea.nombre", read_only=True)
+    uea_clave = serializers.CharField(source="uea.clave", read_only=True)
     periodo_clave = serializers.CharField(source="periodo.clave", read_only=True)
 
     class Meta:
         model = RequisitoRecuperacion
         fields = [
             "id", "profesor", "profesor_nombre",
-            "uea", "uea_nombre", "periodo", "periodo_clave",
+            "uea", "uea_nombre", "uea_clave",
+            "periodo", "periodo_clave",
             "nombre_grupo", "id_grupo", "horario", "modalidad",
-            "espacio_modalidad", "indicaciones", "estado",
-            "items", "created_at", "updated_at",
+            # Contenido propio del Requisito de Recuperación
+            "lugar", "duracion_aprox", "fecha_hora",
+            "recursos_necesarios", "requisitos", "notas",
+            "estado",
+            "created_at", "updated_at",
         ]
-        # `periodo` ahora es asignado automáticamente por el ViewSet en base
-        # al periodo activo para Requisitos de Recuperación.
         read_only_fields = ["id", "profesor", "periodo", "created_at", "updated_at"]
 
     def validate(self, attrs):
-        if self.instance and self.instance.estado == RequisitoRecuperacion.Estado.ENVIADO:
+        # Misma regla que CartaTematica: solo editable en BORRADOR.
+        if self.instance and self.instance.estado != RequisitoRecuperacion.Estado.BORRADOR:
             raise serializers.ValidationError(
-                "No se puede modificar un documento en estado ENVIADO."
+                "Solo se pueden editar documentos en BORRADOR. "
+                "Despublica el requisito primero."
             )
         return attrs
 
-    def _save_items(self, requisito, items_data):
-        requisito.items.all().delete()
-        for item in items_data:
-            RequisitoItem.objects.create(requisito=requisito, **item)
 
-    def create(self, validated_data):
-        items_data = validated_data.pop("items", [])
-        requisito = RequisitoRecuperacion.objects.create(**validated_data)
-        self._save_items(requisito, items_data)
-        return requisito
+# ---------------------------------------------------------------------------
+# Vista pública (sin auth) — Solo lectura, datos no sensibles
+# ---------------------------------------------------------------------------
 
-    def update(self, instance, validated_data):
-        items_data = validated_data.pop("items", None)
-        for attr, val in validated_data.items():
-            setattr(instance, attr, val)
-        instance.save()
-        if items_data is not None:
-            self._save_items(instance, items_data)
-        return instance
+class PublicCartaTematicaSerializer(serializers.ModelSerializer):
+    """Versión pública de la Carta Temática.
+
+    Solo expone datos del profesor y de la UEA visibles a cualquier persona,
+    sin IDs internos de `usuario` ni metadatos administrativos.
+    """
+
+    tipo_documento = serializers.SerializerMethodField()
+    profesor_nombre = serializers.CharField(
+        source="profesor.nombre_completo", read_only=True
+    )
+    profesor_correo = serializers.CharField(
+        source="profesor.correo_institucional", read_only=True
+    )
+    uea_clave = serializers.CharField(source="uea.clave", read_only=True)
+    uea_nombre = serializers.CharField(source="uea.nombre", read_only=True)
+    uea_liga = serializers.CharField(source="uea.liga", read_only=True)
+    periodo_clave = serializers.CharField(source="periodo.clave", read_only=True)
+
+    class Meta:
+        model = CartaTematica
+        fields = [
+            "id", "tipo_documento",
+            "estado", "created_at",
+            "profesor_nombre", "profesor_correo",
+            "uea_clave", "uea_nombre", "uea_liga",
+            "periodo_clave",
+            "nombre_grupo", "id_grupo", "horario", "modalidad",
+            "descripcion_uea", "objetivo_general", "objetivos_particulares",
+            "contenido_sintetico", "objetivos_aprendizaje", "requerimientos",
+            "conocimientos_previos", "modalidad_evaluacion",
+            "revisiones_asesorias", "bibliografia", "calendarizacion_actividades",
+        ]
+        read_only_fields = fields
+
+    def get_tipo_documento(self, _obj):
+        return "Carta Temática"
+
+
+class PublicRequisitoSerializer(serializers.ModelSerializer):
+    """Versión pública del Requisito de Recuperación.
+
+    Se titula como "Evaluación de Recuperación" para la vista pública.
+    """
+
+    tipo_documento = serializers.SerializerMethodField()
+    profesor_nombre = serializers.CharField(
+        source="profesor.nombre_completo", read_only=True
+    )
+    profesor_correo = serializers.CharField(
+        source="profesor.correo_institucional", read_only=True
+    )
+    uea_clave = serializers.CharField(source="uea.clave", read_only=True)
+    uea_nombre = serializers.CharField(source="uea.nombre", read_only=True)
+    periodo_clave = serializers.CharField(source="periodo.clave", read_only=True)
+
+    class Meta:
+        model = RequisitoRecuperacion
+        fields = [
+            "id", "tipo_documento",
+            "estado", "created_at",
+            "profesor_nombre", "profesor_correo",
+            "uea_clave", "uea_nombre",
+            "periodo_clave",
+            "nombre_grupo", "id_grupo", "horario", "modalidad",
+            "lugar", "duracion_aprox", "fecha_hora",
+            "recursos_necesarios", "requisitos", "notas",
+        ]
+        read_only_fields = fields
+
+    def get_tipo_documento(self, _obj):
+        return "Evaluación de Recuperación"

@@ -1,19 +1,28 @@
-"""ViewSets de documentos académicos con reglas de propiedad y estado."""
+"""ViewSets de documentos académicos con reglas de propiedad y estado.
+
+Adicionalmente se exponen dos `RetrieveAPIView` públicas (sin auth, AllowAny)
+para consultar Carta Temática / Evaluación de Recuperación en estado PUBLICADO.
+"""
 
 from django.db import IntegrityError
 
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import filters, status, viewsets
+from rest_framework import filters, generics, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
 from catalogos.models import Periodo
 from core.permissions import IsOwnerProfesorOrAdminReadOnly
 
 from .models import CartaTematica, RequisitoRecuperacion
-from .serializers import CartaTematicaSerializer, RequisitoRecuperacionSerializer
+from .serializers import (
+    CartaTematicaSerializer,
+    PublicCartaTematicaSerializer,
+    PublicRequisitoSerializer,
+    RequisitoRecuperacionSerializer,
+)
 
 
 class DocumentoMixin:
@@ -22,7 +31,10 @@ class DocumentoMixin:
 
     Cada ViewSet declara `recurso_activo` (Periodo.Recurso.*) para indicar de
     qué tipo de recurso es el documento; al crear, el periodo se toma del
-    Periodo con el flag correspondiente activado.
+    Periodo con el flag correspondiente activado, y al listar para el profesor
+    solo se devuelven los documentos cuyo periodo tenga ese flag activo
+    (los documentos de trimestres pasados quedan ocultos para el profesor,
+    pero siguen disponibles para el admin).
     """
 
     recurso_activo = None  # Sobrescrito por cada ViewSet concreto.
@@ -32,9 +44,14 @@ class DocumentoMixin:
         qs = super().get_queryset()
         if user.es_profesor:
             try:
-                return qs.filter(profesor=user.perfil_profesor)
+                qs = qs.filter(profesor=user.perfil_profesor)
             except Exception:
                 return qs.none()
+            # Solo periodos activos para este recurso (trimestres pasados ocultos).
+            field = Periodo._RECURSO_FIELD.get(self.recurso_activo) if self.recurso_activo else None
+            if field:
+                qs = qs.filter(**{f"periodo__{field}": True})
+            return qs
         return qs  # ADMIN ve todo
 
     def _resolver_periodo(self):
@@ -74,18 +91,13 @@ class DocumentoMixin:
 
     @action(detail=True, methods=["post"], url_path="cambiar-estado")
     def cambiar_estado(self, request, pk=None):
-        """POST …/{id}/cambiar-estado/ con body {"estado": "PUBLICADO|ENVIADO|BORRADOR"}."""
+        """POST …/{id}/cambiar-estado/ con body {"estado": "PUBLICADO|BORRADOR"}."""
         obj = self.get_object()
         nuevo = request.data.get("estado")
         estados_validos = [e.value for e in obj.Estado]
         if nuevo not in estados_validos:
             return Response(
                 {"success": False, "errors": {"estado": f"Estado inválido. Opciones: {estados_validos}"}},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-        if obj.estado == obj.Estado.ENVIADO and not request.user.es_admin:
-            return Response(
-                {"success": False, "errors": {"estado": "Un documento ENVIADO no puede cambiar de estado."}},
                 status=status.HTTP_400_BAD_REQUEST,
             )
         obj.estado = nuevo
@@ -96,7 +108,7 @@ class DocumentoMixin:
 class CartaTematicaViewSet(DocumentoMixin, viewsets.ModelViewSet):
     queryset = CartaTematica.objects.select_related(
         "profesor", "uea", "periodo"
-    ).prefetch_related("temas__subtemas", "bibliografias", "criterios").all()
+    ).all()
     serializer_class = CartaTematicaSerializer
     permission_classes = [IsAuthenticated, IsOwnerProfesorOrAdminReadOnly]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
@@ -109,7 +121,7 @@ class CartaTematicaViewSet(DocumentoMixin, viewsets.ModelViewSet):
 class RequisitoRecuperacionViewSet(DocumentoMixin, viewsets.ModelViewSet):
     queryset = RequisitoRecuperacion.objects.select_related(
         "profesor", "uea", "periodo"
-    ).prefetch_related("items").all()
+    ).all()
     serializer_class = RequisitoRecuperacionSerializer
     permission_classes = [IsAuthenticated, IsOwnerProfesorOrAdminReadOnly]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
@@ -117,3 +129,37 @@ class RequisitoRecuperacionViewSet(DocumentoMixin, viewsets.ModelViewSet):
     search_fields = ["nombre_grupo", "id_grupo", "uea__nombre"]
     ordering_fields = ["created_at", "updated_at", "estado"]
     recurso_activo = Periodo.Recurso.REQUISITOS
+
+
+# ---------------------------------------------------------------------------
+# Vista pública (sin auth)
+# ---------------------------------------------------------------------------
+
+class PublicCartaView(generics.RetrieveAPIView):
+    """GET /api/v1/publico/cartas/{id}/ — Sin auth, solo cartas PUBLICADAS.
+
+    Devuelve los datos visibles en la página pública. Las cartas en BORRADOR
+    o ENVIADO no aparecen aquí (regresa 404).
+    """
+
+    queryset = (
+        CartaTematica.objects
+        .filter(estado=CartaTematica.Estado.PUBLICADO)
+        .select_related("profesor", "uea__licenciatura", "periodo")
+    )
+    serializer_class = PublicCartaTematicaSerializer
+    permission_classes = [AllowAny]
+    authentication_classes = []  # No procesar JWT (no requerido)
+
+
+class PublicRequisitoView(generics.RetrieveAPIView):
+    """GET /api/v1/publico/requisitos/{id}/ — Sin auth, solo requisitos PUBLICADOS."""
+
+    queryset = (
+        RequisitoRecuperacion.objects
+        .filter(estado=RequisitoRecuperacion.Estado.PUBLICADO)
+        .select_related("profesor", "uea__licenciatura", "periodo")
+    )
+    serializer_class = PublicRequisitoSerializer
+    permission_classes = [AllowAny]
+    authentication_classes = []

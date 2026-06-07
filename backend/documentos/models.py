@@ -1,18 +1,27 @@
-"""Modelos de documentos académicos: Carta Temática y Requisitos de Recuperación."""
+"""Modelos de documentos académicos: Carta Temática y Requisitos de Recuperación.
 
-from django.core.validators import MaxValueValidator, MinValueValidator
+Después del rediseño de junio 2026:
+- Ambos documentos son **planos**: campos de texto libre, sin sub-modelos.
+- Las antiguas tablas Tema/Subtema/Bibliografia/CriterioEvaluacion (Carta Temática)
+  y RequisitoItem (Requisitos) fueron eliminadas.
+"""
+
 from django.db import models
 
 from core.models import TimeStampedModel
 
 
 class DocumentoAcademicoBase(TimeStampedModel):
-    """Campos comunes a todos los documentos académicos."""
+    """Campos comunes a todos los documentos académicos.
+
+    Estados:
+      BORRADOR  → editable; no visible públicamente
+      PUBLICADO → publicado al espacio público; no editable hasta despublicar
+    """
 
     class Estado(models.TextChoices):
         BORRADOR = "BORRADOR", "Borrador"
         PUBLICADO = "PUBLICADO", "Publicado"
-        ENVIADO = "ENVIADO", "Enviado"
 
     class Modalidad(models.TextChoices):
         PRESENCIAL = "PRESENCIAL", "Presencial"
@@ -48,8 +57,9 @@ class DocumentoAcademicoBase(TimeStampedModel):
         abstract = True
 
     def puede_editar(self):
-        """Solo se puede editar si no ha sido enviado."""
-        return self.estado != self.Estado.ENVIADO
+        """Solo se edita en BORRADOR. Para modificar un doc PUBLICADO,
+        despublícalo primero (cambiar-estado → BORRADOR)."""
+        return self.estado == self.Estado.BORRADOR
 
     def puede_eliminar(self):
         return self.estado == self.Estado.BORRADOR
@@ -60,10 +70,28 @@ class DocumentoAcademicoBase(TimeStampedModel):
 # ---------------------------------------------------------------------------
 
 class CartaTematica(DocumentoAcademicoBase):
-    """Carta temática de una UEA para un grupo y periodo dados."""
+    """Carta temática de una UEA para un grupo y periodo dados.
 
+    Todos los campos de contenido son TextField libre para que el profesor
+    los redacte como prefiera. La vista pública los muestra como bloques.
+    """
+
+    descripcion_uea = models.TextField("Descripción de la UEA", blank=True)
     objetivo_general = models.TextField("Objetivo general", blank=True)
-    presentacion = models.TextField("Presentación", blank=True)
+    objetivos_particulares = models.TextField("Objetivos particulares", blank=True)
+    contenido_sintetico = models.TextField("Contenido sintético", blank=True)
+    objetivos_aprendizaje = models.TextField("Objetivos de aprendizaje", blank=True)
+    requerimientos = models.TextField(
+        "Requerimientos", blank=True,
+        help_text="Materiales y herramientas necesarios.",
+    )
+    conocimientos_previos = models.TextField("Conocimientos previos", blank=True)
+    modalidad_evaluacion = models.TextField("Modalidad de evaluación", blank=True)
+    revisiones_asesorias = models.TextField("Revisiones / asesorías", blank=True)
+    bibliografia = models.TextField("Bibliografía", blank=True)
+    calendarizacion_actividades = models.TextField(
+        "Calendarización de actividades", blank=True,
+    )
 
     class Meta:
         verbose_name = "Carta Temática"
@@ -80,85 +108,39 @@ class CartaTematica(DocumentoAcademicoBase):
         return f"CT | {self.uea} | {self.nombre_grupo} | {self.periodo}"
 
 
-class Tema(models.Model):
-    """Tema de una Carta Temática."""
-
-    carta = models.ForeignKey(
-        CartaTematica, on_delete=models.CASCADE, related_name="temas"
-    )
-    orden = models.PositiveSmallIntegerField("Orden", default=1)
-    nombre = models.CharField("Nombre del tema", max_length=300)
-    objetivo = models.TextField("Objetivo del tema", blank=True)
-    num_sesiones = models.PositiveSmallIntegerField("Número de sesiones", default=1)
-
-    class Meta:
-        ordering = ["orden"]
-
-    def __str__(self):
-        return f"{self.orden}. {self.nombre}"
-
-
-class Subtema(models.Model):
-    """Subtema dentro de un Tema."""
-
-    tema = models.ForeignKey(Tema, on_delete=models.CASCADE, related_name="subtemas")
-    orden = models.PositiveSmallIntegerField("Orden", default=1)
-    descripcion = models.CharField("Descripción", max_length=500)
-
-    class Meta:
-        ordering = ["orden"]
-
-    def __str__(self):
-        return self.descripcion
-
-
-class Bibliografia(models.Model):
-    """Referencia bibliográfica de una Carta Temática."""
-
-    class Tipo(models.TextChoices):
-        BASICA = "BASICA", "Básica"
-        COMPLEMENTARIA = "COMPLEMENTARIA", "Complementaria"
-
-    carta = models.ForeignKey(
-        CartaTematica, on_delete=models.CASCADE, related_name="bibliografias"
-    )
-    tipo = models.CharField("Tipo", max_length=15, choices=Tipo.choices, default=Tipo.BASICA)
-    referencia = models.TextField("Referencia")
-
-    class Meta:
-        ordering = ["tipo", "id"]
-
-
-class CriterioEvaluacion(models.Model):
-    """Criterio de evaluación con ponderación porcentual."""
-
-    carta = models.ForeignKey(
-        CartaTematica, on_delete=models.CASCADE, related_name="criterios"
-    )
-    descripcion = models.CharField("Descripción", max_length=300)
-    ponderacion = models.PositiveSmallIntegerField(
-        "Ponderación (%)",
-        validators=[MinValueValidator(1), MaxValueValidator(100)],
-    )
-
-    class Meta:
-        ordering = ["-ponderacion"]
-
-
 # ---------------------------------------------------------------------------
 # Requisitos de Recuperación
 # ---------------------------------------------------------------------------
 
 class RequisitoRecuperacion(DocumentoAcademicoBase):
-    """Documento de requisitos de recuperación para una UEA y grupo."""
+    """Documento de "Evaluación de Recuperación" para una UEA y grupo.
 
-    espacio_modalidad = models.CharField(
-        "Espacio / Modalidad",
-        max_length=12,
-        choices=DocumentoAcademicoBase.Modalidad.choices,
-        blank=True,
+    Es un documento plano de texto libre — los campos antes normalizados
+    (`espacio_modalidad`, `indicaciones`, `RequisitoItem`) fueron eliminados.
+    """
+
+    lugar = models.TextField(
+        "Lugar", blank=True,
+        help_text=(
+            "Texto libre. Si es remoto, puede incluir liga y contraseña."
+        ),
     )
-    indicaciones = models.TextField("Indicaciones de recuperación", blank=True)
+    duracion_aprox = models.CharField(
+        "Duración aproximada", max_length=100, blank=True,
+    )
+    fecha_hora = models.CharField(
+        "Fecha y hora", max_length=100, blank=True,
+        help_text="Texto libre, ej. 'Lunes 15 de mayo, 10:00 h'.",
+    )
+    recursos_necesarios = models.TextField(
+        "Recursos necesarios", blank=True,
+        help_text="Materiales, herramientas, etc.",
+    )
+    requisitos = models.TextField(
+        "Requisitos", blank=True,
+        help_text="Investigación, maqueta, % de tareas entregadas, etc.",
+    )
+    notas = models.TextField("Notas", blank=True)
 
     class Meta:
         verbose_name = "Requisito de Recuperación"
@@ -173,16 +155,3 @@ class RequisitoRecuperacion(DocumentoAcademicoBase):
 
     def __str__(self):
         return f"RR | {self.uea} | {self.nombre_grupo} | {self.periodo}"
-
-
-class RequisitoItem(models.Model):
-    """Ítem individual dentro de un Requisito de Recuperación."""
-
-    requisito = models.ForeignKey(
-        RequisitoRecuperacion, on_delete=models.CASCADE, related_name="items"
-    )
-    orden = models.PositiveSmallIntegerField("Orden", default=1)
-    descripcion = models.CharField("Descripción", max_length=500)
-
-    class Meta:
-        ordering = ["orden"]
