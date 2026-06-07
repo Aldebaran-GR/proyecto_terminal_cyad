@@ -30,12 +30,25 @@ const processQueue = (error, token = null) => {
   failedQueue = []
 }
 
+/**
+ * Endpoints donde un 401 es una respuesta NORMAL (credenciales malas,
+ * cuenta inactiva, etc.) y NO debe disparar el flujo de refresh/redirect.
+ * Si el usuario ya está intentando loguearse, devolver el error tal cual
+ * para que la página de login pueda mostrarlo.
+ */
+const AUTH_ENDPOINTS = ['/auth/login/', '/auth/refresh/']
+const isAuthEndpoint = (url = '') => AUTH_ENDPOINTS.some((p) => url.endsWith(p))
+
 client.interceptors.response.use(
   (res) => res,
   async (error) => {
     const original = error.config
 
-    if (error.response?.status !== 401 || original._retry) {
+    if (
+      error.response?.status !== 401 ||
+      original._retry ||
+      isAuthEndpoint(original?.url)
+    ) {
       return Promise.reject(error)
     }
 
