@@ -81,3 +81,15 @@ class Profesor(TimeStampedModel, EstadoActivoModel):
 
     def __str__(self):
         return self.nombre_completo
+
+    def save(self, *args, **kwargs):
+        """Sincroniza Usuario.is_active con Profesor.estado.
+
+        Cuando el admin desactiva el perfil (estado=False) el Usuario queda
+        marcado como inactivo y Django bloquea el login automáticamente.
+        Al reactivarlo, la cuenta de acceso se rehabilita.
+        """
+        super().save(*args, **kwargs)
+        if self.usuario_id and self.usuario.is_active != bool(self.estado):
+            self.usuario.is_active = bool(self.estado)
+            self.usuario.save(update_fields=["is_active"])
