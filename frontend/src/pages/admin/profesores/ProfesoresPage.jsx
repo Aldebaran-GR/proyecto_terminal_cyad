@@ -6,7 +6,8 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
-  getProfesores, createProfesor, updateProfesor, createUsuario,
+  getProfesores, updateProfesor, createProfesorAtomico,
+  setUsuarioPassword, deleteProfesor,
 } from '../../../api/profesores'
 import { getDepartamentos } from '../../../api/catalogos'
 import Button from '../../../components/ui/Button'
@@ -16,9 +17,13 @@ import Alert from '../../../components/ui/Alert'
 import FormField, { inputCls } from '../../../components/ui/FormField'
 import Badge from '../../../components/ui/Badge'
 
+// El `nombre` del Usuario y el `nombre_completo` del Profesor son siempre
+// el mismo texto; lo mismo aplica al `email` (login) y `correo_institucional`
+// (perfil). La UI captura un único valor para cada par y al guardar se
+// replica al otro campo del backend.
 const emptyCreate = () => ({
-  email: '', nombre: '', password: '',
-  nombre_completo: '', correo_institucional: '', numero_economico: '', departamento: '',
+  email: '', password: '',
+  nombre_completo: '', numero_economico: '', departamento: '',
 })
 const emptyEdit = (row) => ({
   nombre_completo: row.nombre_completo,
@@ -26,6 +31,33 @@ const emptyEdit = (row) => ({
   numero_economico: row.numero_economico ?? '',
   estado: row.estado,
 })
+
+/**
+ * Lee un error de DRF tomando en cuenta el wrapper del backend
+ * ({success, status_code, errors: {...}}) y devuelve un mensaje legible.
+ * Prioriza campos específicos sobre detalles genéricos.
+ */
+function extractError(e, fallback = 'Error.') {
+  if (e?.message && !e.response) return e.message  // error de red o de cliente
+  const data = e?.response?.data ?? {}
+  // El wrapper coloca los errores dentro de `errors`; si por algún motivo
+  // viniera directo, también lo aceptamos.
+  const errs = data.errors ?? data
+  if (typeof errs === 'string') return errs
+
+  // Convertir { campo: [msg, ...], ... } al primer mensaje campo-prefijado
+  const claves = ['email', 'password', 'nombre', 'nombre_completo',
+                  'correo_institucional', 'numero_economico', 'departamento',
+                  'usuario_id', 'non_field_errors']
+  for (const k of claves) {
+    const v = errs?.[k]
+    if (Array.isArray(v) && v[0]) {
+      return k === 'non_field_errors' ? v[0] : `${k}: ${v[0]}`
+    }
+    if (typeof v === 'string') return v
+  }
+  return data.detail || errs?.detail || fallback
+}
 
 export default function ProfesoresPage() {
   const qc = useQueryClient()
@@ -36,6 +68,11 @@ export default function ProfesoresPage() {
   const [editForm, setEditForm] = useState({})
   const [apiError, setApiError] = useState(null)
   const [search, setSearch] = useState('')
+
+  // Modal independiente para restablecer contraseña de un profesor existente.
+  const [pwdTarget, setPwdTarget] = useState(null)   // perfil del profesor
+  const [pwdValue, setPwdValue] = useState('')
+  const [pwdSaved, setPwdSaved] = useState(false)
 
   const { data, isLoading } = useQuery({
     queryKey: ['profesores', search],
@@ -50,32 +87,74 @@ export default function ProfesoresPage() {
   const openEdit = (row) => { setIsEdit(true); setSelected(row); setEditForm(emptyEdit(row)); setApiError(null); setModal(true) }
   const closeModal = () => { setModal(false); setApiError(null) }
 
-  /* Crear: 1) POST /usuarios/, 2) POST /profesores/ */
+  /* Crear: una sola llamada atómica que el backend gestiona dentro de
+     `transaction.atomic()`. Si algo falla, no quedan registros huérfanos
+     (causa común del bug "ya existe un usuario con este correo" después
+     de un intento previo fallido). */
   const createMut = useMutation({
-    mutationFn: async (d) => {
-      const userRes = await createUsuario({
-        email: d.email, nombre: d.nombre, password: d.password, rol: 'PROFESOR',
-      })
-      return createProfesor({
-        usuario_id: userRes.data.id,
-        nombre_completo: d.nombre_completo,
-        correo_institucional: d.correo_institucional,
-        numero_economico: d.numero_economico || null,
-        departamento: d.departamento || null,
-      })
-    },
+    mutationFn: (d) => createProfesorAtomico({
+      email: d.email,
+      password: d.password,
+      nombre_completo: d.nombre_completo,
+      numero_economico: d.numero_economico || null,
+      departamento: d.departamento || null,
+    }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['profesores'] }); closeModal() },
-    onError: (e) => {
-      const data = e.response?.data
-      setApiError(data?.email?.[0] || data?.password?.[0] || data?.non_field_errors?.[0] || data?.detail || 'Error al crear el profesor.')
-    },
+    onError: (e) => setApiError(extractError(e, 'Error al crear el profesor.')),
   })
 
   const editMut = useMutation({
     mutationFn: (d) => updateProfesor(selected.id, d),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['profesores'] }); closeModal() },
-    onError: (e) => setApiError(e.response?.data?.detail || 'Error al guardar.'),
+    onError: (e) => setApiError(extractError(e, 'Error al guardar.')),
   })
+
+  // Eliminar profesor — borra el perfil y su cuenta de Usuario. Los
+  // documentos (cartas / requisitos) se conservan con un snapshot del
+  // nombre y correo para que el historial siga siendo legible.
+  const deleteMut = useMutation({
+    mutationFn: (row) => deleteProfesor(row.id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['profesores'] }),
+    onError: (e) => setApiError(extractError(e, 'No se pudo eliminar el profesor.')),
+  })
+
+  const onDeleteClick = (row) => {
+    if (window.confirm(
+      `¿Eliminar al profesor "${row.nombre_completo}" y su cuenta de acceso?\n\n` +
+      'Sus Cartas Temáticas y Requisitos de Recuperación se conservarán ' +
+      'con su nombre como histórico. Esta acción no se puede deshacer.'
+    )) {
+      deleteMut.mutate(row)
+    }
+  }
+
+  // Restablecer contraseña — actúa sobre el Usuario (Profesor.usuario.id).
+  const pwdMut = useMutation({
+    mutationFn: ({ usuarioId, password }) => setUsuarioPassword(usuarioId, password),
+    onSuccess: () => {
+      setPwdSaved(true)
+      // Auto-cierre del aviso tras 2 segundos
+      setTimeout(() => {
+        setPwdTarget(null)
+        setPwdValue('')
+        setPwdSaved(false)
+      }, 1800)
+    },
+    onError: (e) => setApiError(extractError(e, 'No se pudo restablecer la contraseña.')),
+  })
+
+  const openPwdReset = (row) => {
+    setApiError(null)
+    setPwdTarget(row)
+    setPwdValue('')
+    setPwdSaved(false)
+  }
+  const closePwdReset = () => {
+    setPwdTarget(null)
+    setPwdValue('')
+    setPwdSaved(false)
+    setApiError(null)
+  }
 
   const fc = (key) => (e) => setCreateForm((p) => ({ ...p, [key]: e.target.value }))
   const fe = (key) => (e) => setEditForm((p) => ({ ...p, [key]: e.target.value }))
@@ -95,9 +174,20 @@ export default function ProfesoresPage() {
       render: (v) => <Badge label={v ? 'ACTIVO' : 'INACTIVO'} variant={v ? 'ACTIVO' : 'INACTIVO'} />,
     },
     {
-      key: 'actions', label: '', className: 'w-24 text-right',
+      key: 'actions', label: '', className: 'w-72 text-right',
       render: (_, row) => (
-        <Button size="sm" variant="secondary" onClick={() => openEdit(row)}>Editar</Button>
+        <div className="flex justify-end gap-2 flex-wrap">
+          <Button size="sm" variant="secondary" onClick={() => openEdit(row)}>Editar</Button>
+          <Button size="sm" variant="secondary" onClick={() => openPwdReset(row)}>Contraseña</Button>
+          <Button
+            size="sm"
+            variant="danger"
+            loading={deleteMut.isPending && deleteMut.variables?.id === row.id}
+            onClick={() => onDeleteClick(row)}
+          >
+            Eliminar
+          </Button>
+        </div>
       ),
     },
   ]
@@ -122,20 +212,24 @@ export default function ProfesoresPage() {
         </>}>
         {apiError && <Alert type="error" onClose={() => setApiError(null)}>{apiError}</Alert>}
         <div className="space-y-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Cuenta de acceso</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Datos del profesor</p>
+          <FormField
+            label="Nombre completo"
+            required
+            hint="Se usa en el saludo de la app y en los documentos públicos firmados."
+          >
+            <input
+              value={createForm.nombre_completo}
+              onChange={fc('nombre_completo')}
+              className={inputCls}
+              placeholder="ej. Mariana López Hernández"
+            />
+          </FormField>
+
           <div className="grid grid-cols-2 gap-4">
-            <FormField label="Email institucional" required><input value={createForm.email} onChange={fc('email')} type="email" className={inputCls} placeholder="usuario@uam.mx" /></FormField>
-            <FormField label="Nombre completo (display)" required><input value={createForm.nombre} onChange={fc('nombre')} className={inputCls} placeholder="Nombre para mostrar" /></FormField>
-            <div className="col-span-2">
-              <FormField label="Contraseña inicial" required><input value={createForm.password} onChange={fc('password')} type="password" className={inputCls} placeholder="Mínimo 8 caracteres" /></FormField>
-            </div>
-          </div>
-          <hr className="border-slate-100" />
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Perfil del profesor</p>
-          <div className="grid grid-cols-2 gap-4">
-            <FormField label="Nombre completo" required><input value={createForm.nombre_completo} onChange={fc('nombre_completo')} className={inputCls} placeholder="Nombre oficial en documentos" /></FormField>
-            <FormField label="Correo institucional"><input value={createForm.correo_institucional} onChange={fc('correo_institucional')} className={inputCls} placeholder="correo@cyad.uam.mx" /></FormField>
-            <FormField label="Número económico"><input value={createForm.numero_economico} onChange={fc('numero_economico')} className={inputCls} placeholder="ej. 12345" /></FormField>
+            <FormField label="Número económico">
+              <input value={createForm.numero_economico} onChange={fc('numero_economico')} className={inputCls} placeholder="ej. 12345" />
+            </FormField>
             <FormField label="Departamento">
               <select value={createForm.departamento} onChange={fc('departamento')} className={inputCls}>
                 <option value="">-- Sin asignar --</option>
@@ -143,7 +237,77 @@ export default function ProfesoresPage() {
               </select>
             </FormField>
           </div>
+
+          <hr className="border-slate-100" />
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Cuenta de acceso</p>
+          <div className="grid grid-cols-2 gap-4">
+            <FormField
+              label="Correo institucional"
+              required
+              hint="Se usa también para iniciar sesión."
+            >
+              <input value={createForm.email} onChange={fc('email')} type="email" className={inputCls} placeholder="usuario@uam.mx" />
+            </FormField>
+            <FormField
+              label="Contraseña inicial"
+              required
+              hint="Visible para que verifiques la captura."
+            >
+              <input value={createForm.password} onChange={fc('password')} type="text" className={inputCls} placeholder="Mínimo 8 caracteres" autoComplete="new-password" />
+            </FormField>
+          </div>
         </div>
+      </Modal>
+
+      {/* Modal Restablecer contraseña */}
+      <Modal
+        open={!!pwdTarget}
+        onClose={closePwdReset}
+        title={`Restablecer contraseña — ${pwdTarget?.nombre_completo ?? ''}`}
+        footer={pwdSaved ? null : (
+          <>
+            <Button variant="secondary" onClick={closePwdReset}>Cancelar</Button>
+            <Button
+              loading={pwdMut.isPending}
+              disabled={!pwdValue.trim()}
+              onClick={() => pwdMut.mutate({
+                usuarioId: pwdTarget.usuario?.id,
+                password: pwdValue,
+              })}
+            >
+              Guardar nueva contraseña
+            </Button>
+          </>
+        )}
+      >
+        {apiError && <Alert type="error" onClose={() => setApiError(null)}>{apiError}</Alert>}
+        {pwdSaved ? (
+          <div className="rounded-lg bg-emerald-50 border border-emerald-200 px-4 py-3 text-sm text-emerald-800">
+            ✓ Contraseña actualizada. El profesor podrá ingresar con la nueva
+            contraseña a partir de su próximo inicio de sesión.
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div className="text-xs text-slate-500">
+              Cuenta de acceso:&nbsp;
+              <span className="font-mono">{pwdTarget?.usuario?.email}</span>
+            </div>
+            <FormField
+              label="Nueva contraseña"
+              required
+              hint="Visible para que verifiques la captura. El profesor la usará al iniciar sesión."
+            >
+              <input
+                value={pwdValue}
+                onChange={(e) => setPwdValue(e.target.value)}
+                type="text"
+                className={inputCls}
+                placeholder="Mínimo 8 caracteres"
+                autoComplete="new-password"
+              />
+            </FormField>
+          </div>
+        )}
       </Modal>
 
       {/* Modal Editar */}
@@ -157,9 +321,20 @@ export default function ProfesoresPage() {
           <FormField label="Nombre completo"><input value={editForm.nombre_completo ?? ''} onChange={fe('nombre_completo')} className={inputCls} /></FormField>
           <FormField label="Correo institucional"><input value={editForm.correo_institucional ?? ''} onChange={fe('correo_institucional')} className={inputCls} /></FormField>
           <FormField label="Número económico"><input value={editForm.numero_economico ?? ''} onChange={fe('numero_economico')} className={inputCls} /></FormField>
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input type="checkbox" checked={editForm.estado ?? true} onChange={(e) => setEditForm((p) => ({ ...p, estado: e.target.checked }))} className="h-4 w-4 accent-indigo-600" />
-            <span className="text-sm text-slate-700">Perfil activo</span>
+          <label className="flex items-start gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={editForm.estado ?? true}
+              onChange={(e) => setEditForm((p) => ({ ...p, estado: e.target.checked }))}
+              className="mt-0.5 h-4 w-4 accent-indigo-600"
+            />
+            <span className="text-sm text-slate-700">
+              Cuenta activa (puede iniciar sesión)
+              <span className="block text-xs text-slate-400 mt-0.5">
+                Al desmarcarlo, el profesor dejará de poder ingresar al sistema.
+                Sus documentos se conservan tal cual.
+              </span>
+            </span>
           </label>
         </div>
       </Modal>
