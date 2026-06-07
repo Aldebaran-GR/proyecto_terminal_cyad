@@ -69,7 +69,6 @@ export default function CartasAdminPage() {
           <option value="">Todos los estados</option>
           <option value="BORRADOR">Borrador</option>
           <option value="PUBLICADO">Publicado</option>
-          <option value="ENVIADO">Enviado</option>
         </select>
         <select value={filtroPeriodo} onChange={(e) => setFiltroPeriodo(e.target.value)} className={inputCls + ' w-36'}>
           <option value="">Todos los periodos</option>

@@ -151,12 +151,9 @@ export default function ReportesPage() {
                 )}
                 {licenciaturas.map((row) => {
                   const totalUEA = row.total_ueas_activas ?? 0
-                  const cartasPub =
-                    (row.cartas_tematicas?.publicado ?? 0) +
-                    (row.cartas_tematicas?.enviado ?? 0)
-                  const reqPub =
-                    (row.requisitos_recuperacion?.publicado ?? 0) +
-                    (row.requisitos_recuperacion?.enviado ?? 0)
+                  // Tras retirar ENVIADO, "publicados" es el indicador único.
+                  const cartasPub = row.cartas_tematicas?.publicado ?? 0
+                  const reqPub = row.requisitos_recuperacion?.publicado ?? 0
                   const pctCarta = totalUEA > 0 ? (cartasPub / totalUEA) * 100 : 0
                   const pctReq = totalUEA > 0 ? (reqPub / totalUEA) * 100 : 0
 

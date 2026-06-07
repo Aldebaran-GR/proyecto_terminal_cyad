@@ -40,7 +40,7 @@ export default function RequisitosAdminPage() {
       render: (v, row) => <div><p>{v}</p><p className="text-xs text-slate-400">ID: {row.id_grupo}</p></div>,
     },
     {
-      key: 'espacio_modalidad', label: 'Espacio Rec.',
+      key: 'fecha_hora', label: 'Fecha / hora',
       render: (v) => v || <span className="text-slate-400">—</span>,
     },
     {
@@ -65,7 +65,6 @@ export default function RequisitosAdminPage() {
           <option value="">Todos los estados</option>
           <option value="BORRADOR">Borrador</option>
           <option value="PUBLICADO">Publicado</option>
-          <option value="ENVIADO">Enviado</option>
         </select>
         <select value={filtroPeriodo} onChange={(e) => setFiltroPeriodo(e.target.value)} className={inputCls + ' w-36'}>
           <option value="">Todos los periodos</option>

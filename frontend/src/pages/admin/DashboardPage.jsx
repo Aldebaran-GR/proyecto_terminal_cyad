@@ -26,12 +26,11 @@ function DocGroup({ title, data }) {
   return (
     <div className="rounded-xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
       <h3 className="mb-3 text-sm font-semibold text-slate-700">{title}</h3>
-      <div className="grid grid-cols-4 gap-3 text-center">
+      <div className="grid grid-cols-3 gap-3 text-center">
         {[
           { k: 'total', label: 'Total', cls: 'text-slate-700' },
           { k: 'borrador', label: 'Borrador', cls: 'text-slate-500' },
-          { k: 'publicado', label: 'Publicado', cls: 'text-blue-600' },
-          { k: 'enviado', label: 'Enviado', cls: 'text-emerald-600' },
+          { k: 'publicado', label: 'Publicado', cls: 'text-emerald-600' },
         ].map(({ k, label, cls }) => (
           <div key={k}>
             <p className={`text-2xl font-bold ${cls}`}>{data[k] ?? 0}</p>
@@ -104,8 +103,8 @@ export default function AdminDashboardPage() {
           color="emerald"
         />
         <StatCard
-          label="Cartas enviadas"
-          value={dash?.cartas_tematicas?.enviado ?? 0}
+          label="Cartas publicadas"
+          value={dash?.cartas_tematicas?.publicado ?? 0}
           color="slate"
           sub={`de ${dash?.cartas_tematicas?.total ?? 0} total`}
         />
@@ -146,11 +145,11 @@ export default function AdminDashboardPage() {
                       {d.nombre}
                     </td>
                     <td className="py-2 pr-4 text-right text-slate-600">{d.total_profesores}</td>
-                    <td className="py-2 pr-4 text-right text-slate-600">{d.con_carta_enviada}</td>
+                    <td className="py-2 pr-4 text-right text-slate-600">{d.con_carta_publicada}</td>
                     <td className="py-2 pr-4 text-right">
                       <PctBar value={d.pct_carta} />
                     </td>
-                    <td className="py-2 text-right text-slate-600">{d.con_requisito_enviado}</td>
+                    <td className="py-2 text-right text-slate-600">{d.con_requisito_publicado}</td>
                     <td className="py-2 text-right">
                       <PctBar value={d.pct_requisito} />
                     </td>
