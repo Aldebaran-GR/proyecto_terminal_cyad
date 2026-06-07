@@ -1,8 +1,9 @@
-import { Navigate, Route, Routes } from 'react-router-dom'
+import { Route, Routes } from 'react-router-dom'
 import ProtectedRoute from './auth/ProtectedRoute'
 import RoleRoute from './auth/RoleRoute'
 import AdminLayout from './layouts/AdminLayout'
 import ProfesorLayout from './layouts/ProfesorLayout'
+import HomePage from './pages/HomePage'
 import LoginPage from './pages/LoginPage'
 import NotFoundPage from './pages/NotFoundPage'
 import ComingSoonPage from './pages/ComingSoonPage'
@@ -68,7 +69,8 @@ function ProfesorRoute({ children }) {
 export default function App() {
   return (
     <Routes>
-      {/* Pública */}
+      {/* Públicas (sin login) */}
+      <Route path="/" element={<HomePage />} />
       <Route path="/login" element={<LoginPage />} />
 
       {/* Vistas públicas de documentos publicados (sin login) */}
@@ -135,9 +137,6 @@ export default function App() {
         <Route path="autoevaluacion" element={<AutoevaluacionListPage />} />
         <Route path="autoevaluacion/:id" element={<AutoevaluacionFormPage />} />
       </Route>
-
-      {/* Raíz → login */}
-      <Route path="/" element={<Navigate to="/login" replace />} />
 
       {/* 404 */}
       <Route path="*" element={<NotFoundPage />} />
