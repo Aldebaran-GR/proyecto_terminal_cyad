@@ -32,12 +32,12 @@ def _serializar_periodo(periodo):
 
 
 def _conteos_documento(qs):
+    """Conteos por estado. Tras retirar ENVIADO, solo hay BORRADOR/PUBLICADO."""
     total = qs.count()
     return {
         "total": total,
         "borrador": qs.filter(estado="BORRADOR").count(),
         "publicado": qs.filter(estado="PUBLICADO").count(),
-        "enviado": qs.filter(estado="ENVIADO").count(),
     }
 
 
@@ -108,7 +108,7 @@ class CumplimientoView(APIView):
     ?periodo=<id>       — opcional; por defecto activo
     ?departamento=<id>  — opcional; filtra un solo departamento
 
-    Cumplimiento de documentos ENVIADOS por departamento y licenciatura.
+    Cumplimiento de documentos PUBLICADOS por departamento y licenciatura.
     """
 
     permission_classes = [IsAuthenticated, IsAdmin]
@@ -136,7 +136,7 @@ class CumplimientoView(APIView):
                     CartaTematica.objects.filter(
                         profesor__in=profs,
                         periodo=periodo,
-                        estado="ENVIADO",
+                        estado="PUBLICADO",
                     )
                     .values("profesor")
                     .distinct()
@@ -146,7 +146,7 @@ class CumplimientoView(APIView):
                     RequisitoRecuperacion.objects.filter(
                         profesor__in=profs,
                         periodo=periodo,
-                        estado="ENVIADO",
+                        estado="PUBLICADO",
                     )
                     .values("profesor")
                     .distinct()
@@ -159,8 +159,8 @@ class CumplimientoView(APIView):
                     "clave": depto.clave,
                     "nombre": depto.nombre,
                     "total_profesores": total,
-                    "con_carta_enviada": con_carta,
-                    "con_requisito_enviado": con_requisito,
+                    "con_carta_publicada": con_carta,
+                    "con_requisito_publicado": con_requisito,
                     "pct_carta": round(con_carta / total * 100, 1) if total else 0,
                     "pct_requisito": round(con_requisito / total * 100, 1) if total else 0,
                 }
@@ -168,16 +168,16 @@ class CumplimientoView(APIView):
 
         # Totales globales
         total_profs = sum(d["total_profesores"] for d in por_departamento)
-        total_carta = sum(d["con_carta_enviada"] for d in por_departamento)
-        total_req = sum(d["con_requisito_enviado"] for d in por_departamento)
+        total_carta = sum(d["con_carta_publicada"] for d in por_departamento)
+        total_req = sum(d["con_requisito_publicado"] for d in por_departamento)
 
         return Response(
             {
                 "periodo": _serializar_periodo(periodo),
                 "resumen": {
                     "total_profesores": total_profs,
-                    "con_carta_enviada": total_carta,
-                    "con_requisito_enviado": total_req,
+                    "con_carta_publicada": total_carta,
+                    "con_requisito_publicado": total_req,
                     "pct_carta": round(total_carta / total_profs * 100, 1) if total_profs else 0,
                     "pct_requisito": round(total_req / total_profs * 100, 1) if total_profs else 0,
                 },
