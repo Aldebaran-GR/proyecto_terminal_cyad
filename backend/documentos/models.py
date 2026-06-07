@@ -28,10 +28,24 @@ class DocumentoAcademicoBase(TimeStampedModel):
         REMOTO = "REMOTO", "Remoto"
         MIXTO = "MIXTO", "Mixto"
 
+    # SET_NULL: si el profesor es eliminado, el documento se conserva como
+    # historial. Los snapshots de nombre y correo (abajo) preservan a
+    # quién pertenecía aunque el FK se haya nullificado.
     profesor = models.ForeignKey(
         "accounts.Profesor",
-        on_delete=models.PROTECT,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
         related_name="%(class)s_set",
+    )
+    # Snapshot del profesor al momento de crear el documento. Se llena
+    # automáticamente desde DocumentoMixin.perform_create y se preserva
+    # aunque el Profesor sea eliminado.
+    profesor_nombre = models.CharField(
+        "Nombre del profesor (histórico)", max_length=255, blank=True,
+    )
+    profesor_correo = models.EmailField(
+        "Correo del profesor (histórico)", blank=True,
     )
     uea = models.ForeignKey(
         "catalogos.UEA",

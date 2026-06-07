@@ -13,25 +13,48 @@ from rest_framework import serializers
 from .models import CartaTematica, RequisitoRecuperacion
 
 
+def _profesor_nombre(obj):
+    """Nombre del profesor: vivo si aún existe, snapshot si fue eliminado."""
+    if obj.profesor and obj.profesor.nombre_completo:
+        return obj.profesor.nombre_completo
+    return obj.profesor_nombre or ""
+
+
+def _profesor_correo(obj):
+    if obj.profesor and obj.profesor.correo_institucional:
+        return obj.profesor.correo_institucional
+    return obj.profesor_correo or ""
+
+
 # ---------------------------------------------------------------------------
 # Carta Temática
 # ---------------------------------------------------------------------------
 
 class CartaTematicaSerializer(serializers.ModelSerializer):
-    """Serializer interno (profesor / admin) — incluye todos los campos."""
+    """Serializer interno (profesor / admin) — incluye todos los campos.
 
-    profesor_nombre = serializers.CharField(
-        source="profesor.nombre_completo", read_only=True
-    )
+    `profesor_nombre` y `profesor_correo` usan el snapshot si el FK del
+    profesor está vacío (profesor eliminado), garantizando que el
+    histórico siga siendo legible.
+    """
+
+    profesor_nombre = serializers.SerializerMethodField()
+    profesor_correo = serializers.SerializerMethodField()
     uea_nombre = serializers.CharField(source="uea.nombre", read_only=True)
     uea_clave = serializers.CharField(source="uea.clave", read_only=True)
     uea_liga = serializers.CharField(source="uea.liga", read_only=True)
     periodo_clave = serializers.CharField(source="periodo.clave", read_only=True)
 
+    def get_profesor_nombre(self, obj):
+        return _profesor_nombre(obj)
+
+    def get_profesor_correo(self, obj):
+        return _profesor_correo(obj)
+
     class Meta:
         model = CartaTematica
         fields = [
-            "id", "profesor", "profesor_nombre",
+            "id", "profesor", "profesor_nombre", "profesor_correo",
             "uea", "uea_nombre", "uea_clave", "uea_liga",
             "periodo", "periodo_clave",
             "nombre_grupo", "id_grupo", "horario", "modalidad",
@@ -64,17 +87,22 @@ class CartaTematicaSerializer(serializers.ModelSerializer):
 # ---------------------------------------------------------------------------
 
 class RequisitoRecuperacionSerializer(serializers.ModelSerializer):
-    profesor_nombre = serializers.CharField(
-        source="profesor.nombre_completo", read_only=True
-    )
+    profesor_nombre = serializers.SerializerMethodField()
+    profesor_correo = serializers.SerializerMethodField()
     uea_nombre = serializers.CharField(source="uea.nombre", read_only=True)
     uea_clave = serializers.CharField(source="uea.clave", read_only=True)
     periodo_clave = serializers.CharField(source="periodo.clave", read_only=True)
 
+    def get_profesor_nombre(self, obj):
+        return _profesor_nombre(obj)
+
+    def get_profesor_correo(self, obj):
+        return _profesor_correo(obj)
+
     class Meta:
         model = RequisitoRecuperacion
         fields = [
-            "id", "profesor", "profesor_nombre",
+            "id", "profesor", "profesor_nombre", "profesor_correo",
             "uea", "uea_nombre", "uea_clave",
             "periodo", "periodo_clave",
             "nombre_grupo", "id_grupo", "horario", "modalidad",
@@ -100,20 +128,38 @@ class RequisitoRecuperacionSerializer(serializers.ModelSerializer):
 # Vista pública (sin auth) — Solo lectura, datos no sensibles
 # ---------------------------------------------------------------------------
 
+class PublicDocumentoListSerializer(serializers.Serializer):
+    """Serializer ligero para listar Cartas Temáticas y Requisitos de Recuperación
+    en la vista pública. Solo expone datos seguros para mostrar en una tarjeta
+    de resumen — el usuario abre el detalle completo en la vista respectiva.
+    """
+
+    id = serializers.IntegerField(read_only=True)
+    profesor_nombre = serializers.SerializerMethodField()
+    uea_clave = serializers.CharField(source="uea.clave", read_only=True)
+    uea_nombre = serializers.CharField(source="uea.nombre", read_only=True)
+    periodo_clave = serializers.CharField(source="periodo.clave", read_only=True)
+    nombre_grupo = serializers.CharField(read_only=True)
+    id_grupo = serializers.CharField(read_only=True)
+    horario = serializers.CharField(read_only=True)
+    modalidad = serializers.CharField(read_only=True)
+    created_at = serializers.DateTimeField(read_only=True)
+
+    def get_profesor_nombre(self, obj):
+        return _profesor_nombre(obj)
+
+
 class PublicCartaTematicaSerializer(serializers.ModelSerializer):
     """Versión pública de la Carta Temática.
 
     Solo expone datos del profesor y de la UEA visibles a cualquier persona,
-    sin IDs internos de `usuario` ni metadatos administrativos.
+    sin IDs internos de `usuario` ni metadatos administrativos. Si el
+    profesor fue eliminado, se usan los snapshots para preservar el histórico.
     """
 
     tipo_documento = serializers.SerializerMethodField()
-    profesor_nombre = serializers.CharField(
-        source="profesor.nombre_completo", read_only=True
-    )
-    profesor_correo = serializers.CharField(
-        source="profesor.correo_institucional", read_only=True
-    )
+    profesor_nombre = serializers.SerializerMethodField()
+    profesor_correo = serializers.SerializerMethodField()
     uea_clave = serializers.CharField(source="uea.clave", read_only=True)
     uea_nombre = serializers.CharField(source="uea.nombre", read_only=True)
     uea_liga = serializers.CharField(source="uea.liga", read_only=True)
@@ -138,20 +184,23 @@ class PublicCartaTematicaSerializer(serializers.ModelSerializer):
     def get_tipo_documento(self, _obj):
         return "Carta Temática"
 
+    def get_profesor_nombre(self, obj):
+        return _profesor_nombre(obj)
+
+    def get_profesor_correo(self, obj):
+        return _profesor_correo(obj)
+
 
 class PublicRequisitoSerializer(serializers.ModelSerializer):
     """Versión pública del Requisito de Recuperación.
 
     Se titula como "Evaluación de Recuperación" para la vista pública.
+    Si el profesor fue eliminado, usa los snapshots para el histórico.
     """
 
     tipo_documento = serializers.SerializerMethodField()
-    profesor_nombre = serializers.CharField(
-        source="profesor.nombre_completo", read_only=True
-    )
-    profesor_correo = serializers.CharField(
-        source="profesor.correo_institucional", read_only=True
-    )
+    profesor_nombre = serializers.SerializerMethodField()
+    profesor_correo = serializers.SerializerMethodField()
     uea_clave = serializers.CharField(source="uea.clave", read_only=True)
     uea_nombre = serializers.CharField(source="uea.nombre", read_only=True)
     periodo_clave = serializers.CharField(source="periodo.clave", read_only=True)
@@ -172,3 +221,9 @@ class PublicRequisitoSerializer(serializers.ModelSerializer):
 
     def get_tipo_documento(self, _obj):
         return "Evaluación de Recuperación"
+
+    def get_profesor_nombre(self, obj):
+        return _profesor_nombre(obj)
+
+    def get_profesor_correo(self, obj):
+        return _profesor_correo(obj)

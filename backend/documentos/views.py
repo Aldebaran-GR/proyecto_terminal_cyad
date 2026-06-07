@@ -20,6 +20,7 @@ from .models import CartaTematica, RequisitoRecuperacion
 from .serializers import (
     CartaTematicaSerializer,
     PublicCartaTematicaSerializer,
+    PublicDocumentoListSerializer,
     PublicRequisitoSerializer,
     RequisitoRecuperacionSerializer,
 )
@@ -73,7 +74,12 @@ class DocumentoMixin:
         try:
             extra = {"periodo": periodo}
             if user.es_profesor:
-                extra["profesor"] = user.perfil_profesor
+                perfil = user.perfil_profesor
+                extra["profesor"] = perfil
+                # Snapshot: si más adelante eliminan al profesor, el
+                # documento conserva su nombre y correo para el historial.
+                extra["profesor_nombre"] = perfil.nombre_completo or ""
+                extra["profesor_correo"] = perfil.correo_institucional or ""
             serializer.save(**extra)
         except IntegrityError:
             raise ValidationError(
@@ -163,3 +169,50 @@ class PublicRequisitoView(generics.RetrieveAPIView):
     serializer_class = PublicRequisitoSerializer
     permission_classes = [AllowAny]
     authentication_classes = []
+
+
+# ---------------------------------------------------------------------------
+# Listados públicos (para el explorador de la página principal)
+# ---------------------------------------------------------------------------
+
+class _PublicListBase(generics.ListAPIView):
+    """Base para listados públicos de documentos PUBLICADOS, sin auth.
+
+    Acepta filtros ?licenciatura= y ?uea= por query params.
+    """
+
+    serializer_class = PublicDocumentoListSerializer
+    permission_classes = [AllowAny]
+    authentication_classes = []
+    filter_backends = [filters.OrderingFilter]
+    ordering_fields = ["created_at", "nombre_grupo"]
+    ordering = ["-created_at"]
+
+    pagination_class = None  # respuesta plana — el front filtra/ordena en cliente
+
+    model = None  # subclase
+
+    def get_queryset(self):
+        qs = (
+            self.model.objects
+            .filter(estado=self.model.Estado.PUBLICADO)
+            .select_related("profesor", "uea", "periodo")
+        )
+        params = self.request.query_params
+        licenciatura = params.get("licenciatura")
+        uea = params.get("uea")
+        if licenciatura:
+            qs = qs.filter(uea__licenciatura_id=licenciatura)
+        if uea:
+            qs = qs.filter(uea_id=uea)
+        return qs
+
+
+class PublicCartaListView(_PublicListBase):
+    """GET /api/v1/publico/cartas/?licenciatura=&uea= — sin auth."""
+    model = CartaTematica
+
+
+class PublicRequisitoListView(_PublicListBase):
+    """GET /api/v1/publico/requisitos/?licenciatura=&uea= — sin auth."""
+    model = RequisitoRecuperacion
