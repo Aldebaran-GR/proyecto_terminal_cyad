@@ -22,6 +22,14 @@ export const publicarFormulario = (id) =>
 export const cerrarFormulario = (id) =>
   client.post(`/formularios/${id}/cerrar/`)
 
+// PUBLICADO o CERRADO → BORRADOR para reabrir edición.
+export const despublicarFormulario = (id) =>
+  client.post(`/formularios/${id}/despublicar/`)
+
+// CERRADO → PUBLICADO (reactivar recepción de respuestas).
+export const reabrirFormulario = (id) =>
+  client.post(`/formularios/${id}/reabrir/`)
+
 export const publicarRevisionFormulario = (id) =>
   client.post(`/formularios/${id}/publicar-revision/`)
 

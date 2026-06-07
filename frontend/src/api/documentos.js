@@ -1,4 +1,13 @@
+import axios from 'axios'
 import client from './client'
+
+// Cliente separado para los endpoints públicos: SIN interceptor de JWT.
+// Si el usuario está logueado, evitamos enviar Authorization para que el
+// backend no intente validar el token (DRF ya marcó AllowAny).
+const publicClient = axios.create({
+  baseURL: client.defaults.baseURL,
+  headers: { 'Content-Type': 'application/json' },
+})
 
 /* ─── Cartas Temáticas ───────────────────────────────────── */
 export const getCartas = (params) =>
@@ -37,3 +46,10 @@ export const deleteRequisito = (id) =>
 
 export const cambiarEstadoRequisito = (id, estado) =>
   client.post(`/requisitos-recuperacion/${id}/cambiar-estado/`, { estado })
+
+/* ─── Endpoints públicos (sin auth) ────────────────────────── */
+export const getPublicCarta = (id) =>
+  publicClient.get(`/publico/cartas/${id}/`)
+
+export const getPublicRequisito = (id) =>
+  publicClient.get(`/publico/requisitos/${id}/`)
