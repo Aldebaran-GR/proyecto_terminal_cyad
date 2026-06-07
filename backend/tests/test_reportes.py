@@ -138,12 +138,12 @@ class TestDashboard:
             id_grupo="G01",
             horario="Lunes",
             modalidad="PRESENCIAL",
-            estado="ENVIADO",
+            estado="PUBLICADO",
         )
         auth_admin(client)
         r = client.get(f"/api/v1/reportes/dashboard/?periodo={periodo.id}")
         assert r.status_code == 200
-        assert r.data["cartas_tematicas"]["enviado"] >= 1
+        assert r.data["cartas_tematicas"]["publicado"] >= 1
         assert r.data["cartas_tematicas"]["total"] >= 1
 
     def test_profesor_no_accede_dashboard(self, client, admin, depto, periodo):
@@ -190,13 +190,13 @@ class TestCumplimiento:
         CartaTematica.objects.create(
             profesor=prof, uea=uea, periodo=periodo,
             nombre_grupo="G01", id_grupo="G01",
-            horario="L 10-12", modalidad="PRESENCIAL", estado="ENVIADO",
+            horario="L 10-12", modalidad="PRESENCIAL", estado="PUBLICADO",
         )
         auth_admin(client)
         r = client.get(f"/api/v1/reportes/cumplimiento/?periodo={periodo.id}&departamento={depto.id}")
         assert r.status_code == 200
         depto_data = r.data["por_departamento"][0]
-        assert depto_data["con_carta_enviada"] == 1
+        assert depto_data["con_carta_publicada"] == 1
         assert depto_data["total_profesores"] >= 1
 
     def test_cumplimiento_no_cuenta_borradores(self, client, admin, depto, periodo, uea):
@@ -210,7 +210,7 @@ class TestCumplimiento:
         r = client.get(f"/api/v1/reportes/cumplimiento/?periodo={periodo.id}&departamento={depto.id}")
         assert r.status_code == 200
         depto_data = r.data["por_departamento"][0]
-        assert depto_data["con_carta_enviada"] == 0
+        assert depto_data["con_carta_publicada"] == 0
 
     def test_cumplimiento_filtro_departamento(self, client, admin, depto, depto2, periodo):
         auth_admin(client)
@@ -226,14 +226,14 @@ class TestCumplimiento:
         CartaTematica.objects.create(
             profesor=p1, uea=uea, periodo=periodo,
             nombre_grupo="G01", id_grupo="G01",
-            horario="L 10-12", modalidad="PRESENCIAL", estado="ENVIADO",
+            horario="L 10-12", modalidad="PRESENCIAL", estado="PUBLICADO",
         )
         auth_admin(client)
         r = client.get(f"/api/v1/reportes/cumplimiento/?periodo={periodo.id}&departamento={depto.id}")
         assert r.status_code == 200
         depto_data = r.data["por_departamento"][0]
         assert depto_data["total_profesores"] == 2
-        assert depto_data["con_carta_enviada"] == 1
+        assert depto_data["con_carta_publicada"] == 1
         assert depto_data["pct_carta"] == 50.0
 
     def test_profesor_no_accede_cumplimiento(self, client, admin, depto):
@@ -268,7 +268,7 @@ class TestCumplimientoLicenciatura:
         CartaTematica.objects.create(
             profesor=prof, uea=uea, periodo=periodo,
             nombre_grupo="G01", id_grupo="G01",
-            horario="L 10-12", modalidad="PRESENCIAL", estado="ENVIADO",
+            horario="L 10-12", modalidad="PRESENCIAL", estado="PUBLICADO",
         )
         auth_admin(client)
         r = client.get(
@@ -277,7 +277,7 @@ class TestCumplimientoLicenciatura:
         )
         assert r.status_code == 200
         lic_data = r.data["por_licenciatura"][0]
-        assert lic_data["cartas_tematicas"]["enviado"] == 1
+        assert lic_data["cartas_tematicas"]["publicado"] == 1
 
 
 # ---------------------------------------------------------------------------

@@ -1,4 +1,9 @@
-"""Tests de documentos académicos (Carta Temática + Requisitos) — M3."""
+"""Tests de documentos académicos (Carta Temática + Requisitos de Recuperación).
+
+Tras el rediseño de junio 2026:
+- Documentos planos con campos de texto libre, sin sub-modelos.
+- Vista pública sin auth para documentos PUBLICADOS.
+"""
 
 import pytest
 from rest_framework.test import APIClient
@@ -53,7 +58,11 @@ def licenciatura(db, depto):
 
 @pytest.fixture
 def uea(db, licenciatura):
-    return UEA.objects.create(clave="1403001D", nombre="Diseño de Objetos I", licenciatura=licenciatura)
+    return UEA.objects.create(
+        clave="1403001D", nombre="Diseño de Objetos I",
+        licenciatura=licenciatura,
+        liga="https://cyad.azc.uam.mx/uea/1403001",
+    )
 
 
 @pytest.fixture
@@ -91,29 +100,45 @@ def auth(client, email, password):
     client.credentials(HTTP_AUTHORIZATION=f"Bearer {r.data['access']}")
 
 
-def carta_payload(uea_id, periodo_id, profesor_id=None, id_grupo="G01"):
+# Payload mínimo con los nuevos campos planos
+def carta_payload(uea_id, id_grupo="G01", **extra):
+    """`periodo` se asigna en backend, no se envía."""
     p = {
         "uea": uea_id,
-        "periodo": periodo_id,
         "nombre_grupo": "Grupo Test",
         "id_grupo": id_grupo,
         "horario": "Lunes 10-12",
         "modalidad": "PRESENCIAL",
+        "descripcion_uea": "UEA de prueba.",
         "objetivo_general": "Objetivo de prueba",
-        "temas": [
-            {
-                "orden": 1,
-                "nombre": "Tema 1",
-                "objetivo": "Aprender X",
-                "num_sesiones": 3,
-                "subtemas": [{"orden": 1, "descripcion": "Subtema A"}],
-            }
-        ],
-        "bibliografias": [{"tipo": "BASICA", "referencia": "Autor, A. (2024). Libro."}],
-        "criterios": [{"descripcion": "Examen parcial", "ponderacion": 40}],
+        "objetivos_particulares": "Op1, Op2",
+        "contenido_sintetico": "Contenido X",
+        "objetivos_aprendizaje": "OA1",
+        "requerimientos": "Lápices",
+        "conocimientos_previos": "Dibujo",
+        "modalidad_evaluacion": "Examen final 100%",
+        "revisiones_asesorias": "Viernes 4-5",
+        "bibliografia": "Autor, A. (2024). Libro.",
+        "calendarizacion_actividades": "Semana 1: intro",
     }
-    if profesor_id:
-        p["profesor"] = profesor_id
+    p.update(extra)
+    return p
+
+
+def requisito_payload(uea_id, id_grupo="G01", **extra):
+    p = {
+        "uea": uea_id,
+        "nombre_grupo": "Grupo RR",
+        "id_grupo": id_grupo,
+        "horario": "Martes 14-16",
+        "lugar": "Aula H-204",
+        "duracion_aprox": "2 horas",
+        "fecha_hora": "Lunes 15 de mayo, 10:00 h",
+        "recursos_necesarios": "Papel, cartulina",
+        "requisitos": "Maqueta + investigación",
+        "notas": "Sin retardos",
+    }
+    p.update(extra)
     return p
 
 
@@ -126,123 +151,198 @@ class TestCartaTematicaCRUD:
         auth(client, "prof_doc1@cyad.uam.mx", "Prof1234!")
         r = client.post(
             "/api/v1/cartas-tematicas/",
-            carta_payload(uea.id, periodo.id),
+            carta_payload(uea.id),
             format="json",
         )
-        assert r.status_code == 201
+        assert r.status_code == 201, r.data
         assert r.data["estado"] == "BORRADOR"
         assert r.data["profesor_nombre"] == "Profesor Doc 1"
-        assert len(r.data["temas"]) == 1
-        assert len(r.data["temas"][0]["subtemas"]) == 1
-        assert len(r.data["bibliografias"]) == 1
-        assert len(r.data["criterios"]) == 1
+        # Campos nuevos persisten
+        assert r.data["descripcion_uea"] == "UEA de prueba."
+        assert r.data["modalidad_evaluacion"] == "Examen final 100%"
+        assert r.data["bibliografia"].startswith("Autor")
+        # Periodo se auto-asigna desde el activo para Cartas
+        assert r.data["periodo"] == periodo.id
 
     def test_listar_solo_propias(self, client, usuario_prof1, usuario_prof2,
                                   profesor1, profesor2, uea, periodo):
-        # Prof1 crea una carta
         auth(client, "prof_doc1@cyad.uam.mx", "Prof1234!")
-        client.post("/api/v1/cartas-tematicas/", carta_payload(uea.id, periodo.id), format="json")
-
-        # Prof2 no debe verla
+        client.post("/api/v1/cartas-tematicas/", carta_payload(uea.id), format="json")
         auth(client, "prof_doc2@cyad.uam.mx", "Prof1234!")
         r = client.get("/api/v1/cartas-tematicas/")
         assert r.status_code == 200
-        assert r.data["count"] == 0
+        results = r.data.get("results", r.data)
+        assert len(results) == 0
 
     def test_admin_ve_todas(self, client, admin, usuario_prof1, profesor1, uea, periodo):
         auth(client, "prof_doc1@cyad.uam.mx", "Prof1234!")
-        client.post("/api/v1/cartas-tematicas/", carta_payload(uea.id, periodo.id), format="json")
-
+        client.post("/api/v1/cartas-tematicas/", carta_payload(uea.id), format="json")
         auth(client, "admin_doc@cyad.uam.mx", "Admin1234!")
         r = client.get("/api/v1/cartas-tematicas/")
         assert r.status_code == 200
-        assert r.data["count"] >= 1
+        results = r.data.get("results", r.data)
+        assert len(results) >= 1
 
     def test_editar_propia(self, client, usuario_prof1, profesor1, uea, periodo):
         auth(client, "prof_doc1@cyad.uam.mx", "Prof1234!")
-        create_r = client.post(
-            "/api/v1/cartas-tematicas/", carta_payload(uea.id, periodo.id), format="json"
+        c = client.post(
+            "/api/v1/cartas-tematicas/", carta_payload(uea.id), format="json",
         )
-        carta_id = create_r.data["id"]
-        payload = carta_payload(uea.id, periodo.id)
-        payload["objetivo_general"] = "Objetivo actualizado"
-        r = client.put(f"/api/v1/cartas-tematicas/{carta_id}/", payload, format="json")
-        assert r.status_code == 200
-        assert r.data["objetivo_general"] == "Objetivo actualizado"
+        payload = carta_payload(uea.id)
+        payload["objetivo_general"] = "Editado"
+        r = client.put(f"/api/v1/cartas-tematicas/{c.data['id']}/", payload, format="json")
+        assert r.status_code == 200, r.data
+        assert r.data["objetivo_general"] == "Editado"
 
     def test_no_editar_ajena(self, client, usuario_prof1, usuario_prof2,
                               profesor1, profesor2, uea, periodo):
-        # Prof1 crea
         auth(client, "prof_doc1@cyad.uam.mx", "Prof1234!")
-        create_r = client.post(
-            "/api/v1/cartas-tematicas/", carta_payload(uea.id, periodo.id), format="json"
+        c = client.post(
+            "/api/v1/cartas-tematicas/", carta_payload(uea.id), format="json",
         )
-        carta_id = create_r.data["id"]
-
-        # Prof2 intenta editar — no debe encontrarla (queryset filtrado)
         auth(client, "prof_doc2@cyad.uam.mx", "Prof1234!")
         r = client.put(
-            f"/api/v1/cartas-tematicas/{carta_id}/",
-            carta_payload(uea.id, periodo.id),
+            f"/api/v1/cartas-tematicas/{c.data['id']}/",
+            carta_payload(uea.id),
             format="json",
         )
-        assert r.status_code == 404
+        # 404 si el queryset filtra por propietario; 403 si el permission objet
+        assert r.status_code in (403, 404)
 
     def test_eliminar_borrador(self, client, usuario_prof1, profesor1, uea, periodo):
         auth(client, "prof_doc1@cyad.uam.mx", "Prof1234!")
-        create_r = client.post(
-            "/api/v1/cartas-tematicas/", carta_payload(uea.id, periodo.id), format="json"
+        c = client.post(
+            "/api/v1/cartas-tematicas/", carta_payload(uea.id), format="json",
         )
-        r = client.delete(f"/api/v1/cartas-tematicas/{create_r.data['id']}/")
+        r = client.delete(f"/api/v1/cartas-tematicas/{c.data['id']}/")
         assert r.status_code == 204
 
-    def test_no_eliminar_enviado(self, client, usuario_prof1, profesor1, uea, periodo):
+    def test_no_eliminar_publicado(self, client, usuario_prof1, profesor1, uea, periodo):
+        """Una carta PUBLICADA no se puede eliminar directamente — hay que
+        despublicarla primero (el frontend lo hace automático)."""
         auth(client, "prof_doc1@cyad.uam.mx", "Prof1234!")
-        create_r = client.post(
-            "/api/v1/cartas-tematicas/", carta_payload(uea.id, periodo.id), format="json"
+        c = client.post(
+            "/api/v1/cartas-tematicas/", carta_payload(uea.id), format="json",
         )
-        carta_id = create_r.data["id"]
-        # Cambiar a ENVIADO
-        client.post(f"/api/v1/cartas-tematicas/{carta_id}/cambiar-estado/",
-                    {"estado": "ENVIADO"}, format="json")
-        r = client.delete(f"/api/v1/cartas-tematicas/{carta_id}/")
+        cid = c.data["id"]
+        client.post(f"/api/v1/cartas-tematicas/{cid}/cambiar-estado/",
+                    {"estado": "PUBLICADO"}, format="json")
+        r = client.delete(f"/api/v1/cartas-tematicas/{cid}/")
         assert r.status_code == 400
 
-    def test_no_editar_enviado(self, client, usuario_prof1, profesor1, uea, periodo):
-        auth(client, "prof_doc1@cyad.uam.mx", "Prof1234!")
-        create_r = client.post(
-            "/api/v1/cartas-tematicas/", carta_payload(uea.id, periodo.id), format="json"
+    def test_profesor_oculta_periodo_inactivo(self, client, usuario_prof1, profesor1, uea, periodo):
+        """El profesor NO debe ver sus cartas de periodos sin activo_cartas=True."""
+        from catalogos.models import Periodo
+        from documentos.models import CartaTematica
+        # Periodo viejo, inactivo para cartas
+        periodo_viejo = Periodo.objects.create(
+            clave="25-OLD",
+            fecha_inicio="2025-01-01",
+            fecha_fin="2025-04-30",
+            # Sin flags activos
         )
-        carta_id = create_r.data["id"]
-        client.post(f"/api/v1/cartas-tematicas/{carta_id}/cambiar-estado/",
-                    {"estado": "ENVIADO"}, format="json")
-        payload = carta_payload(uea.id, periodo.id)
-        payload["objetivo_general"] = "Intento de modificación"
-        r = client.put(f"/api/v1/cartas-tematicas/{carta_id}/", payload, format="json")
+        # Una carta vieja directamente en DB (sin pasar por la API)
+        CartaTematica.objects.create(
+            profesor=profesor1, uea=uea, periodo=periodo_viejo,
+            nombre_grupo="VIEJO", id_grupo="VIEJO", horario="L 10-12",
+        )
+        # Una carta del periodo actual (activo)
+        CartaTematica.objects.create(
+            profesor=profesor1, uea=uea, periodo=periodo,
+            nombre_grupo="HOY", id_grupo="HOY-1", horario="L 10-12",
+        )
+        auth(client, "prof_doc1@cyad.uam.mx", "Prof1234!")
+        r = client.get("/api/v1/cartas-tematicas/")
+        assert r.status_code == 200
+        results = r.data.get("results", r.data)
+        # Solo debe aparecer la del periodo activo
+        ids_grupo = [c["id_grupo"] for c in results]
+        assert "HOY-1" in ids_grupo
+        assert "VIEJO" not in ids_grupo
+
+    def test_admin_ve_todos_los_periodos(self, client, admin, usuario_prof1, profesor1, uea, periodo):
+        """El admin sí ve las cartas de cualquier periodo."""
+        from catalogos.models import Periodo
+        from documentos.models import CartaTematica
+        periodo_viejo = Periodo.objects.create(
+            clave="25-OLD-A",
+            fecha_inicio="2025-01-01",
+            fecha_fin="2025-04-30",
+        )
+        CartaTematica.objects.create(
+            profesor=profesor1, uea=uea, periodo=periodo_viejo,
+            nombre_grupo="VIEJO-A", id_grupo="VIEJO-A", horario="L 10-12",
+        )
+        auth(client, "admin_doc@cyad.uam.mx", "Admin1234!")
+        r = client.get("/api/v1/cartas-tematicas/")
+        assert r.status_code == 200
+        results = r.data.get("results", r.data)
+        ids_grupo = [c["id_grupo"] for c in results]
+        assert "VIEJO-A" in ids_grupo
+
+    def test_estado_enviado_no_existe(self, client, usuario_prof1, profesor1, uea, periodo):
+        """Tras retirar ENVIADO de las choices, el cambio a ENVIADO debe rechazarse."""
+        auth(client, "prof_doc1@cyad.uam.mx", "Prof1234!")
+        c = client.post(
+            "/api/v1/cartas-tematicas/", carta_payload(uea.id), format="json",
+        )
+        cid = c.data["id"]
+        r = client.post(f"/api/v1/cartas-tematicas/{cid}/cambiar-estado/",
+                        {"estado": "ENVIADO"}, format="json")
         assert r.status_code == 400
+
+    def test_no_editar_publicado_debe_despublicar(self, client, usuario_prof1, profesor1, uea, periodo):
+        """Una carta PUBLICADA no se puede editar. Hay que despublicarla primero."""
+        auth(client, "prof_doc1@cyad.uam.mx", "Prof1234!")
+        c = client.post(
+            "/api/v1/cartas-tematicas/", carta_payload(uea.id), format="json",
+        )
+        cid = c.data["id"]
+        # Pasamos a PUBLICADO
+        client.post(f"/api/v1/cartas-tematicas/{cid}/cambiar-estado/",
+                    {"estado": "PUBLICADO"}, format="json")
+        # Intentar editar → 400
+        r = client.put(f"/api/v1/cartas-tematicas/{cid}/",
+                       carta_payload(uea.id), format="json")
+        assert r.status_code == 400
+        assert "Despublica" in str(r.data)
+        # Despublicar (regresar a BORRADOR) → 200
+        r2 = client.post(f"/api/v1/cartas-tematicas/{cid}/cambiar-estado/",
+                         {"estado": "BORRADOR"}, format="json")
+        assert r2.status_code == 200
+        # Ahora sí podemos editar
+        payload = carta_payload(uea.id)
+        payload["objetivo_general"] = "Después de despublicar"
+        r3 = client.put(f"/api/v1/cartas-tematicas/{cid}/", payload, format="json")
+        assert r3.status_code == 200
+        assert r3.data["objetivo_general"] == "Después de despublicar"
 
 
 # ---------------------------------------------------------------------------
-# Unicidad
+# Carta Temática — Unicidad
 # ---------------------------------------------------------------------------
 
 class TestUnicidad:
     def test_duplicado_bloqueado(self, client, usuario_prof1, profesor1, uea, periodo):
         auth(client, "prof_doc1@cyad.uam.mx", "Prof1234!")
-        client.post("/api/v1/cartas-tematicas/", carta_payload(uea.id, periodo.id), format="json")
+        client.post("/api/v1/cartas-tematicas/", carta_payload(uea.id), format="json")
         r = client.post(
             "/api/v1/cartas-tematicas/",
-            carta_payload(uea.id, periodo.id),
+            carta_payload(uea.id),
             format="json",
         )
-        assert r.status_code == 400  # UniqueConstraint violado
+        assert r.status_code == 400
 
     def test_distinto_grupo_permitido(self, client, usuario_prof1, profesor1, uea, periodo):
         auth(client, "prof_doc1@cyad.uam.mx", "Prof1234!")
-        client.post("/api/v1/cartas-tematicas/", carta_payload(uea.id, periodo.id, id_grupo="G01"), format="json")
+        client.post(
+            "/api/v1/cartas-tematicas/",
+            carta_payload(uea.id, id_grupo="G01"),
+            format="json",
+        )
         r = client.post(
             "/api/v1/cartas-tematicas/",
-            carta_payload(uea.id, periodo.id, id_grupo="G02"),
+            carta_payload(uea.id, id_grupo="G02"),
             format="json",
         )
         assert r.status_code == 201
@@ -257,51 +357,33 @@ class TestRequisitoRecuperacion:
         auth(client, "prof_doc1@cyad.uam.mx", "Prof1234!")
         r = client.post(
             "/api/v1/requisitos-recuperacion/",
-            {
-                "uea": uea.id,
-                "periodo": periodo.id,
-                "nombre_grupo": "Grupo RR",
-                "id_grupo": "G01",
-                "horario": "Martes 14-16",
-                "espacio_modalidad": "PRESENCIAL",
-                "indicaciones": "Entregar proyecto final.",
-                "items": [
-                    {"orden": 1, "descripcion": "Entregar reporte escrito"},
-                    {"orden": 2, "descripcion": "Presentación oral"},
-                ],
-            },
+            requisito_payload(uea.id),
             format="json",
         )
-        assert r.status_code == 201
-        assert len(r.data["items"]) == 2
+        assert r.status_code == 201, r.data
+        assert r.data["lugar"] == "Aula H-204"
+        assert r.data["fecha_hora"] == "Lunes 15 de mayo, 10:00 h"
+        assert r.data["requisitos"] == "Maqueta + investigación"
+        assert r.data["periodo"] == periodo.id
 
     def test_admin_solo_lectura_requisito(self, client, admin, usuario_prof1,
                                           profesor1, uea, periodo):
-        # Admin intenta crear directamente (no tiene perfil de profesor)
         auth(client, "admin_doc@cyad.uam.mx", "Admin1234!")
         r = client.post(
             "/api/v1/requisitos-recuperacion/",
-            {
-                "uea": uea.id, "periodo": periodo.id,
-                "nombre_grupo": "Admin Group", "id_grupo": "G99",
-                "horario": "Viernes 10-12",
-            },
+            requisito_payload(uea.id, id_grupo="G99"),
             format="json",
         )
         assert r.status_code == 403
 
     def test_cambiar_estado(self, client, usuario_prof1, profesor1, uea, periodo):
         auth(client, "prof_doc1@cyad.uam.mx", "Prof1234!")
-        create_r = client.post(
+        c = client.post(
             "/api/v1/requisitos-recuperacion/",
-            {
-                "uea": uea.id, "periodo": periodo.id,
-                "nombre_grupo": "G Estado", "id_grupo": "G10",
-                "horario": "Miércoles 9-11", "indicaciones": "...",
-            },
+            requisito_payload(uea.id, id_grupo="G10"),
             format="json",
         )
-        r_id = create_r.data["id"]
+        r_id = c.data["id"]
         r = client.post(
             f"/api/v1/requisitos-recuperacion/{r_id}/cambiar-estado/",
             {"estado": "PUBLICADO"},
@@ -309,3 +391,75 @@ class TestRequisitoRecuperacion:
         )
         assert r.status_code == 200
         assert r.data["estado"] == "PUBLICADO"
+
+
+# ---------------------------------------------------------------------------
+# Vista pública (sin auth)
+# ---------------------------------------------------------------------------
+
+class TestPublicCarta:
+    def test_carta_publicada_visible_sin_auth(self, client, usuario_prof1, profesor1, uea, periodo):
+        """Una Carta PUBLICADA se puede consultar sin autenticación."""
+        carta = CartaTematica.objects.create(
+            profesor=profesor1, uea=uea, periodo=periodo,
+            nombre_grupo="GP1", id_grupo="GPID", horario="Lun 10-12",
+            descripcion_uea="Descripción pública",
+            estado=CartaTematica.Estado.PUBLICADO,
+        )
+        # Cliente sin credentials
+        r = APIClient().get(f"/api/v1/publico/cartas/{carta.id}/")
+        assert r.status_code == 200
+        assert r.data["tipo_documento"] == "Carta Temática"
+        assert r.data["profesor_nombre"] == "Profesor Doc 1"
+        assert r.data["profesor_correo"] == "prof_doc1@uam.mx"
+        assert r.data["uea_clave"] == "1403001D"
+        assert r.data["uea_liga"] == "https://cyad.azc.uam.mx/uea/1403001"
+        assert r.data["descripcion_uea"] == "Descripción pública"
+
+    def test_carta_borrador_no_visible(self, client, usuario_prof1, profesor1, uea, periodo):
+        """Una carta en BORRADOR no aparece en el endpoint público."""
+        carta = CartaTematica.objects.create(
+            profesor=profesor1, uea=uea, periodo=periodo,
+            nombre_grupo="X", id_grupo="X", horario="X",
+            estado=CartaTematica.Estado.BORRADOR,
+        )
+        r = APIClient().get(f"/api/v1/publico/cartas/{carta.id}/")
+        assert r.status_code == 404
+
+    def test_carta_oculta_datos_sensibles(self, client, usuario_prof1, profesor1, uea, periodo):
+        """La respuesta pública no expone IDs internos del usuario."""
+        carta = CartaTematica.objects.create(
+            profesor=profesor1, uea=uea, periodo=periodo,
+            nombre_grupo="X", id_grupo="Y", horario="Z",
+            estado=CartaTematica.Estado.PUBLICADO,
+        )
+        r = APIClient().get(f"/api/v1/publico/cartas/{carta.id}/")
+        assert r.status_code == 200
+        # Solo campos seguros: nombre y correo institucional, nada de usuario.id
+        keys = set(r.data.keys())
+        assert "profesor" not in keys  # no el FK id raw
+        assert "usuario" not in keys
+
+
+class TestPublicRequisito:
+    def test_requisito_publicado_visible(self, client, usuario_prof1, profesor1, uea, periodo):
+        rr = RequisitoRecuperacion.objects.create(
+            profesor=profesor1, uea=uea, periodo=periodo,
+            nombre_grupo="GP2", id_grupo="GP2", horario="Mar 9-11",
+            lugar="Aula 1", requisitos="Maqueta",
+            estado=RequisitoRecuperacion.Estado.PUBLICADO,
+        )
+        r = APIClient().get(f"/api/v1/publico/requisitos/{rr.id}/")
+        assert r.status_code == 200
+        assert r.data["tipo_documento"] == "Evaluación de Recuperación"
+        assert r.data["lugar"] == "Aula 1"
+        assert r.data["requisitos"] == "Maqueta"
+
+    def test_requisito_borrador_no_visible(self, client, usuario_prof1, profesor1, uea, periodo):
+        rr = RequisitoRecuperacion.objects.create(
+            profesor=profesor1, uea=uea, periodo=periodo,
+            nombre_grupo="X", id_grupo="X", horario="X",
+            estado=RequisitoRecuperacion.Estado.BORRADOR,
+        )
+        r = APIClient().get(f"/api/v1/publico/requisitos/{rr.id}/")
+        assert r.status_code == 404

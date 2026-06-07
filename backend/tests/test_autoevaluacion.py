@@ -261,6 +261,27 @@ class TestFormularioEstados:
         r = client.post(f"/api/v1/formularios/{formulario.id}/publicar-revision/")
         assert r.status_code == 400
 
+    def test_despublicar_formulario(self, client, admin, periodo):
+        """PUBLICADO → BORRADOR vía /despublicar/, conservando versión."""
+        auth_admin(client)
+        formulario = make_formulario(periodo, admin)
+        formulario.publicar()
+        assert formulario.estado == "PUBLICADO"
+        r = client.post(f"/api/v1/formularios/{formulario.id}/despublicar/")
+        assert r.status_code == 200, r.data
+        assert r.data["estado"] == "BORRADOR"
+        formulario.refresh_from_db()
+        assert formulario.estado == "BORRADOR"
+        # La versión no se incrementa al despublicar
+        assert formulario.version == 1
+
+    def test_no_despublicar_borrador(self, client, admin, periodo):
+        """Despublicar un BORRADOR no tiene sentido → 400."""
+        auth_admin(client)
+        formulario = make_formulario(periodo, admin)
+        r = client.post(f"/api/v1/formularios/{formulario.id}/despublicar/")
+        assert r.status_code == 400
+
     def test_no_editar_pregunta_formulario_publicado(self, client, admin, periodo):
         auth_admin(client)
         formulario = make_formulario(periodo, admin)
@@ -427,6 +448,30 @@ class TestFormulariosDisponibles:
         auth_admin(client)
         r = client.get("/api/v1/formularios-disponibles/")
         assert r.status_code == 403
+
+    def test_profesor_no_ve_formularios_de_periodo_inactivo(
+        self, client, admin, usuario_prof, profesor, periodo,
+    ):
+        """Formularios PUBLICADOS de un periodo SIN activo_autoevaluacion=True
+        no deben aparecer al profesor (trimestres pasados ocultos)."""
+        periodo_viejo = Periodo.objects.create(
+            clave="25-OLDAE",
+            fecha_inicio="2025-01-01",
+            fecha_fin="2025-04-30",
+            # Sin activo_autoevaluacion=True
+        )
+        formulario_viejo = make_formulario(periodo_viejo, admin)
+        formulario_viejo.publicar()
+        # Formulario del periodo actual (con activo_autoevaluacion=True por fixture)
+        formulario_actual = make_formulario(periodo, admin)
+        formulario_actual.publicar()
+        auth_prof(client)
+        r = client.get("/api/v1/formularios-disponibles/")
+        assert r.status_code == 200
+        # Solo el del periodo activo
+        ids = [f["id"] for f in r.data["results"]]
+        assert formulario_actual.id in ids
+        assert formulario_viejo.id not in ids
 
 
 # ---------------------------------------------------------------------------
