@@ -1,29 +1,23 @@
 /**
  * Crear / Editar Carta Temática.
  *
- * Estrategia de formulario:
- *   - react-hook-form para los campos base (uea, periodo, grupo, etc.)
- *   - useState para las secciones dinámicas (temas, bibliografías, criterios)
- *   - Al enviar se consolida todo en un solo payload
+ * Tras el rediseño de junio 2026 la Carta Temática es un documento plano
+ * de campos de texto libre — sin temas/subtemas/bibliografía estructurada
+ * ni ponderaciones. El periodo se asigna automáticamente desde el periodo
+ * activo para Cartas Temáticas (no se ofrece selector al profesor).
  */
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams, Link } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
-  getCarta, createCarta, updateCarta,
+  getCarta, createCarta, updateCarta, cambiarEstadoCarta,
 } from '../../../api/documentos'
 import { getUEA, getPeriodosActivos } from '../../../api/catalogos'
 import Button from '../../../components/ui/Button'
 import Alert from '../../../components/ui/Alert'
 import FormField, { inputCls } from '../../../components/ui/FormField'
 import Badge from '../../../components/ui/Badge'
-
-/* ─── helpers ─────────────────────────────────────────────── */
-const emptyTema = () => ({ nombre: '', objetivo: '', num_sesiones: 1, subtemas: [] })
-const emptySubtema = () => ({ descripcion: '' })
-const emptyBib = () => ({ tipo: 'BASICA', referencia: '' })
-const emptyCriterio = () => ({ descripcion: '', ponderacion: '' })
 
 function SectionTitle({ children }) {
   return (
@@ -33,44 +27,23 @@ function SectionTitle({ children }) {
   )
 }
 
-/* ─── Componente inline para subtemas ─────────────────────── */
-function SubtemasEditor({ subtemas, onChange }) {
-  const add = () => onChange([...subtemas, emptySubtema()])
-  const remove = (i) => onChange(subtemas.filter((_, idx) => idx !== i))
-  const update = (i, val) =>
-    onChange(subtemas.map((s, idx) => (idx === i ? { ...s, descripcion: val } : s)))
+/* ─── Campos de contenido (todos TextField libre) ──────────────────────── */
+const CONTENT_FIELDS = [
+  { key: 'descripcion_uea',             label: 'Descripción de la UEA',
+    hint: 'Breve descripción general de la UEA.' },
+  { key: 'objetivo_general',            label: 'Objetivo general' },
+  { key: 'objetivos_particulares',      label: 'Objetivos particulares' },
+  { key: 'contenido_sintetico',         label: 'Contenido sintético' },
+  { key: 'objetivos_aprendizaje',       label: 'Objetivos de aprendizaje' },
+  { key: 'requerimientos',              label: 'Requerimientos',
+    hint: 'Materiales necesarios.' },
+  { key: 'conocimientos_previos',       label: 'Conocimientos previos' },
+  { key: 'modalidad_evaluacion',        label: 'Modalidad de evaluación' },
+  { key: 'revisiones_asesorias',        label: 'Revisiones / Asesorías' },
+  { key: 'bibliografia',                label: 'Bibliografía' },
+  { key: 'calendarizacion_actividades', label: 'Calendarización de actividades' },
+]
 
-  return (
-    <div className="ml-4 space-y-2">
-      {subtemas.map((s, i) => (
-        <div key={i} className="flex gap-2">
-          <input
-            value={s.descripcion}
-            onChange={(e) => update(i, e.target.value)}
-            placeholder={`Subtema ${i + 1}`}
-            className={inputCls + ' flex-1 text-xs'}
-          />
-          <button
-            type="button"
-            onClick={() => remove(i)}
-            className="rounded px-2 text-slate-400 hover:text-rose-500"
-          >
-            ×
-          </button>
-        </div>
-      ))}
-      <button
-        type="button"
-        onClick={add}
-        className="text-xs text-indigo-600 hover:underline"
-      >
-        + Añadir subtema
-      </button>
-    </div>
-  )
-}
-
-/* ─── Página principal ─────────────────────────────────────── */
 export default function CartaFormPage() {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -78,33 +51,24 @@ export default function CartaFormPage() {
   const isEdit = Boolean(id)
 
   const [apiError, setApiError] = useState(null)
-  const [temas, setTemas] = useState([emptyTema()])
-  const [bibliografias, setBibliografias] = useState([emptyBib()])
-  const [criterios, setCriterios] = useState([emptyCriterio()])
 
-  /* ── Form base ── */
   const {
-    register,
-    handleSubmit,
-    reset,
-    watch,
-    formState: { errors },
+    register, handleSubmit, reset, formState: { errors },
   } = useForm({ defaultValues: { modalidad: '' } })
 
-  /* ── Cargar catálogos ── */
+  /* ── Catálogos ── */
   const { data: ueas = [] } = useQuery({
     queryKey: ['uea-list'],
     queryFn: () => getUEA({ estado: true }).then((r) => r.data?.results ?? r.data ?? []),
   })
-  // El periodo de la Carta Temática se asigna automáticamente desde el
-  // periodo marcado como "activo para Cartas Temáticas" por el admin.
+  // Periodo activo para Cartas Temáticas (no editable por el profesor).
   const { data: activos } = useQuery({
     queryKey: ['periodos-activos'],
     queryFn: () => getPeriodosActivos().then((r) => r.data),
   })
   const periodoCartas = activos?.cartas ?? null
 
-  /* ── Cargar carta existente (edición) ── */
+  /* ── Carta existente (edición) ── */
   const { data: cartaExistente } = useQuery({
     queryKey: ['carta', id],
     queryFn: () => getCarta(id).then((r) => r.data),
@@ -113,113 +77,78 @@ export default function CartaFormPage() {
 
   useEffect(() => {
     if (cartaExistente) {
-      reset({
+      const defaults = {
         uea: String(cartaExistente.uea),
         nombre_grupo: cartaExistente.nombre_grupo,
         id_grupo: cartaExistente.id_grupo,
         horario: cartaExistente.horario,
         modalidad: cartaExistente.modalidad || '',
-        objetivo_general: cartaExistente.objetivo_general || '',
-        presentacion: cartaExistente.presentacion || '',
+      }
+      CONTENT_FIELDS.forEach(({ key }) => {
+        defaults[key] = cartaExistente[key] || ''
       })
-      setTemas(
-        cartaExistente.temas?.length
-          ? cartaExistente.temas.map((t) => ({
-              nombre: t.nombre,
-              objetivo: t.objetivo || '',
-              num_sesiones: t.num_sesiones,
-              subtemas: (t.subtemas || []).map((s) => ({ descripcion: s.descripcion })),
-            }))
-          : [emptyTema()]
-      )
-      setBibliografias(
-        cartaExistente.bibliografias?.length
-          ? cartaExistente.bibliografias.map((b) => ({ tipo: b.tipo, referencia: b.referencia }))
-          : [emptyBib()]
-      )
-      setCriterios(
-        cartaExistente.criterios?.length
-          ? cartaExistente.criterios.map((c) => ({
-              descripcion: c.descripcion,
-              ponderacion: String(c.ponderacion),
-            }))
-          : [emptyCriterio()]
-      )
+      reset(defaults)
     }
   }, [cartaExistente, reset])
 
-  /* ── Mutaciones ── */
+  // `publicarTras` controla si después de guardar marcamos PUBLICADO.
+  // Si el usuario pulsa "Guardar borrador" → false; si pulsa "Guardar y
+  // publicar" → true.
+  const [publicarTras, setPublicarTras] = useState(false)
+
+  /* ── Mutación: guarda (y, opcionalmente, publica) ── */
   const mutation = useMutation({
-    mutationFn: (payload) =>
-      isEdit ? updateCarta(id, payload) : createCarta(payload),
-    onSuccess: () => {
+    mutationFn: async (payload) => {
+      const r = isEdit ? await updateCarta(id, payload) : await createCarta(payload)
+      const savedId = r.data.id
+      if (publicarTras) {
+        await cambiarEstadoCarta(savedId, 'PUBLICADO')
+      }
+      return savedId
+    },
+    onSuccess: (savedId) => {
       qc.invalidateQueries({ queryKey: ['cartas'] })
-      navigate('/profesor/cartas')
+      qc.invalidateQueries({ queryKey: ['cartas', 'dashboard'] })
+      // Si publicó, llevarlo a la vista previa para confirmar el resultado.
+      if (publicarTras && savedId) {
+        navigate(`/profesor/cartas/${savedId}/preview`)
+      } else {
+        navigate('/profesor/cartas')
+      }
     },
     onError: (e) => {
       const data = e.response?.data
       setApiError(
-        data?.non_field_errors?.[0] ||
-        data?.detail ||
-        JSON.stringify(data) ||
-        'Error al guardar la carta.'
+        data?.non_field_errors?.[0]
+        || data?.detail
+        || data?.periodo?.[0]
+        || JSON.stringify(data)
+        || 'Error al guardar la carta.'
       )
     },
   })
 
-  /* ── Helpers dinámicos ── */
-  const updateTema = (i, key, val) =>
-    setTemas((prev) => prev.map((t, idx) => (idx === i ? { ...t, [key]: val } : t)))
-
-  const sumPonderaciones = criterios.reduce(
-    (acc, c) => acc + (Number(c.ponderacion) || 0), 0
-  )
-
   /* ── Submit ── */
-  const onSubmit = (baseData) => {
+  const onSubmit = (form) => {
     setApiError(null)
-
     if (!isEdit && !periodoCartas) {
       setApiError(
-        'No hay un periodo activo para Cartas Temáticas. Pide al administrador ' +
-        'que active uno en Catálogos → Periodos.'
+        'No hay un periodo activo para Cartas Temáticas. Pide al ' +
+        'administrador que active uno en Catálogos → Periodos.'
       )
       return
     }
-
-    if (criterios.length > 0 && sumPonderaciones !== 100) {
-      setApiError(`La suma de ponderaciones debe ser 100% (actualmente: ${sumPonderaciones}%).`)
-      return
-    }
-
-    // `periodo` no se envía: el backend lo asigna automáticamente al periodo
-    // activo para Cartas Temáticas en el momento de creación.
+    // `periodo` se asigna en backend desde el activo para Cartas Temáticas.
     const payload = {
-      uea: Number(baseData.uea),
-      nombre_grupo: baseData.nombre_grupo,
-      id_grupo: baseData.id_grupo,
-      horario: baseData.horario,
-      modalidad: baseData.modalidad || '',
-      objetivo_general: baseData.objetivo_general || '',
-      presentacion: baseData.presentacion || '',
-      temas: temas
-        .filter((t) => t.nombre.trim())
-        .map((t, i) => ({
-          orden: i + 1,
-          nombre: t.nombre,
-          objetivo: t.objetivo || '',
-          num_sesiones: Number(t.num_sesiones) || 1,
-          subtemas: t.subtemas
-            .filter((s) => s.descripcion.trim())
-            .map((s, j) => ({ orden: j + 1, descripcion: s.descripcion })),
-        })),
-      bibliografias: bibliografias
-        .filter((b) => b.referencia.trim())
-        .map((b) => ({ tipo: b.tipo, referencia: b.referencia })),
-      criterios: criterios
-        .filter((c) => c.descripcion.trim())
-        .map((c) => ({ descripcion: c.descripcion, ponderacion: Number(c.ponderacion) })),
+      uea: Number(form.uea),
+      nombre_grupo: form.nombre_grupo,
+      id_grupo: form.id_grupo,
+      horario: form.horario,
+      modalidad: form.modalidad || '',
     }
+    CONTENT_FIELDS.forEach(({ key }) => {
+      payload[key] = form[key] || ''
+    })
     mutation.mutate(payload)
   }
 
@@ -241,9 +170,18 @@ export default function CartaFormPage() {
       </div>
 
       {apiError && (
-        <Alert type="error" onClose={() => setApiError(null)}>
-          {apiError}
-        </Alert>
+        <Alert type="error" onClose={() => setApiError(null)}>{apiError}</Alert>
+      )}
+
+      {/* Si llegamos al form con una carta no editable, sugerimos despublicar */}
+      {isEdit && cartaExistente && cartaExistente.estado !== 'BORRADOR' && (
+        <div className="rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-800">
+          Esta carta está en estado <strong>{cartaExistente.estado}</strong>.
+          Para editarla, primero{' '}
+          <Link to={`/profesor/cartas/${cartaExistente.id}/preview`} className="underline">
+            ábrela en vista previa y despublícala
+          </Link>.
+        </div>
       )}
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
@@ -255,9 +193,7 @@ export default function CartaFormPage() {
               <select {...register('uea', { required: 'Requerido' })} className={inputCls}>
                 <option value="">-- Selecciona --</option>
                 {ueas.map((u) => (
-                  <option key={u.id} value={u.id}>
-                    {u.nombre}
-                  </option>
+                  <option key={u.id} value={u.id}>{u.clave} — {u.nombre}</option>
                 ))}
               </select>
             </FormField>
@@ -283,27 +219,18 @@ export default function CartaFormPage() {
             </FormField>
 
             <FormField label="Nombre del grupo" error={errors.nombre_grupo?.message} required>
-              <input
-                {...register('nombre_grupo', { required: 'Requerido' })}
-                placeholder="ej. Grupo A"
-                className={inputCls}
-              />
+              <input {...register('nombre_grupo', { required: 'Requerido' })}
+                placeholder="ej. Grupo A" className={inputCls} />
             </FormField>
 
             <FormField label="ID del grupo" error={errors.id_grupo?.message} required>
-              <input
-                {...register('id_grupo', { required: 'Requerido' })}
-                placeholder="ej. 2026-I-A1"
-                className={inputCls}
-              />
+              <input {...register('id_grupo', { required: 'Requerido' })}
+                placeholder="ej. 2026-I-A1" className={inputCls} />
             </FormField>
 
             <FormField label="Horario" error={errors.horario?.message} required>
-              <input
-                {...register('horario', { required: 'Requerido' })}
-                placeholder="ej. Lun-Mié 9:00-11:00"
-                className={inputCls}
-              />
+              <input {...register('horario', { required: 'Requerido' })}
+                placeholder="ej. Lun-Mié 9:00-11:00" className={inputCls} />
             </FormField>
 
             <FormField label="Modalidad">
@@ -317,236 +244,47 @@ export default function CartaFormPage() {
           </div>
         </div>
 
-        {/* ── Objetivo y Presentación ── */}
+        {/* ── Contenido ── */}
         <div className="rounded-xl border border-slate-200 bg-white p-6 space-y-4">
-          <SectionTitle>Objetivo y Presentación</SectionTitle>
-          <FormField label="Objetivo general">
-            <textarea
-              {...register('objetivo_general')}
-              rows={3}
-              placeholder="Objetivo general de la UEA para este grupo"
-              className={inputCls}
-            />
-          </FormField>
-          <FormField label="Presentación">
-            <textarea
-              {...register('presentacion')}
-              rows={3}
-              placeholder="Presentación o descripción del curso"
-              className={inputCls}
-            />
-          </FormField>
-        </div>
-
-        {/* ── Temas ── */}
-        <div className="rounded-xl border border-slate-200 bg-white p-6 space-y-4">
-          <SectionTitle>Temas y Subtemas</SectionTitle>
-          <div className="space-y-4">
-            {temas.map((tema, i) => (
-              <div key={i} className="rounded-lg border border-slate-100 bg-slate-50 p-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-slate-500 uppercase">
-                    Tema {i + 1}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setTemas((prev) => prev.filter((_, idx) => idx !== i))}
-                    className="text-xs text-slate-400 hover:text-rose-500"
-                  >
-                    Eliminar tema
-                  </button>
-                </div>
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="col-span-2">
-                    <label className="block text-xs font-medium text-slate-600 mb-1">
-                      Nombre del tema *
-                    </label>
-                    <input
-                      value={tema.nombre}
-                      onChange={(e) => updateTema(i, 'nombre', e.target.value)}
-                      placeholder="Nombre del tema"
-                      className={inputCls}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-slate-600 mb-1">
-                      Sesiones
-                    </label>
-                    <input
-                      type="number"
-                      min={1}
-                      value={tema.num_sesiones}
-                      onChange={(e) => updateTema(i, 'num_sesiones', e.target.value)}
-                      className={inputCls}
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-slate-600 mb-1">
-                    Objetivo del tema
-                  </label>
-                  <textarea
-                    value={tema.objetivo}
-                    onChange={(e) => updateTema(i, 'objetivo', e.target.value)}
-                    rows={2}
-                    placeholder="Objetivo específico de este tema"
-                    className={inputCls + ' text-sm'}
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-slate-600 mb-1">
-                    Subtemas
-                  </label>
-                  <SubtemasEditor
-                    subtemas={tema.subtemas}
-                    onChange={(sub) => updateTema(i, 'subtemas', sub)}
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            onClick={() => setTemas((prev) => [...prev, emptyTema()])}
-          >
-            + Añadir tema
-          </Button>
-        </div>
-
-        {/* ── Bibliografía ── */}
-        <div className="rounded-xl border border-slate-200 bg-white p-6 space-y-4">
-          <SectionTitle>Bibliografía</SectionTitle>
-          <div className="space-y-3">
-            {bibliografias.map((bib, i) => (
-              <div key={i} className="flex gap-2 items-start">
-                <select
-                  value={bib.tipo}
-                  onChange={(e) =>
-                    setBibliografias((prev) =>
-                      prev.map((b, idx) => (idx === i ? { ...b, tipo: e.target.value } : b))
-                    )
-                  }
-                  className={inputCls + ' w-40 shrink-0'}
-                >
-                  <option value="BASICA">Básica</option>
-                  <option value="COMPLEMENTARIA">Complementaria</option>
-                </select>
-                <input
-                  value={bib.referencia}
-                  onChange={(e) =>
-                    setBibliografias((prev) =>
-                      prev.map((b, idx) =>
-                        idx === i ? { ...b, referencia: e.target.value } : b
-                      )
-                    )
-                  }
-                  placeholder="Referencia bibliográfica completa"
-                  className={inputCls + ' flex-1'}
+          <SectionTitle>Contenido</SectionTitle>
+          <p className="text-xs text-slate-500 -mt-2 mb-3">
+            Todos los campos aceptan texto libre. Los que dejes vacíos no se
+            mostrarán en la vista pública.
+          </p>
+          <div className="space-y-5">
+            {CONTENT_FIELDS.map(({ key, label, hint }) => (
+              <FormField key={key} label={label} hint={hint}>
+                <textarea
+                  {...register(key)}
+                  rows={3}
+                  placeholder={label}
+                  className={inputCls}
                 />
-                <button
-                  type="button"
-                  onClick={() =>
-                    setBibliografias((prev) => prev.filter((_, idx) => idx !== i))
-                  }
-                  className="mt-2 text-slate-400 hover:text-rose-500"
-                >
-                  ×
-                </button>
-              </div>
+              </FormField>
             ))}
           </div>
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            onClick={() => setBibliografias((prev) => [...prev, emptyBib()])}
-          >
-            + Añadir referencia
-          </Button>
-        </div>
-
-        {/* ── Criterios de Evaluación ── */}
-        <div className="rounded-xl border border-slate-200 bg-white p-6 space-y-4">
-          <div className="flex items-center justify-between">
-            <SectionTitle>Criterios de Evaluación</SectionTitle>
-            <span
-              className={`text-sm font-medium ${
-                sumPonderaciones === 100
-                  ? 'text-emerald-600'
-                  : sumPonderaciones > 100
-                  ? 'text-rose-600'
-                  : 'text-slate-500'
-              }`}
-            >
-              Total: {sumPonderaciones}% {sumPonderaciones !== 100 && '(debe ser 100%)'}
-            </span>
-          </div>
-          <div className="space-y-3">
-            {criterios.map((c, i) => (
-              <div key={i} className="flex gap-2 items-start">
-                <input
-                  value={c.descripcion}
-                  onChange={(e) =>
-                    setCriterios((prev) =>
-                      prev.map((cr, idx) =>
-                        idx === i ? { ...cr, descripcion: e.target.value } : cr
-                      )
-                    )
-                  }
-                  placeholder="Descripción del criterio"
-                  className={inputCls + ' flex-1'}
-                />
-                <div className="flex items-center gap-1 shrink-0">
-                  <input
-                    type="number"
-                    min={1}
-                    max={100}
-                    value={c.ponderacion}
-                    onChange={(e) =>
-                      setCriterios((prev) =>
-                        prev.map((cr, idx) =>
-                          idx === i ? { ...cr, ponderacion: e.target.value } : cr
-                        )
-                      )
-                    }
-                    placeholder="0"
-                    className={inputCls + ' w-20 text-center'}
-                  />
-                  <span className="text-sm text-slate-500">%</span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() =>
-                    setCriterios((prev) => prev.filter((_, idx) => idx !== i))
-                  }
-                  className="mt-2 text-slate-400 hover:text-rose-500"
-                >
-                  ×
-                </button>
-              </div>
-            ))}
-          </div>
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            onClick={() => setCriterios((prev) => [...prev, emptyCriterio()])}
-          >
-            + Añadir criterio
-          </Button>
         </div>
 
         {/* ── Footer ── */}
-        <div className="flex justify-end gap-3 pb-8">
+        <div className="flex justify-end gap-3 pb-8 flex-wrap">
           <Link to="/profesor/cartas">
-            <Button type="button" variant="secondary">
-              Cancelar
-            </Button>
+            <Button type="button" variant="secondary">Cancelar</Button>
           </Link>
-          <Button type="submit" loading={mutation.isPending}>
-            {isEdit ? 'Guardar cambios' : 'Crear carta'}
+          <Button
+            type="submit"
+            variant="secondary"
+            loading={mutation.isPending && !publicarTras}
+            onClick={() => setPublicarTras(false)}
+          >
+            {isEdit ? 'Guardar borrador' : 'Guardar como borrador'}
+          </Button>
+          <Button
+            type="submit"
+            loading={mutation.isPending && publicarTras}
+            onClick={() => setPublicarTras(true)}
+            title="Guarda y deja la carta visible en /publico/cartas/{id}"
+          >
+            {isEdit ? 'Guardar y publicar' : 'Crear y publicar'}
           </Button>
         </div>
       </form>

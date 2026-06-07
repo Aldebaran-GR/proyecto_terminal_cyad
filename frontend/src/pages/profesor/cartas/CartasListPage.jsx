@@ -1,8 +1,17 @@
 /**
  * Lista de Cartas Temáticas del profesor autenticado.
+ *
+ * Tres acciones únicas por fila — independientes del estado del documento:
+ *   • Ver      — abre la vista final (preview).
+ *   • Editar   — si está PUBLICADO se despublica antes de abrir el editor.
+ *   • Eliminar — si está PUBLICADO se despublica antes de eliminar (cascada
+ *                en una sola operación desde el punto de vista del usuario).
+ *
+ * Esto deja la lista simple y consistente; el "publicar / despublicar" se
+ * resuelve dentro de cada acción.
  */
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getCartas, deleteCarta, cambiarEstadoCarta } from '../../../api/documentos'
 import Button from '../../../components/ui/Button'
@@ -12,11 +21,9 @@ import EmptyState from '../../../components/ui/EmptyState'
 import Alert from '../../../components/ui/Alert'
 import Loading from '../../../components/ui/Loading'
 
-const SIGUIENTE_ESTADO = { BORRADOR: 'PUBLICADO', PUBLICADO: 'ENVIADO' }
-const LABEL_ESTADO = { PUBLICADO: 'Publicar', ENVIADO: 'Enviar' }
-
 export default function CartasListPage() {
   const qc = useQueryClient()
+  const navigate = useNavigate()
   const [apiError, setApiError] = useState(null)
 
   const { data, isLoading } = useQuery({
@@ -24,19 +31,58 @@ export default function CartasListPage() {
     queryFn: () => getCartas().then((r) => r.data),
   })
 
-  const deleteMut = useMutation({
-    mutationFn: (id) => deleteCarta(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['cartas'] }),
-    onError: (e) =>
-      setApiError(e.response?.data?.errors?.estado || 'Error al eliminar la carta.'),
+  const invalidate = () => {
+    qc.invalidateQueries({ queryKey: ['cartas'] })
+    qc.invalidateQueries({ queryKey: ['cartas', 'dashboard'] })
+  }
+
+  // Editar: despublica primero si hace falta y abre el formulario.
+  const editMut = useMutation({
+    mutationFn: async (row) => {
+      if (row.estado === 'PUBLICADO') {
+        await cambiarEstadoCarta(row.id, 'BORRADOR')
+      }
+      return row.id
+    },
+    onSuccess: (id) => {
+      invalidate()
+      navigate(`/profesor/cartas/${id}`)
+    },
+    onError: (e) => setApiError(e.response?.data?.detail || 'No se pudo abrir el editor.'),
   })
 
-  const estadoMut = useMutation({
-    mutationFn: ({ id, estado }) => cambiarEstadoCarta(id, estado),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['cartas'] }),
-    onError: (e) =>
-      setApiError(e.response?.data?.detail || 'Error al cambiar el estado.'),
+  // Eliminar: despublica primero si hace falta y luego elimina.
+  const deleteMut = useMutation({
+    mutationFn: async (row) => {
+      if (row.estado === 'PUBLICADO') {
+        await cambiarEstadoCarta(row.id, 'BORRADOR')
+      }
+      return deleteCarta(row.id)
+    },
+    onSuccess: invalidate,
+    onError: (e) => setApiError(
+      e.response?.data?.errors?.estado
+      || e.response?.data?.detail
+      || 'Error al eliminar la carta.'
+    ),
   })
+
+  const onEditClick = (row) => {
+    if (row.estado === 'PUBLICADO') {
+      if (!window.confirm(
+        'Esta carta está PUBLICADA. Para editarla se despublicará primero ' +
+        '(dejará de aparecer en /publico/cartas/' + row.id + '). ¿Continuar?'
+      )) return
+    }
+    editMut.mutate(row)
+  }
+
+  const onDeleteClick = (row) => {
+    const aviso = row.estado === 'PUBLICADO'
+      ? 'Esta carta está PUBLICADA. Se despublicará y eliminará. ¿Continuar?'
+      : '¿Eliminar esta carta temática? Esta acción no se puede deshacer.'
+    if (window.confirm(aviso)) deleteMut.mutate(row)
+  }
 
   const cartas = data?.results ?? data ?? []
 
@@ -70,40 +116,28 @@ export default function CartasListPage() {
     {
       key: 'actions',
       label: '',
-      className: 'text-right w-56',
+      className: 'text-right w-64',
       render: (_, row) => (
         <div className="flex justify-end gap-2">
-          {row.estado !== 'ENVIADO' && (
-            <Link to={`/profesor/cartas/${row.id}`}>
-              <Button size="sm" variant="secondary">Editar</Button>
-            </Link>
-          )}
-          {SIGUIENTE_ESTADO[row.estado] && (
-            <Button
-              size="sm"
-              variant={row.estado === 'PUBLICADO' ? 'primary' : 'secondary'}
-              loading={estadoMut.isPending}
-              onClick={() =>
-                estadoMut.mutate({ id: row.id, estado: SIGUIENTE_ESTADO[row.estado] })
-              }
-            >
-              {LABEL_ESTADO[SIGUIENTE_ESTADO[row.estado]]}
-            </Button>
-          )}
-          {row.estado === 'BORRADOR' && (
-            <Button
-              size="sm"
-              variant="danger"
-              loading={deleteMut.isPending}
-              onClick={() => {
-                if (window.confirm('¿Eliminar esta carta temática?')) {
-                  deleteMut.mutate(row.id)
-                }
-              }}
-            >
-              Eliminar
-            </Button>
-          )}
+          <Link to={`/profesor/cartas/${row.id}/preview`}>
+            <Button size="sm" variant="secondary">Ver</Button>
+          </Link>
+          <Button
+            size="sm"
+            variant="secondary"
+            loading={editMut.isPending && editMut.variables?.id === row.id}
+            onClick={() => onEditClick(row)}
+          >
+            Editar
+          </Button>
+          <Button
+            size="sm"
+            variant="danger"
+            loading={deleteMut.isPending && deleteMut.variables?.id === row.id}
+            onClick={() => onDeleteClick(row)}
+          >
+            Eliminar
+          </Button>
         </div>
       ),
     },
@@ -113,7 +147,6 @@ export default function CartasListPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-slate-900">Cartas Temáticas</h1>
@@ -127,9 +160,7 @@ export default function CartasListPage() {
       </div>
 
       {apiError && (
-        <Alert type="error" onClose={() => setApiError(null)}>
-          {apiError}
-        </Alert>
+        <Alert type="error" onClose={() => setApiError(null)}>{apiError}</Alert>
       )}
 
       {cartas.length === 0 ? (

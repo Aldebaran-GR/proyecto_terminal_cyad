@@ -1,8 +1,13 @@
 /**
  * Lista de Requisitos de Recuperación del profesor autenticado.
+ *
+ * Tres acciones únicas por fila — independientes del estado del documento:
+ *   • Ver      — abre la vista final (preview).
+ *   • Editar   — si está PUBLICADO se despublica antes de abrir el editor.
+ *   • Eliminar — si está PUBLICADO se despublica antes de eliminar.
  */
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getRequisitos, deleteRequisito, cambiarEstadoRequisito } from '../../../api/documentos'
 import Button from '../../../components/ui/Button'
@@ -12,11 +17,9 @@ import EmptyState from '../../../components/ui/EmptyState'
 import Alert from '../../../components/ui/Alert'
 import Loading from '../../../components/ui/Loading'
 
-const SIGUIENTE_ESTADO = { BORRADOR: 'PUBLICADO', PUBLICADO: 'ENVIADO' }
-const LABEL_ESTADO = { PUBLICADO: 'Publicar', ENVIADO: 'Enviar' }
-
 export default function RequisitosListPage() {
   const qc = useQueryClient()
+  const navigate = useNavigate()
   const [apiError, setApiError] = useState(null)
 
   const { data, isLoading } = useQuery({
@@ -24,18 +27,56 @@ export default function RequisitosListPage() {
     queryFn: () => getRequisitos().then((r) => r.data),
   })
 
-  const deleteMut = useMutation({
-    mutationFn: (id) => deleteRequisito(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['requisitos'] }),
-    onError: (e) =>
-      setApiError(e.response?.data?.errors?.estado || 'Error al eliminar.'),
+  const invalidate = () => {
+    qc.invalidateQueries({ queryKey: ['requisitos'] })
+    qc.invalidateQueries({ queryKey: ['requisitos', 'dashboard'] })
+  }
+
+  const editMut = useMutation({
+    mutationFn: async (row) => {
+      if (row.estado === 'PUBLICADO') {
+        await cambiarEstadoRequisito(row.id, 'BORRADOR')
+      }
+      return row.id
+    },
+    onSuccess: (id) => {
+      invalidate()
+      navigate(`/profesor/requisitos/${id}`)
+    },
+    onError: (e) => setApiError(e.response?.data?.detail || 'No se pudo abrir el editor.'),
   })
 
-  const estadoMut = useMutation({
-    mutationFn: ({ id, estado }) => cambiarEstadoRequisito(id, estado),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['requisitos'] }),
-    onError: (e) => setApiError(e.response?.data?.detail || 'Error al cambiar estado.'),
+  const deleteMut = useMutation({
+    mutationFn: async (row) => {
+      if (row.estado === 'PUBLICADO') {
+        await cambiarEstadoRequisito(row.id, 'BORRADOR')
+      }
+      return deleteRequisito(row.id)
+    },
+    onSuccess: invalidate,
+    onError: (e) => setApiError(
+      e.response?.data?.errors?.estado
+      || e.response?.data?.detail
+      || 'Error al eliminar el requisito.'
+    ),
   })
+
+  const onEditClick = (row) => {
+    if (row.estado === 'PUBLICADO') {
+      if (!window.confirm(
+        'Este requisito está PUBLICADO. Para editarlo se despublicará primero ' +
+        '(dejará de aparecer en /publico/requisitos/' + row.id + '). ¿Continuar?'
+      )) return
+    }
+    editMut.mutate(row)
+  }
+
+  const onDeleteClick = (row) => {
+    const aviso = row.estado === 'PUBLICADO'
+      ? 'Este requisito está PUBLICADO. Se despublicará y eliminará. ¿Continuar?'
+      : '¿Eliminar este requisito? Esta acción no se puede deshacer.'
+    if (window.confirm(aviso)) deleteMut.mutate(row)
+  }
 
   const requisitos = data?.results ?? data ?? []
 
@@ -61,8 +102,8 @@ export default function RequisitosListPage() {
       ),
     },
     {
-      key: 'espacio_modalidad',
-      label: 'Modalidad Rec.',
+      key: 'fecha_hora',
+      label: 'Fecha / hora',
       render: (val) => val || <span className="text-slate-400">—</span>,
     },
     {
@@ -73,40 +114,28 @@ export default function RequisitosListPage() {
     {
       key: 'actions',
       label: '',
-      className: 'text-right w-56',
+      className: 'text-right w-64',
       render: (_, row) => (
         <div className="flex justify-end gap-2">
-          {row.estado !== 'ENVIADO' && (
-            <Link to={`/profesor/requisitos/${row.id}`}>
-              <Button size="sm" variant="secondary">Editar</Button>
-            </Link>
-          )}
-          {SIGUIENTE_ESTADO[row.estado] && (
-            <Button
-              size="sm"
-              variant={row.estado === 'PUBLICADO' ? 'primary' : 'secondary'}
-              loading={estadoMut.isPending}
-              onClick={() =>
-                estadoMut.mutate({ id: row.id, estado: SIGUIENTE_ESTADO[row.estado] })
-              }
-            >
-              {LABEL_ESTADO[SIGUIENTE_ESTADO[row.estado]]}
-            </Button>
-          )}
-          {row.estado === 'BORRADOR' && (
-            <Button
-              size="sm"
-              variant="danger"
-              loading={deleteMut.isPending}
-              onClick={() => {
-                if (window.confirm('¿Eliminar este requisito?')) {
-                  deleteMut.mutate(row.id)
-                }
-              }}
-            >
-              Eliminar
-            </Button>
-          )}
+          <Link to={`/profesor/requisitos/${row.id}/preview`}>
+            <Button size="sm" variant="secondary">Ver</Button>
+          </Link>
+          <Button
+            size="sm"
+            variant="secondary"
+            loading={editMut.isPending && editMut.variables?.id === row.id}
+            onClick={() => onEditClick(row)}
+          >
+            Editar
+          </Button>
+          <Button
+            size="sm"
+            variant="danger"
+            loading={deleteMut.isPending && deleteMut.variables?.id === row.id}
+            onClick={() => onDeleteClick(row)}
+          >
+            Eliminar
+          </Button>
         </div>
       ),
     },
@@ -129,9 +158,7 @@ export default function RequisitosListPage() {
       </div>
 
       {apiError && (
-        <Alert type="error" onClose={() => setApiError(null)}>
-          {apiError}
-        </Alert>
+        <Alert type="error" onClose={() => setApiError(null)}>{apiError}</Alert>
       )}
 
       {requisitos.length === 0 ? (
