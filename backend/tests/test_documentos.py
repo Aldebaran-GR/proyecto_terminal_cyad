@@ -441,6 +441,51 @@ class TestPublicCarta:
         assert "usuario" not in keys
 
 
+class TestPublicListados:
+    """Listados públicos para la home (sin auth)."""
+
+    def test_lista_cartas_publicas_filtro_lic(self, client, usuario_prof1, profesor1, uea, periodo):
+        # Una carta PUBLICADA en la UEA/licenciatura del fixture
+        CartaTematica.objects.create(
+            profesor=profesor1, uea=uea, periodo=periodo,
+            nombre_grupo="GP1", id_grupo="GP1-ID", horario="Lun 10-12",
+            estado=CartaTematica.Estado.PUBLICADO,
+        )
+        # Una en BORRADOR — no debe aparecer en la pública
+        CartaTematica.objects.create(
+            profesor=profesor1, uea=uea, periodo=periodo,
+            nombre_grupo="HID", id_grupo="HID-ID", horario="Lun 10-12",
+            estado=CartaTematica.Estado.BORRADOR,
+        )
+        r = APIClient().get(f"/api/v1/publico/cartas/?licenciatura={uea.licenciatura_id}")
+        assert r.status_code == 200
+        # Sin pagination_class → respuesta es lista directa
+        ids_grupo = [c["id_grupo"] for c in r.data]
+        assert "GP1-ID" in ids_grupo
+        assert "HID-ID" not in ids_grupo
+
+    def test_lista_cartas_publicas_filtro_uea(self, client, usuario_prof1, profesor1, uea, periodo):
+        CartaTematica.objects.create(
+            profesor=profesor1, uea=uea, periodo=periodo,
+            nombre_grupo="A", id_grupo="UEA-A", horario="Lun 10-12",
+            estado=CartaTematica.Estado.PUBLICADO,
+        )
+        r = APIClient().get(f"/api/v1/publico/cartas/?uea={uea.id}")
+        assert r.status_code == 200
+        assert len(r.data) >= 1
+        assert all(c["uea_clave"] == uea.clave for c in r.data)
+
+    def test_lista_requisitos_publicas(self, client, usuario_prof1, profesor1, uea, periodo):
+        RequisitoRecuperacion.objects.create(
+            profesor=profesor1, uea=uea, periodo=periodo,
+            nombre_grupo="RR", id_grupo="RR-1", horario="Mar 9-11",
+            estado=RequisitoRecuperacion.Estado.PUBLICADO,
+        )
+        r = APIClient().get(f"/api/v1/publico/requisitos/?uea={uea.id}")
+        assert r.status_code == 200
+        assert len(r.data) >= 1
+
+
 class TestPublicRequisito:
     def test_requisito_publicado_visible(self, client, usuario_prof1, profesor1, uea, periodo):
         rr = RequisitoRecuperacion.objects.create(

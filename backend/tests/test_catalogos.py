@@ -107,6 +107,31 @@ class TestPeriodos:
         # `activo` legado sigue siendo OR de los tres → solo 1 periodo lo tiene.
         assert Periodo.objects.filter(activo=True).count() == 1
 
+    def test_publico_licenciaturas_sin_auth(self, client, db):
+        """GET /publico/licenciaturas/ funciona sin token."""
+        from catalogos.models import Licenciatura
+        Licenciatura.objects.create(clave="ARQ-X", nombre="Arq Test", estado=True)
+        # APIClient sin auth
+        from rest_framework.test import APIClient
+        r = APIClient().get("/api/v1/publico/licenciaturas/")
+        assert r.status_code == 200
+        nombres = [l["nombre"] for l in r.data]
+        assert "Arq Test" in nombres
+
+    def test_publico_uea_filtrada_por_lic(self, client, db):
+        """GET /publico/uea/?licenciatura=ID solo regresa las de esa lic."""
+        from catalogos.models import Licenciatura, UEA
+        lic_a = Licenciatura.objects.create(clave="LA", nombre="Lic A", estado=True)
+        lic_b = Licenciatura.objects.create(clave="LB", nombre="Lic B", estado=True)
+        UEA.objects.create(clave="UA-1", nombre="UEA A1", licenciatura=lic_a)
+        UEA.objects.create(clave="UB-1", nombre="UEA B1", licenciatura=lic_b)
+        from rest_framework.test import APIClient
+        r = APIClient().get(f"/api/v1/publico/uea/?licenciatura={lic_a.id}")
+        assert r.status_code == 200
+        claves = [u["clave"] for u in r.data]
+        assert "UA-1" in claves
+        assert "UB-1" not in claves
+
     def test_activos_separados_por_recurso(self, client, admin, db):
         """26-P puede ser activo para Requisitos/AE y 26-O para Cartas al mismo tiempo."""
         auth(client, "admin2@cyad.uam.mx", "Admin1234!")
