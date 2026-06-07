@@ -5,10 +5,10 @@ import io
 
 from django.db import transaction
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import filters, status, viewsets
+from rest_framework import filters, generics, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
 from core.permissions import IsAdmin, IsAdminOrReadOnly
@@ -132,6 +132,38 @@ class UEAViewSet(viewsets.ModelViewSet):
             },
             status=status.HTTP_200_OK,
         )
+
+
+class PublicLicenciaturaListView(generics.ListAPIView):
+    """GET /api/v1/publico/licenciaturas/ — Sin auth.
+
+    Lista licenciaturas activas, usado por la home pública para el selector.
+    """
+    serializer_class = LicenciaturaSerializer
+    permission_classes = [AllowAny]
+    authentication_classes = []
+    pagination_class = None
+
+    def get_queryset(self):
+        return Licenciatura.objects.filter(estado=True).select_related("departamento").order_by("nombre")
+
+
+class PublicUEAListView(generics.ListAPIView):
+    """GET /api/v1/publico/uea/?licenciatura=ID — Sin auth.
+
+    Lista UEAs activas, opcionalmente filtradas por licenciatura.
+    """
+    serializer_class = UEASerializer
+    permission_classes = [AllowAny]
+    authentication_classes = []
+    pagination_class = None
+
+    def get_queryset(self):
+        qs = UEA.objects.filter(estado=True).select_related("licenciatura").order_by("clave")
+        lic = self.request.query_params.get("licenciatura")
+        if lic:
+            qs = qs.filter(licenciatura_id=lic)
+        return qs
 
 
 class PeriodoViewSet(viewsets.ModelViewSet):
