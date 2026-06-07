@@ -23,7 +23,7 @@ const TIPOS = [{ value: 'OBLIGATORIA', label: 'Obligatoria' }, { value: 'OPTATIV
 
 const empty = () => ({
   clave: '', nombre: '', licenciatura: '', trimestre: '', etapa: '',
-  tipo: 'OBLIGATORIA', creditos: '', estado: true,
+  tipo: 'OBLIGATORIA', creditos: '', liga: '', estado: true,
 })
 
 export default function UEAPage() {
@@ -53,7 +53,8 @@ export default function UEAPage() {
       clave: row.clave, nombre: row.nombre,
       licenciatura: row.licenciatura ?? '',
       trimestre: row.trimestre ?? '', etapa: row.etapa ?? '',
-      tipo: row.tipo, creditos: row.creditos ?? '', estado: row.estado,
+      tipo: row.tipo, creditos: row.creditos ?? '',
+      liga: row.liga ?? '', estado: row.estado,
     })
     setModal(true)
   }
@@ -156,6 +157,11 @@ export default function UEAPage() {
           <FormField label="Créditos">
             <input type="number" min={0} value={form.creditos} onChange={f('creditos')} className={inputCls} placeholder="ej. 8" />
           </FormField>
+          <div className="col-span-2">
+            <FormField label="Liga (página oficial de la UEA)" hint="Opcional — se muestra en la vista pública de la Carta Temática">
+              <input type="url" value={form.liga} onChange={f('liga')} className={inputCls} placeholder="https://cyad.azc.uam.mx/..." />
+            </FormField>
+          </div>
           <label className="col-span-2 flex items-center gap-2 cursor-pointer">
             <input type="checkbox" checked={form.estado} onChange={(e) => setForm((p) => ({ ...p, estado: e.target.checked }))} className="h-4 w-4 accent-indigo-600" />
             <span className="text-sm text-slate-700">Activo</span>
