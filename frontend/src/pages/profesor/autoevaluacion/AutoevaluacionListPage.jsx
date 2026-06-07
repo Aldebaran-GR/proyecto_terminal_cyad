@@ -9,7 +9,14 @@ import EmptyState from '../../../components/ui/EmptyState'
 import Badge from '../../../components/ui/Badge'
 import Button from '../../../components/ui/Button'
 
-function EstadoRespuestaBadge({ yaRespondido, respuestaEstado }) {
+function EstadoRespuestaBadge({ yaRespondido, respuestaEstado, formularioEstado }) {
+  if (formularioEstado === 'CERRADO' && !yaRespondido) {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-slate-200 px-2.5 py-0.5 text-xs font-medium text-slate-700">
+        Cerrado
+      </span>
+    )
+  }
   if (yaRespondido) {
     return (
       <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-700">
@@ -46,9 +53,12 @@ function EstadoRespuestaBadge({ yaRespondido, respuestaEstado }) {
 }
 
 export default function AutoevaluacionListPage() {
+  // Polling cada 15 s para que el profesor vea, sin recargar, los
+  // formularios que el admin publica o cierra desde otra sesión.
   const { data, isLoading } = useQuery({
     queryKey: ['formularios-disponibles'],
     queryFn: () => getFormulariosDisponibles().then((r) => r.data),
+    refetchInterval: 15_000,
   })
 
   const formularios = data?.results ?? data ?? []
@@ -82,6 +92,7 @@ export default function AutoevaluacionListPage() {
                 <EstadoRespuestaBadge
                   yaRespondido={f.ya_respondido}
                   respuestaEstado={f.respuesta_estado}
+                  formularioEstado={f.estado}
                 />
               </div>
 
@@ -109,6 +120,10 @@ export default function AutoevaluacionListPage() {
                       Ver resultado
                     </Button>
                   </Link>
+                ) : f.estado === 'CERRADO' ? (
+                  <Button size="sm" disabled className="w-full">
+                    Ya no acepta respuestas
+                  </Button>
                 ) : (
                   <Link to={`/profesor/autoevaluacion/${f.id}`}>
                     <Button size="sm" className="w-full">
