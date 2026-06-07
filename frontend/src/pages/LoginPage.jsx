@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Navigate, useLocation } from 'react-router-dom'
+import { Link, Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import Button from '../components/ui/Button'
 import Alert from '../components/ui/Alert'
@@ -16,6 +16,7 @@ const schema = z.object({
 export default function LoginPage() {
   const { login, user } = useAuth()
   const location = useLocation()
+  // apiError = { type: 'error' | 'warning', title?: string, message: string } | null
   const [apiError, setApiError] = useState(null)
 
   const {
@@ -46,11 +47,38 @@ export default function LoginPage() {
       await login(email, password)
       // No llamamos navigate() — el re-render con user!=null activa <Navigate> arriba
     } catch (err) {
-      const detail =
-        err?.response?.data?.detail ||
-        err?.response?.data?.errors?.non_field_errors?.[0] ||
-        'Credenciales incorrectas. Verifica tu correo y contraseña.'
-      setApiError(detail)
+      // El backend usa api_exception_handler que envuelve los errores en
+      //   { success: false, status_code, errors: <payload original DRF> }
+      // Para el login los dos casos posibles son:
+      //  - Cuenta desactivada (credenciales válidas pero is_active=False):
+      //      errors: { code: 'account_disabled', detail: '...' }
+      //  - Credenciales incorrectas (SimpleJWT estándar):
+      //      errors: { detail: 'No active account found ...' }
+      const data = err?.response?.data
+      const payload =
+        (data && typeof data === 'object' && data.errors) || data || {}
+      const code = payload?.code
+      const detailMsg =
+        typeof payload?.detail === 'string' ? payload.detail : null
+
+      if (code === 'account_disabled') {
+        setApiError({
+          type: 'warning',
+          title: 'Cuenta desactivada',
+          message:
+            detailMsg ||
+            'Tu cuenta se encuentra desactivada. Contacta al administrador para reactivarla.',
+        })
+      } else {
+        setApiError({
+          type: 'error',
+          title: 'Credenciales incorrectas',
+          message:
+            detailMsg ||
+            payload?.non_field_errors?.[0] ||
+            'Credenciales incorrectas. Verifica tu correo y contraseña.',
+        })
+      }
     }
   }
 
@@ -74,8 +102,12 @@ export default function LoginPage() {
         <div className="rounded-2xl bg-white p-8 shadow-sm ring-1 ring-slate-200">
           {apiError && (
             <div className="mb-5">
-              <Alert type="error" onClose={() => setApiError(null)}>
-                {apiError}
+              <Alert
+                type={apiError.type}
+                title={apiError.title}
+                onClose={() => setApiError(null)}
+              >
+                {apiError.message}
               </Alert>
             </div>
           )}
@@ -107,9 +139,17 @@ export default function LoginPage() {
           </form>
         </div>
 
-        <p className="mt-6 text-center text-xs text-slate-400">
-          División de Ciencias y Artes para el Diseño · UAM Azcapotzalco
-        </p>
+        <div className="mt-6 text-center space-y-2">
+          <Link
+            to="/"
+            className="block text-xs text-indigo-600 hover:underline"
+          >
+            ← Volver a documentos públicos
+          </Link>
+          <p className="text-xs text-slate-400">
+            División de Ciencias y Artes para el Diseño · UAM Azcapotzalco
+          </p>
+        </div>
       </div>
     </div>
   )
