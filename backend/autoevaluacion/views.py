@@ -173,6 +173,30 @@ class FormularioViewSet(viewsets.ModelViewSet):
             raise ValidationError({"non_field_errors": [str(exc)]})
         return Response({"success": True, "estado": formulario.estado})
 
+    @action(detail=True, methods=["post"])
+    def despublicar(self, request, pk=None):
+        """PUBLICADO o CERRADO → BORRADOR para reabrir edición."""
+        formulario = self.get_object()
+        try:
+            formulario.despublicar()
+        except ValueError as exc:
+            raise ValidationError({"non_field_errors": [str(exc)]})
+        return Response({"success": True, "estado": formulario.estado})
+
+    @action(detail=True, methods=["post"])
+    def reabrir(self, request, pk=None):
+        """CERRADO → PUBLICADO sin incrementar versión.
+
+        Permite volver a aceptar respuestas si se cerró antes de tiempo.
+        Las respuestas previamente enviadas no se ven afectadas.
+        """
+        formulario = self.get_object()
+        try:
+            formulario.reabrir()
+        except ValueError as exc:
+            raise ValidationError({"non_field_errors": [str(exc)]})
+        return Response({"success": True, "estado": formulario.estado})
+
     @action(detail=True, methods=["post"], url_path="publicar-revision")
     def publicar_revision(self, request, pk=None):
         """Incrementa la versión del formulario y lo vuelve a publicar (desde CERRADO).
@@ -384,7 +408,14 @@ class NivelDesempenoViewSet(viewsets.ModelViewSet):
 
 
 class FormulariosDisponiblesViewSet(viewsets.ReadOnlyModelViewSet):
-    """Formularios publicados visibles para el profesor autenticado."""
+    """Formularios visibles para el profesor autenticado.
+
+    Incluye PUBLICADO y CERRADO:
+      - PUBLICADO: puede responder.
+      - CERRADO: ya no se aceptan respuestas nuevas, pero quienes ya
+                 enviaron pueden seguir consultando su resultado.
+        El endpoint /respuestas/ rechaza envíos si estado != PUBLICADO.
+    """
 
     serializer_class = FormularioDisponibleSerializer
     permission_classes = [IsAuthenticated, IsProfesor]
@@ -392,8 +423,19 @@ class FormulariosDisponiblesViewSet(viewsets.ReadOnlyModelViewSet):
     filterset_fields = ["periodo"]
 
     def get_queryset(self):
+        # Solo formularios cuyo periodo esté activo para Autoevaluación.
+        # Así, formularios de trimestres pasados ya no se muestran al profesor
+        # aunque sigan en la BD para consulta del admin.
+        from catalogos.models import Periodo
         return (
-            Formulario.objects.filter(estado=Formulario.Estado.PUBLICADO)
+            Formulario.objects.filter(
+                estado__in=[
+                    Formulario.Estado.PUBLICADO,
+                    Formulario.Estado.CERRADO,
+                ],
+                periodo__activo_autoevaluacion=True,
+                periodo__estado=True,
+            )
             .select_related("periodo")
             .prefetch_related(
                 "secciones__preguntas__opciones",

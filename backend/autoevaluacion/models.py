@@ -61,6 +61,35 @@ class Formulario(TimeStampedModel):
         self.closed_at = timezone.now()
         self.save(update_fields=["estado", "closed_at"])
 
+    def despublicar(self):
+        """Regresa el formulario a BORRADOR para poder editarlo de nuevo.
+
+        Acepta tanto PUBLICADO como CERRADO. Las respuestas existentes se
+        conservan. La versión no se incrementa: si el admin re-publica,
+        es el mismo formulario.
+        """
+        if self.estado not in (self.Estado.PUBLICADO, self.Estado.CERRADO):
+            raise ValueError(
+                "Solo se puede despublicar un formulario PUBLICADO o CERRADO."
+            )
+        self.estado = self.Estado.BORRADOR
+        # Conservamos `published_at` como timestamp de la última publicación
+        # para auditoría; el siguiente publicar() lo refresca.
+        self.save(update_fields=["estado"])
+
+    def reabrir(self):
+        """CERRADO → PUBLICADO sin incrementar versión.
+
+        Útil si el admin cierra anticipadamente por error y quiere volver a
+        aceptar respuestas sin obligar a re-responder a quienes ya enviaron.
+        """
+        if self.estado != self.Estado.CERRADO:
+            raise ValueError("Solo se puede reabrir un formulario CERRADO.")
+        self.estado = self.Estado.PUBLICADO
+        self.published_at = timezone.now()
+        self.closed_at = None
+        self.save(update_fields=["estado", "published_at", "closed_at"])
+
     def publicar_revision(self):
         """Incrementa la versión y vuelve a publicar el formulario desde CERRADO.
 
