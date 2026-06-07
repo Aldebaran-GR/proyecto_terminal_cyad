@@ -8,7 +8,7 @@ import { Link, useParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   getFormulario, updateFormulario,
-  publicarFormulario, cerrarFormulario, publicarRevisionFormulario,
+  publicarFormulario, despublicarFormulario, cerrarFormulario, reabrirFormulario,
   createPregunta, updatePregunta, deletePregunta,
   getNivelesDesempeno, createNivelDesempeno, updateNivelDesempeno, deleteNivelDesempeno,
   getFormularioEstadisticas,
@@ -190,8 +190,9 @@ export default function FormularioBuilderPage() {
     onError: (e) => setApiError(e.response?.data?.non_field_errors?.[0] || msg),
   })
   const pubMut = makeMut(publicarFormulario, 'Error al publicar.')
+  const desMut = makeMut(despublicarFormulario, 'Error al despublicar.')
   const cerMut = makeMut(cerrarFormulario, 'Error al cerrar.')
-  const revMut = makeMut(publicarRevisionFormulario, 'Error al publicar revisión.')
+  const reaMut = makeMut(reabrirFormulario, 'Error al reabrir.')
 
   /* ── Preguntas ── */
   const savePreguntaMut = useMutation({
@@ -243,9 +244,9 @@ export default function FormularioBuilderPage() {
   const isPublicado = formulario?.estado === 'PUBLICADO'
   const isCerrado = formulario?.estado === 'CERRADO'
   const isBorrador = formulario?.estado === 'BORRADOR'
-  // Editable salvo cuando está PUBLICADO (regla del backend).
-  // En CERRADO las modificaciones se aplicarán a la próxima revisión (v+1).
-  const editable = isBorrador || isCerrado
+  // Editable solo en BORRADOR (regla del backend). El admin debe despublicar
+  // antes de modificar preguntas si quiere cambiar un formulario PUBLICADO o CERRADO.
+  const editable = isBorrador
 
   if (isLoading) return <Loading text="Cargando formulario..." />
 
@@ -259,12 +260,78 @@ export default function FormularioBuilderPage() {
           <Link to="/admin/autoevaluacion" className="text-slate-400 hover:text-slate-600 text-sm">← Volver</Link>
           <h1 className="text-xl font-bold text-slate-900">{formulario?.titulo}</h1>
           <Badge label={formulario?.estado} variant={formulario?.estado} />
-          <span className="text-xs text-slate-400">v{formulario?.version} · {formulario?.periodo_clave}</span>
+          <span className="text-xs text-slate-400">{formulario?.periodo_clave}</span>
         </div>
-        <div className="flex gap-2 shrink-0">
-          {isBorrador && <Button onClick={() => pubMut.mutate()} loading={pubMut.isPending}>Publicar</Button>}
-          {isPublicado && <Button variant="secondary" onClick={() => cerMut.mutate()} loading={cerMut.isPending}>Cerrar</Button>}
-          {isCerrado && <Button onClick={() => revMut.mutate()} loading={revMut.isPending}>Nueva revisión</Button>}
+        <div className="flex gap-2 shrink-0 flex-wrap">
+          <Link to={`/admin/autoevaluacion/${id}/preview`}>
+            <Button variant="secondary">Vista previa</Button>
+          </Link>
+          {isBorrador && (
+            <Button
+              onClick={() => pubMut.mutate()}
+              loading={pubMut.isPending}
+              title="Publicar para que sea visible y abierto a respuestas"
+            >
+              Publicar
+            </Button>
+          )}
+          {isPublicado && (
+            <>
+              <Button
+                variant="secondary"
+                loading={cerMut.isPending}
+                title="Detener la recepción de nuevas respuestas. Los profesores podrán seguir viendo el formulario y su resultado si ya respondieron."
+                onClick={() => {
+                  if (window.confirm(
+                    'Al cerrar el formulario los profesores dejarán de poder enviar respuestas nuevas. ' +
+                    'Quienes ya enviaron pueden seguir consultando su resultado. ¿Continuar?'
+                  )) {
+                    cerMut.mutate()
+                  }
+                }}
+              >
+                Cerrar
+              </Button>
+              <Button
+                variant="secondary"
+                loading={desMut.isPending}
+                title="Volver a BORRADOR para editar; deja de ser visible para los profesores."
+                onClick={() => {
+                  if (window.confirm('Al despublicar, los profesores dejarán de ver este formulario hasta que vuelvas a publicarlo. ¿Continuar?')) {
+                    desMut.mutate()
+                  }
+                }}
+              >
+                Despublicar
+              </Button>
+            </>
+          )}
+          {isCerrado && (
+            <>
+              <Button
+                loading={reaMut.isPending}
+                title="Volver a aceptar respuestas sin tocar la versión ni las respuestas ya enviadas."
+                onClick={() => {
+                  if (window.confirm('Al reabrir, los profesores pendientes podrán enviar respuestas otra vez. ¿Continuar?')) {
+                    reaMut.mutate()
+                  }
+                }}
+              >
+                Reabrir
+              </Button>
+              <Button
+                variant="secondary"
+                loading={desMut.isPending}
+                onClick={() => {
+                  if (window.confirm('Despublicar lo regresa a BORRADOR para edición. Se ocultará a los profesores. ¿Continuar?')) {
+                    desMut.mutate()
+                  }
+                }}
+              >
+                Despublicar
+              </Button>
+            </>
+          )}
         </div>
       </div>
 
@@ -275,7 +342,7 @@ export default function FormularioBuilderPage() {
       <div className="flex gap-6 text-sm text-slate-500">
         <span>📋 {preguntas.length} preguntas</span>
         <span>💯 Puntaje máximo: <strong>{formulario?.puntaje_maximo_posible?.toFixed(1) ?? '—'} pts</strong></span>
-        <span>✉ {formulario?.total_respuestas} respuestas (v{formulario?.version})</span>
+        <span>✉ {formulario?.total_respuestas} respuestas</span>
       </div>
 
       {/* Tabs */}
@@ -293,14 +360,16 @@ export default function FormularioBuilderPage() {
         <div className="space-y-3">
           {isPublicado && (
             <div className="rounded-lg bg-amber-50 border border-amber-200 px-4 py-2 text-sm text-amber-800">
-              El formulario está <strong>PUBLICADO</strong>. Para modificar preguntas u opciones, ciérralo primero;
-              al publicar la nueva revisión, los profesores volverán a responder la versión actualizada.
+              El formulario está <strong>PUBLICADO</strong> y aceptando respuestas.
+              Para modificar preguntas u opciones, <em>Despublica</em> primero. Si solo quieres
+              dejar de recibir respuestas nuevas, usa <em>Cerrar</em>.
             </div>
           )}
           {isCerrado && (
             <div className="rounded-lg bg-slate-50 border border-slate-200 px-4 py-2 text-sm text-slate-700">
-              El formulario está <strong>CERRADO</strong>. Los cambios que hagas se aplicarán cuando publiques la
-              próxima revisión (v{(formulario?.version ?? 1) + 1}).
+              El formulario está <strong>CERRADO</strong>. Los profesores siguen viéndolo (solo lectura)
+              pero ya no pueden enviar nuevas respuestas. Usa <em>Reabrir</em> para volver a aceptarlas
+              o <em>Despublicar</em> para editar.
             </div>
           )}
           {editable && (

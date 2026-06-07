@@ -1,12 +1,19 @@
 /**
  * Lista de Formularios de Autoevaluación — Admin.
+ *
+ * Acciones por fila (mismo patrón que documentos del profesor):
+ *   • Ver      → vista previa de cómo lucirá para el profesor.
+ *   • Editar   → si está PUBLICADO, despublica primero y abre el builder.
+ *   • Eliminar → si está PUBLICADO, despublica primero y elimina.
  */
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
-  getFormularios, createFormulario, deleteFormulario,
-  publicarFormulario, cerrarFormulario, publicarRevisionFormulario,
+  getFormularios,
+  createFormulario,
+  deleteFormulario,
+  despublicarFormulario,
 } from '../../../api/autoevaluacion'
 import { getPeriodos } from '../../../api/catalogos'
 import Button from '../../../components/ui/Button'
@@ -16,53 +23,96 @@ import Alert from '../../../components/ui/Alert'
 import Modal from '../../../components/ui/Modal'
 import FormField, { inputCls } from '../../../components/ui/FormField'
 
-const ESTADO_COLORS = { BORRADOR: 'BORRADOR', PUBLICADO: 'PUBLICADO', CERRADO: 'CERRADO' }
-
 export default function AutoevaluacionAdminPage() {
   const qc = useQueryClient()
+  const navigate = useNavigate()
   const [apiError, setApiError] = useState(null)
   const [createModal, setCreateModal] = useState(false)
   const [newForm, setNewForm] = useState({ titulo: '', descripcion: '', periodo: '' })
 
+  // Polling cada 15 s para reflejar respuestas que profesores envían en vivo,
+  // sin obligar al admin a recargar.
   const { data, isLoading } = useQuery({
     queryKey: ['formularios'],
     queryFn: () => getFormularios().then((r) => r.data?.results ?? r.data ?? []),
+    refetchInterval: 15_000,
   })
   const { data: periodos = [] } = useQuery({
     queryKey: ['periodos'],
     queryFn: () => getPeriodos().then((r) => r.data?.results ?? r.data ?? []),
   })
 
+  const invalidate = () => qc.invalidateQueries({ queryKey: ['formularios'] })
+
   const createMut = useMutation({
     mutationFn: (d) => createFormulario(d),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['formularios'] }); setCreateModal(false) },
+    onSuccess: (r) => {
+      invalidate()
+      setCreateModal(false)
+      // Llevar directo al builder para empezar a editar
+      if (r?.data?.id) navigate(`/admin/autoevaluacion/${r.data.id}`)
+    },
     onError: (e) => setApiError(e.response?.data?.detail || 'Error al crear el formulario.'),
   })
-  const makeMut = (fn, msg) => useMutation({
-    mutationFn: (id) => fn(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['formularios'] }),
-    onError: (e) => setApiError(e.response?.data?.non_field_errors?.[0] || msg),
+
+  // Considera tanto PUBLICADO como CERRADO como "no editable directo";
+  // ambos necesitan despublicarse para volver a BORRADOR.
+  const needsDespublicar = (row) =>
+    row.estado === 'PUBLICADO' || row.estado === 'CERRADO'
+
+  const editMut = useMutation({
+    mutationFn: async (row) => {
+      if (needsDespublicar(row)) {
+        await despublicarFormulario(row.id)
+      }
+      return row.id
+    },
+    onSuccess: (id) => {
+      invalidate()
+      navigate(`/admin/autoevaluacion/${id}`)
+    },
+    onError: (e) => setApiError(e.response?.data?.detail || 'No se pudo abrir el editor.'),
   })
-  const pubMut = makeMut(publicarFormulario, 'Error al publicar.')
-  const cerMut = makeMut(cerrarFormulario, 'Error al cerrar.')
-  const revMut = makeMut(publicarRevisionFormulario, 'Error al publicar revisión.')
-  const delMut = useMutation({
-    mutationFn: (id) => deleteFormulario(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['formularios'] }),
+
+  const deleteMut = useMutation({
+    mutationFn: async (row) => {
+      if (needsDespublicar(row)) {
+        await despublicarFormulario(row.id)
+      }
+      return deleteFormulario(row.id)
+    },
+    onSuccess: invalidate,
     onError: (e) => setApiError(
       e.response?.data?.detail
       || e.response?.data?.non_field_errors?.[0]
-      || 'No se puede eliminar este formulario.'
+      || 'No se pudo eliminar el formulario.'
     ),
   })
 
-  const confirmarYEliminar = (row) => {
-    const tieneRespuestas = (row.total_respuestas ?? 0) > 0
-    const aviso = tieneRespuestas
-      ? `Este formulario tiene ${row.total_respuestas} respuesta(s) registradas. ` +
-        `Si lo eliminas, se borrará el historial. ¿Continuar?`
-      : '¿Eliminar este formulario?'
-    if (window.confirm(aviso)) delMut.mutate(row.id)
+  const onEditClick = (row) => {
+    if (needsDespublicar(row)) {
+      const verbo = row.estado === 'PUBLICADO' ? 'despublicará' : 'pasará de cerrado a borrador'
+      if (!window.confirm(
+        `Este formulario está ${row.estado}. Para editarlo se ${verbo} primero ` +
+        '(dejará de aparecer para los profesores). ¿Continuar?'
+      )) return
+    }
+    editMut.mutate(row)
+  }
+
+  const onDeleteClick = (row) => {
+    const total = row.total_respuestas ?? 0
+    let aviso
+    if (needsDespublicar(row) && total > 0) {
+      aviso = `Este formulario está ${row.estado} y tiene ${total} respuesta(s). Se despublicará, el historial se borrará y se eliminará. ¿Continuar?`
+    } else if (needsDespublicar(row)) {
+      aviso = `Este formulario está ${row.estado}. Se despublicará y eliminará. ¿Continuar?`
+    } else if (total > 0) {
+      aviso = `Este formulario tiene ${total} respuesta(s). Si lo eliminas, se borrará el historial. ¿Continuar?`
+    } else {
+      aviso = '¿Eliminar este formulario?'
+    }
+    if (window.confirm(aviso)) deleteMut.mutate(row)
   }
 
   const columns = [
@@ -70,34 +120,40 @@ export default function AutoevaluacionAdminPage() {
       key: 'titulo', label: 'Formulario',
       render: (v, row) => (
         <div>
-          <Link to={`/admin/autoevaluacion/${row.id}`} className="font-medium text-indigo-600 hover:underline">{v}</Link>
-          <p className="text-xs text-slate-400">v{row.version} · {row.periodo_clave}</p>
+          <p className="font-medium text-slate-800">{v}</p>
+          <p className="text-xs text-slate-400">{row.periodo_clave}</p>
         </div>
       ),
     },
     {
       key: 'estado', label: 'Estado', className: 'w-28',
-      render: (v) => <Badge label={v} variant={ESTADO_COLORS[v]} />,
+      render: (v) => <Badge label={v} variant={v} />,
     },
     { key: 'total_preguntas', label: 'Preguntas', className: 'w-24 text-center' },
     { key: 'total_respuestas', label: 'Respuestas', className: 'w-24 text-center' },
     {
-      key: 'actions', label: '', className: 'w-72 text-right',
+      key: 'actions', label: '', className: 'w-64 text-right',
       render: (_, row) => (
-        <div className="flex justify-end gap-1.5 flex-wrap">
-          <Link to={`/admin/autoevaluacion/${row.id}`}>
-            <Button size="sm" variant="secondary">Ver / Editar</Button>
+        <div className="flex justify-end gap-2">
+          <Link to={`/admin/autoevaluacion/${row.id}/preview`}>
+            <Button size="sm" variant="secondary">Ver</Button>
           </Link>
-          {row.estado === 'BORRADOR' && (
-            <Button size="sm" onClick={() => pubMut.mutate(row.id)} loading={pubMut.isPending}>Publicar</Button>
-          )}
-          {row.estado === 'PUBLICADO' && (
-            <Button size="sm" variant="secondary" onClick={() => cerMut.mutate(row.id)} loading={cerMut.isPending}>Cerrar</Button>
-          )}
-          {row.estado === 'CERRADO' && (
-            <Button size="sm" onClick={() => revMut.mutate(row.id)} loading={revMut.isPending}>Nueva revisión</Button>
-          )}
-          <Button size="sm" variant="danger" onClick={() => confirmarYEliminar(row)} loading={delMut.isPending}>Eliminar</Button>
+          <Button
+            size="sm"
+            variant="secondary"
+            loading={editMut.isPending && editMut.variables?.id === row.id}
+            onClick={() => onEditClick(row)}
+          >
+            Editar
+          </Button>
+          <Button
+            size="sm"
+            variant="danger"
+            loading={deleteMut.isPending && deleteMut.variables?.id === row.id}
+            onClick={() => onDeleteClick(row)}
+          >
+            Eliminar
+          </Button>
         </div>
       ),
     },
@@ -121,7 +177,16 @@ export default function AutoevaluacionAdminPage() {
       <Modal open={createModal} onClose={() => setCreateModal(false)} title="Nuevo Formulario de Autoevaluación"
         footer={<>
           <Button variant="secondary" onClick={() => setCreateModal(false)}>Cancelar</Button>
-          <Button loading={createMut.isPending} onClick={() => createMut.mutate({ titulo: newForm.titulo, descripcion: newForm.descripcion, periodo: Number(newForm.periodo) })}>Crear</Button>
+          <Button
+            loading={createMut.isPending}
+            onClick={() => createMut.mutate({
+              titulo: newForm.titulo,
+              descripcion: newForm.descripcion,
+              periodo: Number(newForm.periodo),
+            })}
+          >
+            Crear borrador
+          </Button>
         </>}>
         <div className="space-y-4">
           <FormField label="Título" required>
@@ -136,6 +201,9 @@ export default function AutoevaluacionAdminPage() {
               {periodos.map((p) => <option key={p.id} value={p.id}>{p.clave}</option>)}
             </select>
           </FormField>
+          <p className="text-xs text-slate-400">
+            Después de crearlo entrarás al editor de preguntas. Cuando esté listo, lo podrás publicar.
+          </p>
         </div>
       </Modal>
     </div>
