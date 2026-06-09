@@ -34,3 +34,6 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Archivos de debug / QA
+*.network-response
