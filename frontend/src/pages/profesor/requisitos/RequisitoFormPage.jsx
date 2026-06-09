@@ -12,7 +12,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   getRequisito, createRequisito, updateRequisito, cambiarEstadoRequisito,
 } from '../../../api/documentos'
-import { getUEA, getPeriodosActivos, getLicenciaturas } from '../../../api/catalogos'
+import { getUEA, getPeriodosActivos } from '../../../api/catalogos'
 import Button from '../../../components/ui/Button'
 import Alert from '../../../components/ui/Alert'
 import FormField, { inputCls } from '../../../components/ui/FormField'
@@ -34,11 +34,10 @@ export default function RequisitoFormPage() {
 
   const [apiError, setApiError] = useState(null)
 
-  // Estado del selector jerárquico de UEA. El usuario primero elige
-  // Licenciatura, luego Trimestre, y el combo de UEA queda restringido
-  // a esa combinación — así no tiene que recorrer cientos de UEAs.
-  const [licId, setLicId] = useState('')
-  const [trim, setTrim] = useState('')
+  // Selección de UEA por búsqueda libre (clave o nombre). El profesor escribe,
+  // elige una opción de la lista y queda seleccionada. Sin navegación
+  // jerárquica por licenciatura/trimestre.
+  const [busquedaUEA, setBusquedaUEA] = useState('')
 
   const {
     register, handleSubmit, reset, setValue, watch, formState: { errors },
@@ -49,38 +48,36 @@ export default function RequisitoFormPage() {
     queryKey: ['uea-list'],
     queryFn: () => getUEA({ estado: true }).then((r) => r.data?.results ?? r.data ?? []),
   })
-  const { data: licenciaturas = [] } = useQuery({
-    queryKey: ['licenciaturas'],
-    queryFn: () => getLicenciaturas({ estado: true }).then((r) => r.data?.results ?? r.data ?? []),
-  })
   const { data: activos } = useQuery({
     queryKey: ['periodos-activos'],
     queryFn: () => getPeriodosActivos().then((r) => r.data),
   })
   const periodoRequisitos = activos?.requisitos ?? null
 
-  /* ── UEAs filtradas: lic → trim ── */
-  // El backend ya filtra por `licenciatura` y `trimestre`, pero como
-  // cargamos todo el catálogo una vez en `ueas`, el filtrado lo hacemos
-  // del lado del cliente (es instantáneo y reduce roundtrips).
-  const ueasFiltradas = useMemo(() => {
-    let list = ueas
-    if (licId) list = list.filter((u) => String(u.licenciatura) === String(licId))
-    if (trim)  list = list.filter((u) => String(u.trimestre) === String(trim))
-    return list
-  }, [ueas, licId, trim])
+  // UEA actualmente seleccionada (objeto completo) para mostrarla.
+  const ueaId = watch('uea')
+  const ueaSeleccionada = useMemo(
+    () => ueas.find((u) => String(u.id) === String(ueaId)) || null,
+    [ueas, ueaId],
+  )
 
-  // Trimestres disponibles para la licenciatura elegida (1-12 filtrados
-  // a los que efectivamente existan).
-  const trimestresDisponibles = useMemo(() => {
-    const base = licId
-      ? ueas.filter((u) => String(u.licenciatura) === String(licId))
-      : ueas
-    const trims = new Set(base.map((u) => u.trimestre).filter((t) => t != null))
-    return Array.from(trims).sort((a, b) => a - b)
-  }, [ueas, licId])
+  // Resultados del buscador: top 10 coincidencias por clave o nombre.
+  const resultadosBusqueda = useMemo(() => {
+    const q = busquedaUEA.trim().toLowerCase()
+    if (!q) return []
+    return ueas
+      .filter((u) =>
+        (u.clave || '').toLowerCase().includes(q)
+        || (u.nombre || '').toLowerCase().includes(q)
+      )
+      .slice(0, 10)
+  }, [ueas, busquedaUEA])
 
-  const ueaSeleccionada = watch('uea')
+  // Elegir una UEA desde el buscador: la marca como elegida y limpia la búsqueda.
+  const seleccionarUEADesdeBusqueda = (u) => {
+    setValue('uea', String(u.id), { shouldValidate: true })
+    setBusquedaUEA('')
+  }
 
   /* ── Documento existente ── */
   const { data: requisito } = useQuery({
@@ -106,27 +103,6 @@ export default function RequisitoFormPage() {
       })
     }
   }, [requisito, reset])
-
-  // Modo edición: una vez tenemos el requisito y el catálogo de ueas,
-  // pre-cargamos los filtros (Licenciatura, Trimestre) a partir de la
-  // UEA seleccionada en el documento.
-  useEffect(() => {
-    if (!requisito || !ueas.length) return
-    const u = ueas.find((x) => String(x.id) === String(requisito.uea))
-    if (u) {
-      if (u.licenciatura) setLicId(String(u.licenciatura))
-      if (u.trimestre)   setTrim(String(u.trimestre))
-    }
-  }, [requisito, ueas])
-
-  // Si la UEA seleccionada deja de cumplir con los filtros vigentes
-  // (porque el usuario cambió lic o trim), limpiamos la selección para
-  // forzar al usuario a elegir una nueva.
-  useEffect(() => {
-    if (!ueaSeleccionada) return
-    const sigue = ueasFiltradas.some((u) => String(u.id) === String(ueaSeleccionada))
-    if (!sigue) setValue('uea', '')
-  }, [ueasFiltradas, ueaSeleccionada, setValue])
 
   const [publicarTras, setPublicarTras] = useState(false)
 
@@ -217,68 +193,77 @@ export default function RequisitoFormPage() {
       )}
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-        {/* ── Selección de UEA (jerárquica) ── */}
+        {/* ── Selección de UEA (por búsqueda) ── */}
         <div className="rounded-xl border border-slate-200 bg-white p-6 space-y-4">
           <SectionTitle>Selección de UEA</SectionTitle>
           <p className="text-xs text-slate-500 -mt-2">
-            Elige licenciatura y trimestre para que el combo de UEAs muestre solo las que correspondan.
+            Búscala por clave o nombre y selecciónala de la lista.
           </p>
 
-          <div className="grid grid-cols-2 gap-4">
-            <FormField label="Licenciatura" required>
-              <select
-                value={licId}
-                onChange={(e) => { setLicId(e.target.value); setTrim('') }}
-                className={inputCls}
-              >
-                <option value="">-- Selecciona --</option>
-                {licenciaturas.map((l) => (
-                  <option key={l.id} value={l.id}>
-                    {l.clave} — {l.nombre}
-                  </option>
-                ))}
-              </select>
-            </FormField>
+          {/* Campo oculto registrado para validación del formulario */}
+          <input type="hidden" {...register('uea', { required: 'Selecciona una UEA' })} />
 
-            <FormField label="Trimestre" required hint="UEAs filtradas a este trimestre">
-              <select
-                value={trim}
-                onChange={(e) => setTrim(e.target.value)}
-                disabled={!licId}
-                className={inputCls}
+          {/* UEA seleccionada */}
+          {ueaSeleccionada && (
+            <div className="flex items-center justify-between gap-3 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2">
+              <div className="min-w-0 text-sm">
+                <span className="font-mono text-slate-500 mr-2">{ueaSeleccionada.clave}</span>
+                <span className="text-slate-800">{ueaSeleccionada.nombre}</span>
+                {ueaSeleccionada.licenciatura_nombre && (
+                  <span className="ml-2 text-xs text-slate-500">
+                    · {ueaSeleccionada.licenciatura_nombre}
+                  </span>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => setValue('uea', '', { shouldValidate: true })}
+                className="shrink-0 text-xs font-medium text-rose-600 hover:underline"
               >
-                <option value="">
-                  {licId ? '-- Selecciona --' : 'Elige una licenciatura primero'}
-                </option>
-                {trimestresDisponibles.map((t) => (
-                  <option key={t} value={t}>Trimestre {t}</option>
-                ))}
-              </select>
-            </FormField>
-          </div>
+                Cambiar
+              </button>
+            </div>
+          )}
 
-          <FormField label="UEA" error={errors.uea?.message} required>
-            <select
-              {...register('uea', { required: 'Selecciona una UEA' })}
-              className={inputCls}
-              disabled={!licId || !trim}
-            >
-              <option value="">
-                {!licId || !trim
-                  ? 'Elige licenciatura y trimestre arriba'
-                  : ueasFiltradas.length === 0
-                    ? 'Sin UEAs que coincidan'
-                    : '-- Selecciona la UEA --'}
-              </option>
-              {ueasFiltradas.map((u) => (
-                <option key={u.id} value={u.id}>{u.clave} — {u.nombre}</option>
-              ))}
-            </select>
-            {licId && trim && (
-              <p className="mt-1 text-xs text-slate-400">
-                {ueasFiltradas.length} UEA{ueasFiltradas.length === 1 ? '' : 's'} disponible{ueasFiltradas.length === 1 ? '' : 's'}.
-              </p>
-            )}
+          {/* Buscador por clave/nombre */}
+          <FormField
+            label="Buscar UEA"
+            error={errors.uea?.message}
+            required={!ueaSeleccionada}
+            hint="Escribe parte de la clave o del nombre y selecciona una opción."
+          >
+            <div className="relative">
+              <input
+                type="text"
+                value={busquedaUEA}
+                onChange={(e) => setBusquedaUEA(e.target.value)}
+                placeholder="ej. 1100023 o Diseño Industrial"
+                className={inputCls}
+                autoComplete="off"
+              />
+              {resultadosBusqueda.length > 0 && (
+                <ul className="absolute z-10 mt-1 w-full max-h-60 overflow-auto rounded-lg border border-slate-200 bg-white shadow-lg">
+                  {resultadosBusqueda.map((u) => (
+                    <li key={u.id}>
+                      <button
+                        type="button"
+                        onClick={() => seleccionarUEADesdeBusqueda(u)}
+                        className="w-full text-left px-3 py-2 hover:bg-indigo-50 text-sm border-b border-slate-100 last:border-0"
+                      >
+                        <span className="font-mono text-slate-500 mr-2">{u.clave}</span>
+                        <span className="text-slate-800">{u.nombre}</span>
+                        {u.licenciatura_nombre && (
+                          <span className="ml-2 text-xs text-slate-400">· {u.licenciatura_nombre}</span>
+                        )}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {busquedaUEA.trim() && resultadosBusqueda.length === 0 && (
+                <p className="mt-1 text-xs text-slate-400">Sin coincidencias.</p>
+              )}
+            </div>
           </FormField>
         </div>
 
