@@ -184,15 +184,14 @@ export default function FormularioBuilderPage() {
   })
 
   /* ── Acciones de estado ── */
-  const makeMut = (fn, msg) => useMutation({
+  const estadoMutOpts = (fn, msg) => ({
     mutationFn: () => fn(id),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['formulario', id] }); qc.invalidateQueries({ queryKey: ['formularios'] }) },
     onError: (e) => setApiError(e.response?.data?.non_field_errors?.[0] || msg),
   })
-  const pubMut = makeMut(publicarFormulario, 'Error al publicar.')
-  // "Cerrar" en la UI = despublicar en backend (PUBLICADO → BORRADOR).
-  const desMut = makeMut(despublicarFormulario, 'Error al cerrar el formulario.')
-  const reaMut = makeMut(reabrirFormulario, 'Error al reabrir.')
+  const pubMut = useMutation(estadoMutOpts(publicarFormulario, 'Error al publicar.'))
+  const desMut = useMutation(estadoMutOpts(despublicarFormulario, 'Error al cerrar el formulario.'))
+  const reaMut = useMutation(estadoMutOpts(reabrirFormulario, 'Error al reabrir.'))
 
   /* ── Preguntas ── */
   const savePreguntaMut = useMutation({
