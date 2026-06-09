@@ -459,29 +459,34 @@ export default function AutoevaluacionFormPage() {
       )}
 
       {/* Preguntas por sección */}
-      {secciones.map((sec) => {
-        const pSec = preguntas.filter((p) => p.seccion === sec.id)
-        if (!pSec.length) return null
-        return (
-          <div key={sec.id} className="space-y-4">
-            <div className="rounded-xl bg-slate-100 px-4 py-3">
-              <h2 className="font-semibold text-slate-800">{sec.titulo}</h2>
-              {sec.descripcion && (
-                <p className="text-sm text-slate-500 mt-0.5">{sec.descripcion}</p>
-              )}
+      {(() => {
+        let globalIdx = sinSeccion.length
+        return secciones.map((sec) => {
+          const pSec = preguntas.filter((p) => p.seccion === sec.id)
+          if (!pSec.length) return null
+          const startIdx = globalIdx
+          globalIdx += pSec.length
+          return (
+            <div key={sec.id} className="space-y-4">
+              <div className="rounded-xl bg-slate-100 px-4 py-3">
+                <h2 className="font-semibold text-slate-800">{sec.titulo}</h2>
+                {sec.descripcion && (
+                  <p className="text-sm text-slate-500 mt-0.5">{sec.descripcion}</p>
+                )}
+              </div>
+              {pSec.map((p, idx) => (
+                <PreguntaCard
+                  key={p.id}
+                  pregunta={p}
+                  numero={startIdx + idx + 1}
+                  value={answers[p.id]}
+                  onChange={(v) => updateAnswer(p.id, v)}
+                />
+              ))}
             </div>
-            {pSec.map((p, idx) => (
-              <PreguntaCard
-                key={p.id}
-                pregunta={p}
-                numero={sinSeccion.length + idx + 1}
-                value={answers[p.id]}
-                onChange={(v) => updateAnswer(p.id, v)}
-              />
-            ))}
-          </div>
-        )
-      })}
+          )
+        })
+      })()}
 
       {/* Footer con acciones */}
       <div className="flex justify-between gap-3 pb-8 pt-2 border-t border-slate-200">
