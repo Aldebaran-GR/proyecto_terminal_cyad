@@ -12,6 +12,12 @@ export const createLicenciatura = (data) => client.post('/licenciaturas/', data)
 export const updateLicenciatura = (id, data) => client.patch(`/licenciaturas/${id}/`, data)
 export const deleteLicenciatura = (id) => client.delete(`/licenciaturas/${id}/`)
 
+/* ─── Áreas ───────────────────────────────────────────────── */
+export const getAreas = (params) => client.get('/areas/', { params })
+export const createArea = (data) => client.post('/areas/', data)
+export const updateArea = (id, data) => client.patch(`/areas/${id}/`, data)
+export const deleteArea = (id) => client.delete(`/areas/${id}/`)
+
 /* ─── UEA ─────────────────────────────────────────────────── */
 export const getUEA = (params) => client.get('/uea/', { params })
 export const createUEA = (data) => client.post('/uea/', data)

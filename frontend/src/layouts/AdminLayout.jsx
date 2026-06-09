@@ -26,6 +26,7 @@ const navItems = [
     items: [
       { label: 'Departamentos', to: '/admin/catalogos/departamentos' },
       { label: 'Licenciaturas', to: '/admin/catalogos/licenciaturas' },
+      { label: 'Áreas', to: '/admin/catalogos/areas' },
       { label: 'UEA', to: '/admin/catalogos/uea' },
       { label: 'Periodos', to: '/admin/catalogos/periodos' },
     ],

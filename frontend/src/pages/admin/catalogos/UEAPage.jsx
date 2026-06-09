@@ -4,7 +4,7 @@
 import { useRef, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
-  getUEA, createUEA, updateUEA, deleteUEA, importarUEA, getLicenciaturas,
+  getUEA, createUEA, updateUEA, deleteUEA, importarUEA, getLicenciaturas, getAreas,
 } from '../../../api/catalogos'
 import Button from '../../../components/ui/Button'
 import Modal from '../../../components/ui/Modal'
@@ -13,16 +13,10 @@ import Alert from '../../../components/ui/Alert'
 import FormField, { inputCls } from '../../../components/ui/FormField'
 import Badge from '../../../components/ui/Badge'
 
-const ETAPAS = [
-  { value: '', label: '-- Ninguna --' },
-  { value: 'TRONCO_GENERAL', label: 'Tronco General' },
-  { value: 'TRONCO_BASICO', label: 'Tronco Básico Profesional' },
-  { value: 'TRONCO_INTEGRACION', label: 'Tronco de Integración' },
-]
 const TIPOS = [{ value: 'OBLIGATORIA', label: 'Obligatoria' }, { value: 'OPTATIVA', label: 'Optativa' }]
 
 const empty = () => ({
-  clave: '', nombre: '', licenciatura: '', trimestre: '', etapa: '',
+  clave: '', nombre: '', licenciatura: '', area: '', trimestre: '',
   tipo: 'OBLIGATORIA', creditos: '', liga: '', estado: true,
 })
 
@@ -45,6 +39,10 @@ export default function UEAPage() {
     queryKey: ['licenciaturas'],
     queryFn: () => getLicenciaturas().then((r) => r.data?.results ?? r.data ?? []),
   })
+  const { data: areas = [] } = useQuery({
+    queryKey: ['areas'],
+    queryFn: () => getAreas().then((r) => r.data?.results ?? r.data ?? []),
+  })
 
   const openCreate = () => { setSelected(null); setForm(empty()); setModal(true) }
   const openEdit = (row) => {
@@ -52,7 +50,8 @@ export default function UEAPage() {
     setForm({
       clave: row.clave, nombre: row.nombre,
       licenciatura: row.licenciatura ?? '',
-      trimestre: row.trimestre ?? '', etapa: row.etapa ?? '',
+      area: row.area ?? '',
+      trimestre: row.trimestre ?? '',
       tipo: row.tipo, creditos: row.creditos ?? '',
       liga: row.liga ?? '', estado: row.estado,
     })
@@ -65,8 +64,8 @@ export default function UEAPage() {
       const payload = {
         ...d,
         licenciatura: d.licenciatura || null,
-        trimestre: d.trimestre !== '' ? Number(d.trimestre) : null,
-        etapa: d.etapa || null,
+        area: d.area || null,
+        trimestre: d.trimestre || '',
         creditos: d.creditos !== '' ? Number(d.creditos) : null,
       }
       return selected ? updateUEA(selected.id, payload) : createUEA(payload)
@@ -94,6 +93,7 @@ export default function UEAPage() {
     { key: 'clave', label: 'Clave', className: 'w-28 font-mono text-xs' },
     { key: 'nombre', label: 'UEA' },
     { key: 'licenciatura_nombre', label: 'Licenciatura', render: (v) => v ?? <span className="text-slate-400">—</span> },
+    { key: 'area_nombre', label: 'Área', render: (v) => v ?? <span className="text-slate-400">—</span> },
     { key: 'tipo', label: 'Tipo', className: 'w-24', render: (v) => <span className="text-xs">{v}</span> },
     { key: 'estado', label: 'Estado', className: 'w-24', render: (v) => <Badge label={v ? 'ACTIVO' : 'INACTIVO'} variant={v ? 'ACTIVO' : 'INACTIVO'} /> },
     {
@@ -146,12 +146,17 @@ export default function UEAPage() {
               {lics.map((l) => <option key={l.id} value={l.id}>{l.nombre}</option>)}
             </select>
           </FormField>
-          <FormField label="Trimestre (1–12)">
-            <input type="number" min={1} max={12} value={form.trimestre} onChange={f('trimestre')} className={inputCls} placeholder="ej. 6" />
+          <FormField label="Trimestre" hint="Acepta entero (1–12) o rango romano (ej. VII-XII)">
+            <input type="text" value={form.trimestre} onChange={f('trimestre')} className={inputCls} placeholder="6 o VII-XII" />
           </FormField>
-          <FormField label="Etapa">
-            <select value={form.etapa} onChange={f('etapa')} className={inputCls}>
-              {ETAPAS.map((e) => <option key={e.value} value={e.value}>{e.label}</option>)}
+          <FormField label="Área">
+            <select value={form.area} onChange={f('area')} className={inputCls}>
+              <option value="">-- Ninguna --</option>
+              {areas.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.descripcion ? `${a.nombre} — ${a.descripcion}` : a.nombre}
+                </option>
+              ))}
             </select>
           </FormField>
           <FormField label="Créditos">
@@ -194,8 +199,9 @@ export default function UEAPage() {
           <div className="text-sm text-slate-600 space-y-2">
             <p>El CSV debe tener las columnas:</p>
             <code className="block rounded bg-slate-50 p-3 text-xs">
-              clave, nombre, licenciatura_clave, trimestre, etapa, tipo, creditos
+              clave, nombre, licenciatura_clave, trimestre, tipo, creditos, area_nombre, area_descripcion, url
             </code>
+            <p className="text-xs text-slate-400">area_nombre, area_descripcion y url son opcionales. trimestre acepta entero o rango romano.</p>
             <p className="text-slate-400">Rows existentes (por clave) se actualizan; nuevas se crean.</p>
           </div>
         )}
