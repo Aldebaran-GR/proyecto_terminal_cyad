@@ -25,6 +25,7 @@ class Licenciatura(TimeStampedModel, EstadoActivoModel):
 
     clave = models.CharField("Clave", max_length=20, unique=True)
     nombre = models.CharField("Nombre", max_length=200)
+    orden = models.PositiveSmallIntegerField("Orden", default=0)
     departamento = models.ForeignKey(
         Departamento,
         on_delete=models.SET_NULL,
@@ -36,10 +37,26 @@ class Licenciatura(TimeStampedModel, EstadoActivoModel):
     class Meta:
         verbose_name = "Licenciatura"
         verbose_name_plural = "Licenciaturas"
-        ordering = ["nombre"]
+        ordering = ["orden", "nombre"]
 
     def __str__(self):
         return f"{self.clave} — {self.nombre}"
+
+
+class Area(TimeStampedModel, EstadoActivoModel):
+    """Área curricular a la que pertenece una UEA (Licenciatura, optativas, etc.)."""
+
+    nombre = models.CharField("Nombre", max_length=200)
+    descripcion = models.CharField("Descripción", max_length=500, blank=True)
+
+    class Meta:
+        verbose_name = "Área"
+        verbose_name_plural = "Áreas"
+        unique_together = [("nombre", "descripcion")]
+        ordering = ["nombre", "descripcion"]
+
+    def __str__(self):
+        return f"{self.nombre} — {self.descripcion}" if self.descripcion else self.nombre
 
 
 class UEA(TimeStampedModel, EstadoActivoModel):
@@ -50,11 +67,6 @@ class UEA(TimeStampedModel, EstadoActivoModel):
         OPTATIVA = "OPT", "Optativa"
         OTRO = "OTRO", "Otro"
 
-    class Etapa(models.TextChoices):
-        TRONCO_GENERAL = "TG", "Tronco General"
-        TRONCO_BASICO = "TB", "Tronco Básico Profesional"
-        TRONCO_INTEGRACION = "TI", "Tronco de Integración"
-
     clave = models.CharField("Clave", max_length=20, unique=True)
     nombre = models.CharField("Nombre", max_length=300)
     licenciatura = models.ForeignKey(
@@ -62,10 +74,15 @@ class UEA(TimeStampedModel, EstadoActivoModel):
         on_delete=models.PROTECT,
         related_name="ueas",
     )
-    trimestre = models.PositiveSmallIntegerField("Trimestre", null=True, blank=True)
-    etapa = models.CharField(
-        "Etapa formativa", max_length=4, choices=Etapa.choices, blank=True
+    area = models.ForeignKey(
+        Area,
+        on_delete=models.PROTECT,
+        related_name="ueas",
+        null=True,
+        blank=True,
     )
+    # Acepta enteros (1-12) o rangos romanos (ej. "VII-XII") para optativas.
+    trimestre = models.CharField("Trimestre", max_length=20, blank=True, default="")
     tipo = models.CharField(
         "Tipo", max_length=4, choices=Tipo.choices, default=Tipo.OBLIGATORIA
     )

@@ -13,8 +13,9 @@ from rest_framework.response import Response
 
 from core.permissions import IsAdmin, IsAdminOrReadOnly
 
-from .models import Departamento, Licenciatura, Periodo, UEA
+from .models import Area, Departamento, Licenciatura, Periodo, UEA
 from .serializers import (
+    AreaSerializer,
     DepartamentoSerializer,
     LicenciaturaSerializer,
     PeriodoSerializer,
@@ -42,12 +43,21 @@ class LicenciaturaViewSet(viewsets.ModelViewSet):
     search_fields = ["clave", "nombre"]
 
 
+class AreaViewSet(viewsets.ModelViewSet):
+    queryset = Area.objects.all()
+    serializer_class = AreaSerializer
+    permission_classes = [IsAdminOrReadOnly]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
+    filterset_fields = ["estado"]
+    search_fields = ["nombre", "descripcion"]
+
+
 class UEAViewSet(viewsets.ModelViewSet):
-    queryset = UEA.objects.select_related("licenciatura").all()
+    queryset = UEA.objects.select_related("licenciatura", "area").all()
     serializer_class = UEASerializer
     permission_classes = [IsAdminOrReadOnly]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields = ["estado", "licenciatura", "tipo", "etapa", "trimestre"]
+    filterset_fields = ["estado", "licenciatura", "area", "tipo", "trimestre"]
     search_fields = ["clave", "nombre"]
     ordering_fields = ["trimestre", "nombre", "clave"]
 
@@ -57,7 +67,9 @@ class UEAViewSet(viewsets.ModelViewSet):
         """POST /api/v1/uea/import-csv/ — Importa UEA desde un archivo CSV.
 
         Columnas esperadas (con encabezado):
-            clave, nombre, licenciatura_clave, trimestre, etapa, tipo, creditos
+            clave, nombre, licenciatura_clave, trimestre, tipo, creditos,
+            area_nombre, area_descripcion, url
+        Las columnas area_nombre, area_descripcion y url son opcionales.
         """
         archivo = request.FILES.get("file")
         if not archivo:
@@ -83,6 +95,7 @@ class UEAViewSet(viewsets.ModelViewSet):
 
         created, updated, errors = 0, 0, []
         lic_cache = {l.clave: l for l in Licenciatura.objects.all()}
+        area_cache = {(a.nombre, a.descripcion): a for a in Area.objects.all()}
 
         for i, row in enumerate(reader, start=2):
             clave = row.get("clave", "").strip()
@@ -98,23 +111,37 @@ class UEAViewSet(viewsets.ModelViewSet):
                 errors.append(f"Fila {i}: licenciatura_clave '{lic_clave}' no existe.")
                 continue
 
+            # Área opcional: si trae nombre, hace upsert por (nombre, descripcion).
+            area_nombre = row.get("area_nombre", "").strip()
+            area_desc = row.get("area_descripcion", "").strip()
+            area_obj = None
+            if area_nombre:
+                key = (area_nombre, area_desc)
+                area_obj = area_cache.get(key)
+                if area_obj is None:
+                    area_obj, _ = Area.objects.get_or_create(
+                        nombre=area_nombre,
+                        descripcion=area_desc,
+                        defaults={"estado": True},
+                    )
+                    area_cache[key] = area_obj
+
+            creditos_raw = (row.get("creditos") or "").strip()
+            try:
+                creditos = int(creditos_raw) if creditos_raw else None
+            except ValueError:
+                creditos = None
+
             defaults = {
                 "nombre": nombre,
                 "licenciatura": licenciatura,
-                "trimestre": row.get("trimestre") or None,
-                "etapa": row.get("etapa", "").strip(),
-                "tipo": row.get("tipo", UEA.Tipo.OBLIGATORIA).strip(),
-                "creditos": row.get("creditos") or None,
+                "area": area_obj,
+                "trimestre": (row.get("trimestre") or "").strip(),
+                "tipo": (row.get("tipo") or UEA.Tipo.OBLIGATORIA).strip(),
+                "creditos": creditos,
+                "liga": (row.get("url") or "").strip(),
                 "estado": True,
             }
-            # Normaliza trimestre y créditos a enteros si vienen como string
-            for int_field in ("trimestre", "creditos"):
-                val = defaults[int_field]
-                if val is not None:
-                    try:
-                        defaults[int_field] = int(val)
-                    except (ValueError, TypeError):
-                        defaults[int_field] = None
 
             obj, was_created = UEA.objects.update_or_create(clave=clave, defaults=defaults)
             if was_created:
@@ -159,7 +186,11 @@ class PublicUEAListView(generics.ListAPIView):
     pagination_class = None
 
     def get_queryset(self):
-        qs = UEA.objects.filter(estado=True).select_related("licenciatura").order_by("clave")
+        qs = (
+            UEA.objects.filter(estado=True)
+            .select_related("licenciatura", "area")
+            .order_by("clave")
+        )
         lic = self.request.query_params.get("licenciatura")
         if lic:
             qs = qs.filter(licenciatura_id=lic)

@@ -2,7 +2,7 @@
 
 from rest_framework import serializers
 
-from .models import Departamento, Licenciatura, Periodo, UEA
+from .models import Area, Departamento, Licenciatura, Periodo, UEA
 
 
 class DepartamentoSerializer(serializers.ModelSerializer):
@@ -20,8 +20,18 @@ class LicenciaturaSerializer(serializers.ModelSerializer):
     class Meta:
         model = Licenciatura
         fields = [
-            "id", "clave", "nombre", "departamento", "departamento_nombre",
+            "id", "clave", "nombre", "orden", "departamento", "departamento_nombre",
             "estado", "created_at", "updated_at",
+        ]
+        read_only_fields = ["id", "created_at", "updated_at"]
+
+
+class AreaSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Area
+        fields = [
+            "id", "nombre", "descripcion", "estado",
+            "created_at", "updated_at",
         ]
         read_only_fields = ["id", "created_at", "updated_at"]
 
@@ -30,12 +40,20 @@ class UEASerializer(serializers.ModelSerializer):
     licenciatura_nombre = serializers.CharField(
         source="licenciatura.nombre", read_only=True
     )
+    area_nombre = serializers.CharField(
+        source="area.nombre", read_only=True, default=None
+    )
+    area_descripcion = serializers.CharField(
+        source="area.descripcion", read_only=True, default=None
+    )
 
     class Meta:
         model = UEA
         fields = [
-            "id", "clave", "nombre", "licenciatura", "licenciatura_nombre",
-            "trimestre", "etapa", "tipo", "creditos", "liga", "estado",
+            "id", "clave", "nombre",
+            "licenciatura", "licenciatura_nombre",
+            "area", "area_nombre", "area_descripcion",
+            "trimestre", "tipo", "creditos", "liga", "estado",
             "created_at", "updated_at",
         ]
         read_only_fields = ["id", "created_at", "updated_at"]

@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Departamento, Licenciatura, Periodo, UEA
+from .models import Area, Departamento, Licenciatura, Periodo, UEA
 
 
 @admin.register(Departamento)
@@ -12,15 +12,24 @@ class DepartamentoAdmin(admin.ModelAdmin):
 
 @admin.register(Licenciatura)
 class LicenciaturaAdmin(admin.ModelAdmin):
-    list_display = ("clave", "nombre", "departamento", "estado")
+    list_display = ("clave", "nombre", "orden", "departamento", "estado")
+    list_editable = ("orden",)
     list_filter = ("estado", "departamento")
     search_fields = ("clave", "nombre")
+    ordering = ("orden", "nombre")
+
+
+@admin.register(Area)
+class AreaAdmin(admin.ModelAdmin):
+    list_display = ("nombre", "descripcion", "estado")
+    search_fields = ("nombre", "descripcion")
+    list_filter = ("estado",)
 
 
 @admin.register(UEA)
 class UEAAdmin(admin.ModelAdmin):
-    list_display = ("clave", "nombre", "licenciatura", "trimestre", "tipo", "estado")
-    list_filter = ("licenciatura", "tipo", "etapa", "estado")
+    list_display = ("clave", "nombre", "licenciatura", "area", "trimestre", "tipo", "estado")
+    list_filter = ("licenciatura", "area", "tipo", "estado")
     search_fields = ("clave", "nombre")
 
 
