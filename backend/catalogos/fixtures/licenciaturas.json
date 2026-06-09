@@ -3,8 +3,9 @@
     "model": "catalogos.licenciatura",
     "pk": 1,
     "fields": {
-      "clave": "ARQ",
-      "nombre": "Arquitectura",
+      "clave": "DCG",
+      "nombre": "Diseño de la Comunicación Gráfica",
+      "orden": 1,
       "departamento": null,
       "estado": true,
       "created_at": "2026-01-01T00:00:00Z",
@@ -15,8 +16,9 @@
     "model": "catalogos.licenciatura",
     "pk": 2,
     "fields": {
-      "clave": "DCG",
-      "nombre": "Diseño de la Comunicación Gráfica",
+      "clave": "ARQ",
+      "nombre": "Arquitectura",
+      "orden": 2,
       "departamento": null,
       "estado": true,
       "created_at": "2026-01-01T00:00:00Z",
@@ -29,6 +31,7 @@
     "fields": {
       "clave": "DI",
       "nombre": "Diseño Industrial",
+      "orden": 3,
       "departamento": null,
       "estado": true,
       "created_at": "2026-01-01T00:00:00Z",
@@ -39,8 +42,9 @@
     "model": "catalogos.licenciatura",
     "pk": 4,
     "fields": {
-      "clave": "DPS",
+      "clave": "DiPS",
       "nombre": "Diseño de Proyectos Sustentables",
+      "orden": 4,
       "departamento": null,
       "estado": true,
       "created_at": "2026-01-01T00:00:00Z",

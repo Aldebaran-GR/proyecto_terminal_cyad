@@ -36,7 +36,13 @@ from autoevaluacion.models import (  # noqa: E402
     Pregunta,
     Seccion,
 )
-from catalogos.models import UEA, Departamento, Licenciatura, Periodo  # noqa: E402
+from catalogos.models import (  # noqa: E402
+    UEA,
+    Area,
+    Departamento,
+    Licenciatura,
+    Periodo,
+)
 
 
 def banner(msg: str) -> None:
@@ -104,20 +110,35 @@ for clave, nombre in DEPARTAMENTOS:
     marker = "CREADO" if created else "EXISTE"
     print(f"  [{marker}] Depto {clave} — {nombre}")
 
+# Orden y clave alineados al CSV institucional (licenciaturas.csv).
 LICENCIATURAS = [
-    ("ARQ", "Arquitectura",                          "EDT"),
-    ("DCG", "Diseño de la Comunicación Gráfica",     "ICD"),
-    ("DI",  "Diseño Industrial",                     "PTR"),
-    ("DPS", "Diseño de Proyectos Sustentables",      "MA"),
+    (1, "DCG",  "Diseño de la Comunicación Gráfica",     "ICD"),
+    (2, "ARQ",  "Arquitectura",                          "EDT"),
+    (3, "DI",   "Diseño Industrial",                     "PTR"),
+    (4, "DiPS", "Diseño de Proyectos Sustentables",      "MA"),
 ]
-for clave, nombre, depto_clave in LICENCIATURAS:
+# Si quedó alguna fila legada con clave "DPS", la renombramos antes del upsert.
+Licenciatura.objects.filter(clave="DPS").update(clave="DiPS")
+for orden, clave, nombre, depto_clave in LICENCIATURAS:
     depto = Departamento.objects.filter(clave=depto_clave).first()
     obj, created = Licenciatura.objects.get_or_create(
-        clave=clave, defaults={"nombre": nombre, "departamento": depto, "estado": True},
+        clave=clave,
+        defaults={
+            "nombre": nombre,
+            "orden": orden,
+            "departamento": depto,
+            "estado": True,
+        },
     )
-    if not created and obj.departamento_id != (depto.id if depto else None):
-        obj.departamento = depto
-        obj.save(update_fields=["departamento"])
+    cambios = {}
+    if obj.orden != orden:
+        cambios["orden"] = orden
+    if obj.departamento_id != (depto.id if depto else None):
+        cambios["departamento"] = depto
+    if cambios:
+        for k, v in cambios.items():
+            setattr(obj, k, v)
+        obj.save(update_fields=list(cambios.keys()))
     marker = "CREADO" if created else "EXISTE"
     print(f"  [{marker}] Lic {clave} — {nombre}")
 
@@ -143,24 +164,40 @@ if not (periodo.activo_cartas and periodo.activo_requisitos and periodo.activo_a
 print(f"  [{'CREADO' if created else 'ACTIVO'}] Periodo {periodo.clave}")
 
 
-# ─── 3. UEAs demo ────────────────────────────────────────────────────────────
+# ─── 3. Áreas + UEAs demo ────────────────────────────────────────────────────
+banner("Áreas demo")
+
+AREAS_DEMO = [
+    ("Licenciatura", "Licenciatura"),
+    ("Optativas de Extensión Divisional", "Optativas Disciplinares"),
+]
+for nombre, descripcion in AREAS_DEMO:
+    obj, created = Area.objects.get_or_create(
+        nombre=nombre, descripcion=descripcion,
+        defaults={"estado": True},
+    )
+    marker = "CREADO" if created else "EXISTE"
+    print(f"  [{marker}] Área {nombre} — {descripcion}")
+
+area_lic = Area.objects.get(nombre="Licenciatura", descripcion="Licenciatura")
+
 banner("UEAs demo")
 
 UEAS = [
-    ("1100001", "Introducción al Diseño",            "ARQ", 1, UEA.Etapa.TRONCO_GENERAL,     UEA.Tipo.OBLIGATORIA,  9),
-    ("1403004", "Taller de Diseño Industrial I",     "DI",  4, UEA.Etapa.TRONCO_BASICO,      UEA.Tipo.OBLIGATORIA, 12),
-    ("1200015", "Tipografía Aplicada",               "DCG", 3, UEA.Etapa.TRONCO_BASICO,      UEA.Tipo.OBLIGATORIA,  9),
-    ("1500020", "Sustentabilidad y Proyecto",        "DPS", 6, UEA.Etapa.TRONCO_INTEGRACION, UEA.Tipo.OBLIGATORIA,  9),
+    ("1100001", "Introducción al Diseño",            "ARQ",  "1", UEA.Tipo.OBLIGATORIA,  9),
+    ("1403004", "Taller de Diseño Industrial I",     "DI",   "4", UEA.Tipo.OBLIGATORIA, 12),
+    ("1200015", "Tipografía Aplicada",               "DCG",  "3", UEA.Tipo.OBLIGATORIA,  9),
+    ("1500020", "Sustentabilidad y Proyecto",        "DiPS", "6", UEA.Tipo.OBLIGATORIA,  9),
 ]
-for clave, nombre, lic_clave, trim, etapa, tipo, creditos in UEAS:
+for clave, nombre, lic_clave, trim, tipo, creditos in UEAS:
     lic = Licenciatura.objects.get(clave=lic_clave)
     obj, created = UEA.objects.get_or_create(
         clave=clave,
         defaults={
             "nombre": nombre,
             "licenciatura": lic,
+            "area": area_lic,
             "trimestre": trim,
-            "etapa": etapa,
             "tipo": tipo,
             "creditos": creditos,
             "estado": True,
