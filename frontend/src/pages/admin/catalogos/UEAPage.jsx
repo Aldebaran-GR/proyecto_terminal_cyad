@@ -182,11 +182,11 @@ export default function UEAPage() {
         {csvResult ? (
           <div className="space-y-2 text-sm">
             <p className="text-emerald-600 font-medium">✓ Importación completada</p>
-            <p>Creadas: <strong>{csvResult.creadas}</strong></p>
-            <p>Actualizadas: <strong>{csvResult.actualizadas}</strong></p>
-            <p>Errores: <strong>{csvResult.errores}</strong></p>
-            {csvResult.detalle_errores?.length > 0 && (
-              <ul className="text-rose-600 text-xs mt-2">{csvResult.detalle_errores.map((e, i) => <li key={i}>{e}</li>)}</ul>
+            <p>Creadas: <strong>{csvResult.created ?? 0}</strong></p>
+            <p>Actualizadas: <strong>{csvResult.updated ?? 0}</strong></p>
+            <p>Errores: <strong>{csvResult.errors?.length ?? 0}</strong></p>
+            {csvResult.errors?.length > 0 && (
+              <ul className="text-rose-600 text-xs mt-2">{csvResult.errors.map((e, i) => <li key={i}>{typeof e === 'string' ? e : JSON.stringify(e)}</li>)}</ul>
             )}
             <Button className="mt-2" onClick={() => { setCsvModal(false); setCsvResult(null) }}>Cerrar</Button>
           </div>
