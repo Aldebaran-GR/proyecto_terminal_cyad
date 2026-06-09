@@ -5,14 +5,14 @@
  * El "lugar" es texto libre para incluir liga/contraseña si es remoto.
  * El periodo se asigna automáticamente desde el activo para Requisitos.
  */
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams, Link } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   getRequisito, createRequisito, updateRequisito, cambiarEstadoRequisito,
 } from '../../../api/documentos'
-import { getUEA, getPeriodosActivos } from '../../../api/catalogos'
+import { getUEA, getPeriodosActivos, getLicenciaturas } from '../../../api/catalogos'
 import Button from '../../../components/ui/Button'
 import Alert from '../../../components/ui/Alert'
 import FormField, { inputCls } from '../../../components/ui/FormField'
@@ -34,20 +34,53 @@ export default function RequisitoFormPage() {
 
   const [apiError, setApiError] = useState(null)
 
-  const { register, handleSubmit, reset, formState: { errors } } = useForm({
-    defaultValues: { modalidad: '' },
-  })
+  // Estado del selector jerárquico de UEA. El usuario primero elige
+  // Licenciatura, luego Trimestre, y el combo de UEA queda restringido
+  // a esa combinación — así no tiene que recorrer cientos de UEAs.
+  const [licId, setLicId] = useState('')
+  const [trim, setTrim] = useState('')
+
+  const {
+    register, handleSubmit, reset, setValue, watch, formState: { errors },
+  } = useForm({ defaultValues: { modalidad: '', uea: '' } })
 
   /* ── Catálogos ── */
   const { data: ueas = [] } = useQuery({
     queryKey: ['uea-list'],
     queryFn: () => getUEA({ estado: true }).then((r) => r.data?.results ?? r.data ?? []),
   })
+  const { data: licenciaturas = [] } = useQuery({
+    queryKey: ['licenciaturas'],
+    queryFn: () => getLicenciaturas({ estado: true }).then((r) => r.data?.results ?? r.data ?? []),
+  })
   const { data: activos } = useQuery({
     queryKey: ['periodos-activos'],
     queryFn: () => getPeriodosActivos().then((r) => r.data),
   })
   const periodoRequisitos = activos?.requisitos ?? null
+
+  /* ── UEAs filtradas: lic → trim ── */
+  // El backend ya filtra por `licenciatura` y `trimestre`, pero como
+  // cargamos todo el catálogo una vez en `ueas`, el filtrado lo hacemos
+  // del lado del cliente (es instantáneo y reduce roundtrips).
+  const ueasFiltradas = useMemo(() => {
+    let list = ueas
+    if (licId) list = list.filter((u) => String(u.licenciatura) === String(licId))
+    if (trim)  list = list.filter((u) => String(u.trimestre) === String(trim))
+    return list
+  }, [ueas, licId, trim])
+
+  // Trimestres disponibles para la licenciatura elegida (1-12 filtrados
+  // a los que efectivamente existan).
+  const trimestresDisponibles = useMemo(() => {
+    const base = licId
+      ? ueas.filter((u) => String(u.licenciatura) === String(licId))
+      : ueas
+    const trims = new Set(base.map((u) => u.trimestre).filter((t) => t != null))
+    return Array.from(trims).sort((a, b) => a - b)
+  }, [ueas, licId])
+
+  const ueaSeleccionada = watch('uea')
 
   /* ── Documento existente ── */
   const { data: requisito } = useQuery({
@@ -73,6 +106,27 @@ export default function RequisitoFormPage() {
       })
     }
   }, [requisito, reset])
+
+  // Modo edición: una vez tenemos el requisito y el catálogo de ueas,
+  // pre-cargamos los filtros (Licenciatura, Trimestre) a partir de la
+  // UEA seleccionada en el documento.
+  useEffect(() => {
+    if (!requisito || !ueas.length) return
+    const u = ueas.find((x) => String(x.id) === String(requisito.uea))
+    if (u) {
+      if (u.licenciatura) setLicId(String(u.licenciatura))
+      if (u.trimestre)   setTrim(String(u.trimestre))
+    }
+  }, [requisito, ueas])
+
+  // Si la UEA seleccionada deja de cumplir con los filtros vigentes
+  // (porque el usuario cambió lic o trim), limpiamos la selección para
+  // forzar al usuario a elegir una nueva.
+  useEffect(() => {
+    if (!ueaSeleccionada) return
+    const sigue = ueasFiltradas.some((u) => String(u.id) === String(ueaSeleccionada))
+    if (!sigue) setValue('uea', '')
+  }, [ueasFiltradas, ueaSeleccionada, setValue])
 
   const [publicarTras, setPublicarTras] = useState(false)
 
@@ -163,19 +217,75 @@ export default function RequisitoFormPage() {
       )}
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-        {/* ── Información del grupo ── */}
+        {/* ── Selección de UEA (jerárquica) ── */}
         <div className="rounded-xl border border-slate-200 bg-white p-6 space-y-4">
-          <SectionTitle>Información del grupo</SectionTitle>
+          <SectionTitle>Selección de UEA</SectionTitle>
+          <p className="text-xs text-slate-500 -mt-2">
+            Elige licenciatura y trimestre para que el combo de UEAs muestre solo las que correspondan.
+          </p>
+
           <div className="grid grid-cols-2 gap-4">
-            <FormField label="UEA" error={errors.uea?.message} required>
-              <select {...register('uea', { required: 'Requerido' })} className={inputCls}>
+            <FormField label="Licenciatura" required>
+              <select
+                value={licId}
+                onChange={(e) => { setLicId(e.target.value); setTrim('') }}
+                className={inputCls}
+              >
                 <option value="">-- Selecciona --</option>
-                {ueas.map((u) => (
-                  <option key={u.id} value={u.id}>{u.clave} — {u.nombre}</option>
+                {licenciaturas.map((l) => (
+                  <option key={l.id} value={l.id}>
+                    {l.clave} — {l.nombre}
+                  </option>
                 ))}
               </select>
             </FormField>
 
+            <FormField label="Trimestre" required hint="UEAs filtradas a este trimestre">
+              <select
+                value={trim}
+                onChange={(e) => setTrim(e.target.value)}
+                disabled={!licId}
+                className={inputCls}
+              >
+                <option value="">
+                  {licId ? '-- Selecciona --' : 'Elige una licenciatura primero'}
+                </option>
+                {trimestresDisponibles.map((t) => (
+                  <option key={t} value={t}>Trimestre {t}</option>
+                ))}
+              </select>
+            </FormField>
+          </div>
+
+          <FormField label="UEA" error={errors.uea?.message} required>
+            <select
+              {...register('uea', { required: 'Selecciona una UEA' })}
+              className={inputCls}
+              disabled={!licId || !trim}
+            >
+              <option value="">
+                {!licId || !trim
+                  ? 'Elige licenciatura y trimestre arriba'
+                  : ueasFiltradas.length === 0
+                    ? 'Sin UEAs que coincidan'
+                    : '-- Selecciona la UEA --'}
+              </option>
+              {ueasFiltradas.map((u) => (
+                <option key={u.id} value={u.id}>{u.clave} — {u.nombre}</option>
+              ))}
+            </select>
+            {licId && trim && (
+              <p className="mt-1 text-xs text-slate-400">
+                {ueasFiltradas.length} UEA{ueasFiltradas.length === 1 ? '' : 's'} disponible{ueasFiltradas.length === 1 ? '' : 's'}.
+              </p>
+            )}
+          </FormField>
+        </div>
+
+        {/* ── Información del grupo ── */}
+        <div className="rounded-xl border border-slate-200 bg-white p-6 space-y-4">
+          <SectionTitle>Información del grupo</SectionTitle>
+          <div className="grid grid-cols-2 gap-4">
             <FormField label="Periodo (asignado automáticamente)">
               {isEdit && requisito ? (
                 <div className="rounded-lg bg-slate-50 border border-slate-200 px-3 py-2 text-sm text-slate-700">
@@ -196,6 +306,15 @@ export default function RequisitoFormPage() {
               )}
             </FormField>
 
+            <FormField label="Modalidad de la UEA">
+              <select {...register('modalidad')} className={inputCls}>
+                <option value="">-- Opcional --</option>
+                <option value="PRESENCIAL">Presencial</option>
+                <option value="REMOTO">Remoto</option>
+                <option value="MIXTO">Mixto</option>
+              </select>
+            </FormField>
+
             <FormField label="Nombre del grupo" error={errors.nombre_grupo?.message} required>
               <input {...register('nombre_grupo', { required: 'Requerido' })}
                 placeholder="ej. Grupo A" className={inputCls} />
@@ -206,19 +325,12 @@ export default function RequisitoFormPage() {
                 placeholder="ej. 2026-I-A1" className={inputCls} />
             </FormField>
 
-            <FormField label="Horario" error={errors.horario?.message} required>
-              <input {...register('horario', { required: 'Requerido' })}
-                placeholder="ej. Lun-Mié 9:00-11:00" className={inputCls} />
-            </FormField>
-
-            <FormField label="Modalidad de la UEA">
-              <select {...register('modalidad')} className={inputCls}>
-                <option value="">-- Opcional --</option>
-                <option value="PRESENCIAL">Presencial</option>
-                <option value="REMOTO">Remoto</option>
-                <option value="MIXTO">Mixto</option>
-              </select>
-            </FormField>
+            <div className="col-span-2">
+              <FormField label="Horario" error={errors.horario?.message} required>
+                <input {...register('horario', { required: 'Requerido' })}
+                  placeholder="ej. Lun-Mié 9:00-11:00" className={inputCls} />
+              </FormField>
+            </div>
           </div>
         </div>
 
