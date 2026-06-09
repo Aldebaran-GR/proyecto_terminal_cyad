@@ -5,7 +5,7 @@ import pytest
 from rest_framework.test import APIClient
 
 from accounts.models import Usuario
-from catalogos.models import Departamento, Licenciatura, Periodo, UEA
+from catalogos.models import Area, Departamento, Licenciatura, Periodo, UEA
 
 
 @pytest.fixture
@@ -259,9 +259,9 @@ class TestUEA:
     def test_import_csv(self, client, admin, licenciatura):
         auth(client, "admin2@cyad.uam.mx", "Admin1234!")
         csv_content = (
-            "clave,nombre,licenciatura_clave,trimestre,etapa,tipo,creditos\n"
-            "9900001,UEA CSV Test,DI,3,TB,OBL,8\n"
-            "9900002,UEA CSV Test 2,DI,4,TB,OBL,6\n"
+            "clave,nombre,licenciatura_clave,trimestre,tipo,creditos,area_nombre,area_descripcion\n"
+            "9900001,UEA CSV Test,DI,3,OBL,8,Licenciatura,Licenciatura\n"
+            "9900002,UEA CSV Test 2,DI,4,OBL,6,Licenciatura,Licenciatura\n"
         )
         csv_file = io.BytesIO(csv_content.encode("utf-8"))
         csv_file.name = "test.csv"
@@ -269,12 +269,16 @@ class TestUEA:
         assert r.status_code == 200
         assert r.data["created"] == 2
         assert UEA.objects.filter(clave__startswith="9900").count() == 2
+        # El área se creó por upsert y quedó ligada a las UEAs.
+        uea = UEA.objects.get(clave="9900001")
+        assert uea.area is not None
+        assert uea.area.nombre == "Licenciatura"
 
     def test_import_csv_licenciatura_invalida(self, client, admin, db):
         auth(client, "admin2@cyad.uam.mx", "Admin1234!")
         csv_content = (
-            "clave,nombre,licenciatura_clave,trimestre,etapa,tipo,creditos\n"
-            "9910001,UEA Mala,INVALIDA,1,TG,OBL,4\n"
+            "clave,nombre,licenciatura_clave,trimestre,tipo,creditos\n"
+            "9910001,UEA Mala,INVALIDA,1,OBL,4\n"
         )
         csv_file = io.BytesIO(csv_content.encode("utf-8"))
         csv_file.name = "bad.csv"
@@ -282,3 +286,106 @@ class TestUEA:
         assert r.status_code == 200
         assert len(r.data["errors"]) == 1
         assert r.data["created"] == 0
+
+    def test_trimestre_acepta_rango_romano(self, client, admin, licenciatura):
+        """trimestre es CharField — acepta rangos romanos para optativas."""
+        auth(client, "admin2@cyad.uam.mx", "Admin1234!")
+        r = client.post("/api/v1/uea/", {
+            "clave": "1441001",
+            "nombre": "Temas Selectos Disciplinares I",
+            "licenciatura": licenciatura.id,
+            "trimestre": "VII-XII",
+            "tipo": "OPT",
+        }, format="json")
+        assert r.status_code == 201, r.data
+        assert UEA.objects.get(clave="1441001").trimestre == "VII-XII"
+
+
+class TestArea:
+    def test_lista(self, client, profesor, db):
+        Area.objects.create(nombre="Licenciatura", descripcion="Licenciatura")
+        auth(client, "prof2@cyad.uam.mx", "Profesor1234!")
+        r = client.get("/api/v1/areas/")
+        assert r.status_code == 200
+        assert r.data["count"] >= 1
+
+    def test_crear_admin(self, client, admin):
+        auth(client, "admin2@cyad.uam.mx", "Admin1234!")
+        r = client.post("/api/v1/areas/", {
+            "nombre": "Optativas de Extensión Divisional",
+            "descripcion": "Optativas Interdisciplinares",
+        }, format="json")
+        assert r.status_code == 201
+        assert r.data["nombre"] == "Optativas de Extensión Divisional"
+
+    def test_unique_together(self, client, admin):
+        """No se pueden duplicar pares (nombre, descripcion)."""
+        auth(client, "admin2@cyad.uam.mx", "Admin1234!")
+        payload = {"nombre": "A", "descripcion": "B"}
+        assert client.post("/api/v1/areas/", payload, format="json").status_code == 201
+        r2 = client.post("/api/v1/areas/", payload, format="json")
+        assert r2.status_code == 400
+
+    def test_crear_bloqueado_profesor(self, client, profesor):
+        auth(client, "prof2@cyad.uam.mx", "Profesor1234!")
+        r = client.post("/api/v1/areas/", {"nombre": "X", "descripcion": "Y"}, format="json")
+        assert r.status_code == 403
+
+
+class TestCargarCatalogosCsv:
+    """El management command carga los 3 CSVs de forma idempotente."""
+
+    def _escribir_csvs(self, tmp_path):
+        (tmp_path / "areas.csv").write_text(
+            "area_id,nombre,descripcion\n"
+            "1,Licenciatura,Licenciatura\n"
+            "2,Optativas,Disciplinares\n",
+            encoding="utf-8",
+        )
+        (tmp_path / "licenciaturas.csv").write_text(
+            "licenciatura_id,clave,nombre\n"
+            "1,DCG,Diseño de la comunicación gráfica\n"
+            "2,ARQ,Arquitectura\n"
+            "3,DI,Diseño industrial\n"
+            "4,DiPS,Diseño de proyectos sustentables\n",
+            encoding="utf-8",
+        )
+        (tmp_path / "ueas_ejemplo.csv").write_text(
+            "area_id,clave,nombre,licenciatura_clave,trimestre,tipo,creditos,url\n"
+            "1,1440001,UEA Obligatoria,4,3,OBL,9,\n"
+            "2,1441001,UEA Optativa Rango,4,VII-XII,OPT,,\n",
+            encoding="utf-8",
+        )
+
+    def test_carga_idempotente(self, db, tmp_path):
+        from django.core.management import call_command
+
+        self._escribir_csvs(tmp_path)
+        call_command("cargar_catalogos_csv", csv_dir=tmp_path)
+
+        assert Area.objects.count() == 2
+        assert list(
+            Licenciatura.objects.order_by("orden").values_list("clave", flat=True)
+        ) == ["DCG", "ARQ", "DI", "DiPS"]
+        assert UEA.objects.count() == 2
+        opt = UEA.objects.get(clave="1441001")
+        assert opt.trimestre == "VII-XII"
+        assert opt.tipo == "OPT"
+
+        # Segunda corrida no duplica.
+        call_command("cargar_catalogos_csv", csv_dir=tmp_path)
+        assert Area.objects.count() == 2
+        assert Licenciatura.objects.count() == 4
+        assert UEA.objects.count() == 2
+
+    def test_renombra_dps_a_dips(self, db, tmp_path):
+        """Si existe Licenciatura(clave='DPS') previa, se renombra a 'DiPS'."""
+        from django.core.management import call_command
+
+        Licenciatura.objects.create(clave="DPS", nombre="Vieja DPS", orden=99)
+        self._escribir_csvs(tmp_path)
+        call_command("cargar_catalogos_csv", csv_dir=tmp_path)
+
+        assert not Licenciatura.objects.filter(clave="DPS").exists()
+        dips = Licenciatura.objects.get(clave="DiPS")
+        assert dips.orden == 4
