@@ -335,11 +335,11 @@ class SeccionViewSet(viewsets.ModelViewSet):
     filterset_fields = ["formulario"]
 
     def _check_formulario_editable(self, formulario):
-        if formulario.estado == Formulario.Estado.PUBLICADO:
+        if formulario.estado != Formulario.Estado.BORRADOR:
             raise ValidationError({
                 "non_field_errors": [
-                    "No se puede modificar la estructura de un formulario PUBLICADO. "
-                    "Cierre el formulario primero."
+                    f"No se puede modificar la estructura de un formulario {formulario.estado}. "
+                    "Cierre el formulario primero para volver a BORRADOR."
                 ]
             })
 
@@ -370,11 +370,11 @@ class PreguntaViewSet(viewsets.ModelViewSet):
     ordering_fields = ["orden"]
 
     def _check_formulario_editable(self, formulario):
-        if formulario.estado == Formulario.Estado.PUBLICADO:
+        if formulario.estado != Formulario.Estado.BORRADOR:
             raise ValidationError({
                 "non_field_errors": [
-                    "No se puede modificar preguntas de un formulario PUBLICADO. "
-                    "Cierre el formulario primero."
+                    f"No se puede modificar preguntas de un formulario {formulario.estado}. "
+                    "Cierre el formulario primero para volver a BORRADOR."
                 ]
             })
 
