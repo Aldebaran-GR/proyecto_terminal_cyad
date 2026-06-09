@@ -96,11 +96,16 @@ export default function RequisitoFormPage() {
       }
     },
     onError: (e) => {
-      const data = e.response?.data
+      const raw = e.response?.data
+      const data = raw?.errors ?? raw ?? {}
       setApiError(
         data?.non_field_errors?.[0]
         || data?.detail
         || data?.periodo?.[0]
+        || data?.uea?.[0]
+        || data?.nombre_grupo?.[0]
+        || data?.id_grupo?.[0]
+        || (typeof data === 'string' ? data : null)
         || 'Error al guardar el documento.'
       )
     },
