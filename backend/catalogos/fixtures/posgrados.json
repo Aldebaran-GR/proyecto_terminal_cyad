@@ -1,0 +1,93 @@
+[
+  {
+    "model": "catalogos.posgrado",
+    "pk": 1,
+    "fields": {
+      "clave": "PPCDA",
+      "nombre": "Posgrado en Procesos Culturales para el Diseño y el Arte",
+      "orden": 1,
+      "departamento": null,
+      "estado": true,
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "catalogos.posgrado",
+    "pk": 2,
+    "fields": {
+      "clave": "PDB",
+      "nombre": "Posgrado en Diseño Bioclimático",
+      "orden": 2,
+      "departamento": null,
+      "estado": true,
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "catalogos.posgrado",
+    "pk": 3,
+    "fields": {
+      "clave": "PDEU",
+      "nombre": "Posgrado en Diseño de Estudios Urbanos",
+      "orden": 3,
+      "departamento": null,
+      "estado": true,
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "catalogos.posgrado",
+    "pk": 4,
+    "fields": {
+      "clave": "PDDP",
+      "nombre": "Posgrado en Diseño y Desarrollo de Productos",
+      "orden": 4,
+      "departamento": null,
+      "estado": true,
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "catalogos.posgrado",
+    "pk": 5,
+    "fields": {
+      "clave": "PDVI",
+      "nombre": "Posgrado en Diseño y Visualización de la Información",
+      "orden": 5,
+      "departamento": null,
+      "estado": true,
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "catalogos.posgrado",
+    "pk": 6,
+    "fields": {
+      "clave": "PDPCPJ",
+      "nombre": "Posgrado en Diseño Planeación y Conservación de Paisajes y Jardines",
+      "orden": 6,
+      "departamento": null,
+      "estado": true,
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "catalogos.posgrado",
+    "pk": 7,
+    "fields": {
+      "clave": "PDpRRCPC",
+      "nombre": "Posgrado en Diseño para la Rehabilitación, Recuperación y Conservación del Patrimonio Construido",
+      "orden": 7,
+      "departamento": null,
+      "estado": true,
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
+    }
+  }
+]
