@@ -13,6 +13,7 @@ import ProfesorDashboardPage from './pages/profesor/DashboardPage'
 // M8 — Admin: Catálogos
 import DepartamentosPage from './pages/admin/catalogos/DepartamentosPage'
 import LicenciaturasPage from './pages/admin/catalogos/LicenciaturasPage'
+import PosgradosPage from './pages/admin/catalogos/PosgradosPage'
 import AreasPage from './pages/admin/catalogos/AreasPage'
 import UEAPage from './pages/admin/catalogos/UEAPage'
 import PeriodosPage from './pages/admin/catalogos/PeriodosPage'
@@ -95,6 +96,7 @@ export default function App() {
         {/* Catálogos */}
         <Route path="catalogos/departamentos" element={<DepartamentosPage />} />
         <Route path="catalogos/licenciaturas" element={<LicenciaturasPage />} />
+        <Route path="catalogos/posgrados" element={<PosgradosPage />} />
         <Route path="catalogos/areas" element={<AreasPage />} />
         <Route path="catalogos/uea" element={<UEAPage />} />
         <Route path="catalogos/periodos" element={<PeriodosPage />} />

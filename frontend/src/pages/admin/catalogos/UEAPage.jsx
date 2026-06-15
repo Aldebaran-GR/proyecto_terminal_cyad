@@ -4,7 +4,7 @@
 import { useRef, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
-  getUEA, createUEA, updateUEA, deleteUEA, importarUEA, getLicenciaturas, getAreas,
+  getUEA, createUEA, updateUEA, deleteUEA, importarUEA, getLicenciaturas, getPosgrados, getAreas,
 } from '../../../api/catalogos'
 import Button from '../../../components/ui/Button'
 import Modal from '../../../components/ui/Modal'
@@ -13,11 +13,11 @@ import Alert from '../../../components/ui/Alert'
 import FormField, { inputCls } from '../../../components/ui/FormField'
 import Badge from '../../../components/ui/Badge'
 
-const TIPOS = [{ value: 'OBLIGATORIA', label: 'Obligatoria' }, { value: 'OPTATIVA', label: 'Optativa' }]
+const TIPOS = [{ value: 'OBL', label: 'Obligatoria' }, { value: 'OPT', label: 'Optativa' }]
 
 const empty = () => ({
-  clave: '', nombre: '', licenciatura: '', area: '', trimestre: '',
-  tipo: 'OBLIGATORIA', creditos: '', liga: '', estado: true,
+  clave: '', nombre: '', programa: '', area: '', trimestre: '',
+  tipo: 'OBL', creditos: '', liga: '', estado: true,
 })
 
 export default function UEAPage() {
@@ -30,14 +30,26 @@ export default function UEAPage() {
   const [csvResult, setCsvResult] = useState(null)
   const fileRef = useRef()
   const [search, setSearch] = useState('')
+  const [progFilter, setProgFilter] = useState('')
 
   const { data, isLoading } = useQuery({
-    queryKey: ['uea', search],
-    queryFn: () => getUEA(search ? { search } : undefined).then((r) => r.data?.results ?? r.data ?? []),
+    queryKey: ['uea', search, progFilter],
+    queryFn: () => {
+      const params = {}
+      if (search) params.search = search
+      if (progFilter.startsWith('lic-')) params.licenciatura = progFilter.slice(4)
+      else if (progFilter.startsWith('pos-')) params.posgrado = progFilter.slice(4)
+      return getUEA(Object.keys(params).length ? params : undefined)
+        .then((r) => r.data?.results ?? r.data ?? [])
+    },
   })
   const { data: lics = [] } = useQuery({
     queryKey: ['licenciaturas'],
     queryFn: () => getLicenciaturas().then((r) => r.data?.results ?? r.data ?? []),
+  })
+  const { data: pos = [] } = useQuery({
+    queryKey: ['posgrados'],
+    queryFn: () => getPosgrados().then((r) => r.data?.results ?? r.data ?? []),
   })
   const { data: areas = [] } = useQuery({
     queryKey: ['areas'],
@@ -49,7 +61,7 @@ export default function UEAPage() {
     setSelected(row)
     setForm({
       clave: row.clave, nombre: row.nombre,
-      licenciatura: row.licenciatura ?? '',
+      programa: row.licenciatura ? `lic-${row.licenciatura}` : row.posgrado ? `pos-${row.posgrado}` : '',
       area: row.area ?? '',
       trimestre: row.trimestre ?? '',
       tipo: row.tipo, creditos: row.creditos ?? '',
@@ -61,9 +73,11 @@ export default function UEAPage() {
 
   const saveMut = useMutation({
     mutationFn: (d) => {
+      const { programa, ...rest } = d
       const payload = {
-        ...d,
-        licenciatura: d.licenciatura || null,
+        ...rest,
+        licenciatura: programa.startsWith('lic-') ? programa.slice(4) : null,
+        posgrado: programa.startsWith('pos-') ? programa.slice(4) : null,
         area: d.area || null,
         trimestre: d.trimestre || '',
         creditos: d.creditos !== '' ? Number(d.creditos) : null,
@@ -92,18 +106,32 @@ export default function UEAPage() {
   const columns = [
     { key: 'clave', label: 'Clave', className: 'w-28 font-mono text-xs' },
     { key: 'nombre', label: 'UEA' },
-    { key: 'licenciatura_nombre', label: 'Licenciatura', render: (v) => v ?? <span className="text-slate-400">—</span> },
+    { key: 'programa', label: 'Programa', render: (_, row) => (row.licenciatura_nombre ?? row.posgrado_nombre) ?? <span className="text-slate-400">—</span> },
     { key: 'area_nombre', label: 'Área', render: (v) => v ?? <span className="text-slate-400">—</span> },
     { key: 'tipo', label: 'Tipo', className: 'w-24', render: (v) => <span className="text-xs">{v}</span> },
     { key: 'estado', label: 'Estado', className: 'w-24', render: (v) => <Badge label={v ? 'ACTIVO' : 'INACTIVO'} variant={v ? 'ACTIVO' : 'INACTIVO'} /> },
     {
-      key: 'actions', label: '', className: 'w-32 text-right',
-      render: (_, row) => (
-        <div className="flex justify-end gap-2">
-          <Button size="sm" variant="secondary" onClick={() => openEdit(row)}>Editar</Button>
-          <Button size="sm" variant="danger" onClick={() => window.confirm('¿Eliminar?') && delMut.mutate(row.id)}>Eliminar</Button>
-        </div>
-      ),
+      key: 'actions', label: '', className: 'w-48 text-right',
+      render: (_, row) => {
+        const tieneLiga = Boolean(row.liga)
+        return (
+          <div className="flex justify-end gap-2">
+            <Button
+              size="sm"
+              variant="secondary"
+              disabled={!tieneLiga}
+              /* Sin liga: usa la opacidad disabled de la variante (50%) para
+                 que se note la diferencia. Cursor `not-allowed` lo refuerza. */
+              title={tieneLiga ? 'Abrir página oficial de la UEA' : 'Sin liga disponible para esta UEA'}
+              onClick={() => tieneLiga && window.open(row.liga, '_blank', 'noopener,noreferrer')}
+            >
+              Ver
+            </Button>
+            <Button size="sm" variant="secondary" onClick={() => openEdit(row)}>Editar</Button>
+            <Button size="sm" variant="danger" onClick={() => window.confirm('¿Eliminar?') && delMut.mutate(row.id)}>Eliminar</Button>
+          </div>
+        )
+      },
     },
   ]
 
@@ -118,8 +146,47 @@ export default function UEAPage() {
       </div>
       {apiError && <Alert type="error" onClose={() => setApiError(null)}>{apiError}</Alert>}
 
-      {/* Buscador */}
-      <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar por clave o nombre…" className={inputCls + ' max-w-sm'} />
+      {/* Buscador + filtro por licenciatura */}
+      <div className="flex flex-wrap gap-3 items-end">
+        <div className="flex-1 min-w-[220px] max-w-sm">
+          <label className="block text-xs font-medium text-slate-600 mb-1">Buscar</label>
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Por clave o nombre…"
+            className={inputCls}
+          />
+        </div>
+        <div className="min-w-[220px]">
+          <label className="block text-xs font-medium text-slate-600 mb-1">Programa</label>
+          <select
+            value={progFilter}
+            onChange={(e) => setProgFilter(e.target.value)}
+            className={inputCls}
+          >
+            <option value="">— Todos —</option>
+            <optgroup label="Licenciaturas">
+              {lics.map((l) => (
+                <option key={`lic-${l.id}`} value={`lic-${l.id}`}>{l.nombre}</option>
+              ))}
+            </optgroup>
+            <optgroup label="Posgrados">
+              {pos.map((p) => (
+                <option key={`pos-${p.id}`} value={`pos-${p.id}`}>{p.nombre}</option>
+              ))}
+            </optgroup>
+          </select>
+        </div>
+        {(search || progFilter) && (
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => { setSearch(''); setProgFilter('') }}
+          >
+            Limpiar
+          </Button>
+        )}
+      </div>
 
       <Table columns={columns} data={data ?? []} loading={isLoading} emptyText="Sin UEA registradas" />
 
@@ -140,10 +207,15 @@ export default function UEAPage() {
           <div className="col-span-2">
             <FormField label="Nombre" required><input value={form.nombre} onChange={f('nombre')} className={inputCls} placeholder="Nombre de la UEA" /></FormField>
           </div>
-          <FormField label="Licenciatura">
-            <select value={form.licenciatura} onChange={f('licenciatura')} className={inputCls}>
-              <option value="">-- Ninguna --</option>
-              {lics.map((l) => <option key={l.id} value={l.id}>{l.nombre}</option>)}
+          <FormField label="Programa" required>
+            <select value={form.programa} onChange={f('programa')} className={inputCls}>
+              <option value="">-- Selecciona un programa --</option>
+              <optgroup label="Licenciaturas">
+                {lics.map((l) => <option key={`lic-${l.id}`} value={`lic-${l.id}`}>{l.nombre}</option>)}
+              </optgroup>
+              <optgroup label="Posgrados">
+                {pos.map((p) => <option key={`pos-${p.id}`} value={`pos-${p.id}`}>{p.nombre}</option>)}
+              </optgroup>
             </select>
           </FormField>
           <FormField label="Trimestre" hint="Acepta entero (1–12) o rango romano (ej. VII-XII)">
@@ -199,9 +271,18 @@ export default function UEAPage() {
           <div className="text-sm text-slate-600 space-y-2">
             <p>El CSV debe tener las columnas:</p>
             <code className="block rounded bg-slate-50 p-3 text-xs">
-              clave, nombre, licenciatura_clave, trimestre, tipo, creditos, area_nombre, area_descripcion, url
+              clave, nombre, programa_clave, trimestre, tipo, creditos, area_nombre, area_descripcion, url
             </code>
-            <p className="text-xs text-slate-400">area_nombre, area_descripcion y url son opcionales. trimestre acepta entero o rango romano.</p>
+            <p className="text-xs text-slate-400">
+              Sólo <code>clave</code>, <code>nombre</code> y <code>programa_clave</code> son obligatorias.
+            </p>
+            <p className="text-xs text-slate-400">
+              <code>programa_clave</code> acepta la clave de una Licenciatura (DCG, ARQ, DI, DiPS)
+              o de un Posgrado (PDB, PPCDA, etc.). El sistema detecta a cuál pertenece.
+            </p>
+            <p className="text-xs text-slate-400">
+              trimestre acepta entero (1–12) o rango romano (ej. VII-XII). tipo: OBL u OPT.
+            </p>
             <p className="text-slate-400">Rows existentes (por clave) se actualizan; nuevas se crean.</p>
           </div>
         )}
