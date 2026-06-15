@@ -42,6 +42,7 @@ from catalogos.models import (  # noqa: E402
     Departamento,
     Licenciatura,
     Periodo,
+    Posgrado,
 )
 
 
@@ -142,6 +143,18 @@ for orden, clave, nombre, depto_clave in LICENCIATURAS:
     marker = "CREADO" if created else "EXISTE"
     print(f"  [{marker}] Lic {clave} — {nombre}")
 
+# Posgrado demo — usado para validar el XOR licenciatura/posgrado en UEA.
+posgrado_demo, created = Posgrado.objects.get_or_create(
+    clave="PDB",
+    defaults={
+        "nombre": "Posgrado en Diseño Bioclimático",
+        "orden": 1,
+        "estado": True,
+    },
+)
+marker = "CREADO" if created else "EXISTE"
+print(f"  [{marker}] Posgrado {posgrado_demo.clave} — {posgrado_demo.nombre}")
+
 periodo, created = Periodo.objects.get_or_create(
     clave="26-I",
     defaults={
@@ -205,6 +218,22 @@ for clave, nombre, lic_clave, trim, tipo, creditos in UEAS:
     )
     marker = "CREADO" if created else "EXISTE"
     print(f"  [{marker}] UEA {clave} — {nombre}")
+
+# UEA de posgrado demo — sin licenciatura, con posgrado (valida el XOR).
+obj, created = UEA.objects.get_or_create(
+    clave="9000001",
+    defaults={
+        "nombre": "Seminario de Diseño Bioclimático I",
+        "posgrado": posgrado_demo,
+        "area": area_lic,
+        "trimestre": "1",
+        "tipo": UEA.Tipo.OBLIGATORIA,
+        "creditos": 9,
+        "estado": True,
+    },
+)
+marker = "CREADO" if created else "EXISTE"
+print(f"  [{marker}] UEA {obj.clave} — {obj.nombre} (Posgrado {posgrado_demo.clave})")
 
 
 # ─── 4. Perfiles de Profesor ─────────────────────────────────────────────────
