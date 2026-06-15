@@ -5,7 +5,7 @@ import pytest
 from rest_framework.test import APIClient
 
 from accounts.models import Usuario
-from catalogos.models import Area, Departamento, Licenciatura, Periodo, UEA
+from catalogos.models import Area, Departamento, Licenciatura, Periodo, Posgrado, UEA
 
 
 @pytest.fixture
@@ -83,6 +83,30 @@ class TestLicenciaturas:
         )
         assert r.status_code == 201
         assert r.data["departamento_nombre"] == depto.nombre
+
+
+class TestPosgrado:
+    def test_lista(self, client, profesor, db):
+        Posgrado.objects.create(clave="PDB", nombre="Posgrado en Diseño Bioclimático")
+        auth(client, "prof2@cyad.uam.mx", "Profesor1234!")
+        r = client.get("/api/v1/posgrados/")
+        assert r.status_code == 200
+        assert r.data["count"] >= 1
+
+    def test_crear_admin(self, client, admin, depto):
+        auth(client, "admin2@cyad.uam.mx", "Admin1234!")
+        r = client.post(
+            "/api/v1/posgrados/",
+            {"clave": "PDEU", "nombre": "Posgrado en Diseño de Estudios Urbanos", "departamento": depto.id},
+            format="json",
+        )
+        assert r.status_code == 201
+        assert r.data["departamento_nombre"] == depto.nombre
+
+    def test_crear_bloqueado_profesor(self, client, profesor):
+        auth(client, "prof2@cyad.uam.mx", "Profesor1234!")
+        r = client.post("/api/v1/posgrados/", {"clave": "PX", "nombre": "Posgrado X"}, format="json")
+        assert r.status_code == 403
 
 
 class TestPeriodos:
@@ -259,7 +283,7 @@ class TestUEA:
     def test_import_csv(self, client, admin, licenciatura):
         auth(client, "admin2@cyad.uam.mx", "Admin1234!")
         csv_content = (
-            "clave,nombre,licenciatura_clave,trimestre,tipo,creditos,area_nombre,area_descripcion\n"
+            "clave,nombre,programa_clave,trimestre,tipo,creditos,area_nombre,area_descripcion\n"
             "9900001,UEA CSV Test,DI,3,OBL,8,Licenciatura,Licenciatura\n"
             "9900002,UEA CSV Test 2,DI,4,OBL,6,Licenciatura,Licenciatura\n"
         )
@@ -274,10 +298,11 @@ class TestUEA:
         assert uea.area is not None
         assert uea.area.nombre == "Licenciatura"
 
-    def test_import_csv_licenciatura_invalida(self, client, admin, db):
+    def test_import_csv_programa_no_existe(self, client, admin, db):
+        """Fila con programa_clave que no existe en ninguna tabla -> error."""
         auth(client, "admin2@cyad.uam.mx", "Admin1234!")
         csv_content = (
-            "clave,nombre,licenciatura_clave,trimestre,tipo,creditos\n"
+            "clave,nombre,programa_clave,trimestre,tipo,creditos\n"
             "9910001,UEA Mala,INVALIDA,1,OBL,4\n"
         )
         csv_file = io.BytesIO(csv_content.encode("utf-8"))
@@ -285,7 +310,9 @@ class TestUEA:
         r = client.post("/api/v1/uea/import-csv/", {"file": csv_file}, format="multipart")
         assert r.status_code == 200
         assert len(r.data["errors"]) == 1
+        assert "INVALIDA" in r.data["errors"][0]
         assert r.data["created"] == 0
+        assert not UEA.objects.filter(clave="9910001").exists()
 
     def test_trimestre_acepta_rango_romano(self, client, admin, licenciatura):
         """trimestre es CharField — acepta rangos romanos para optativas."""
@@ -299,6 +326,105 @@ class TestUEA:
         }, format="json")
         assert r.status_code == 201, r.data
         assert UEA.objects.get(clave="1441001").trimestre == "VII-XII"
+
+    def test_uea_requiere_un_programa(self, client, admin, licenciatura):
+        """Una UEA debe tener licenciatura XOR posgrado: ninguno o ambos -> 400."""
+        auth(client, "admin2@cyad.uam.mx", "Admin1234!")
+        # Ninguno de los dos.
+        r_ninguno = client.post("/api/v1/uea/", {
+            "clave": "9920001", "nombre": "Sin programa",
+        }, format="json")
+        assert r_ninguno.status_code == 400
+
+        # Ambos a la vez.
+        posgrado = Posgrado.objects.create(clave="PX", nombre="Posgrado X")
+        r_ambos = client.post("/api/v1/uea/", {
+            "clave": "9920002", "nombre": "Con ambos",
+            "licenciatura": licenciatura.id, "posgrado": posgrado.id,
+        }, format="json")
+        assert r_ambos.status_code == 400
+
+    def test_uea_con_posgrado(self, client, admin):
+        """Una UEA puede pertenecer solo a un Posgrado (sin licenciatura)."""
+        auth(client, "admin2@cyad.uam.mx", "Admin1234!")
+        posgrado = Posgrado.objects.create(clave="PY", nombre="Posgrado Y")
+        r = client.post("/api/v1/uea/", {
+            "clave": "9920003", "nombre": "UEA de Posgrado",
+            "posgrado": posgrado.id,
+        }, format="json")
+        assert r.status_code == 201, r.data
+        uea = UEA.objects.get(clave="9920003")
+        assert uea.licenciatura is None
+        assert uea.posgrado_id == posgrado.id
+
+    def test_import_csv_posgrado(self, client, admin, db):
+        """El CSV resuelve programa_clave contra Posgrado cuando la clave existe ahí."""
+        auth(client, "admin2@cyad.uam.mx", "Admin1234!")
+        Posgrado.objects.create(clave="PDB", nombre="Posgrado en Diseño Bioclimático")
+        csv_content = (
+            "clave,nombre,programa_clave,trimestre,tipo,creditos\n"
+            "9900010,UEA Posgrado CSV,PDB,1,OBL,9\n"
+        )
+        csv_file = io.BytesIO(csv_content.encode("utf-8"))
+        csv_file.name = "test_pos.csv"
+        r = client.post("/api/v1/uea/import-csv/", {"file": csv_file}, format="multipart")
+        assert r.status_code == 200, r.data
+        assert r.data["created"] == 1
+        uea = UEA.objects.get(clave="9900010")
+        assert uea.posgrado is not None
+        assert uea.posgrado.clave == "PDB"
+        assert uea.licenciatura is None
+
+    def test_import_csv_mezcla_licenciatura_y_posgrado(self, client, admin, licenciatura):
+        """Un mismo CSV puede traer filas de licenciatura y posgrado mezcladas."""
+        auth(client, "admin2@cyad.uam.mx", "Admin1234!")
+        Posgrado.objects.create(clave="PDB", nombre="Posgrado en Diseño Bioclimático")
+        csv_content = (
+            "clave,nombre,programa_clave,trimestre,tipo,creditos\n"
+            "9900020,UEA de Lic,DI,3,OBL,8\n"
+            "9900021,UEA de Pos,PDB,1,OBL,9\n"
+        )
+        csv_file = io.BytesIO(csv_content.encode("utf-8"))
+        csv_file.name = "mixto.csv"
+        r = client.post("/api/v1/uea/import-csv/", {"file": csv_file}, format="multipart")
+        assert r.status_code == 200, r.data
+        assert r.data["created"] == 2
+        assert r.data["errors"] == []
+        u_lic = UEA.objects.get(clave="9900020")
+        assert u_lic.licenciatura_id == licenciatura.id and u_lic.posgrado is None
+        u_pos = UEA.objects.get(clave="9900021")
+        assert u_pos.posgrado.clave == "PDB" and u_pos.licenciatura is None
+
+    def test_import_csv_clave_ambigua(self, client, admin, db):
+        """Si la misma clave existe en Licenciatura y Posgrado, la fila se rechaza."""
+        auth(client, "admin2@cyad.uam.mx", "Admin1234!")
+        Licenciatura.objects.create(clave="XYZ", nombre="Lic XYZ")
+        Posgrado.objects.create(clave="XYZ", nombre="Pos XYZ")
+        csv_content = (
+            "clave,nombre,programa_clave,trimestre,tipo,creditos\n"
+            "9900030,UEA Ambigua,XYZ,1,OBL,4\n"
+        )
+        csv_file = io.BytesIO(csv_content.encode("utf-8"))
+        csv_file.name = "amb.csv"
+        r = client.post("/api/v1/uea/import-csv/", {"file": csv_file}, format="multipart")
+        assert r.status_code == 200, r.data
+        assert r.data["created"] == 0
+        assert len(r.data["errors"]) == 1
+        assert "ambigua" in r.data["errors"][0].lower()
+        assert not UEA.objects.filter(clave="9900030").exists()
+
+    def test_import_csv_falta_programa_clave(self, client, admin, db):
+        """Si el header no incluye programa_clave, 400 con mensaje claro."""
+        auth(client, "admin2@cyad.uam.mx", "Admin1234!")
+        csv_content = (
+            "clave,nombre,trimestre,tipo,creditos\n"
+            "9900040,Sin programa,1,OBL,4\n"
+        )
+        csv_file = io.BytesIO(csv_content.encode("utf-8"))
+        csv_file.name = "sin_programa.csv"
+        r = client.post("/api/v1/uea/import-csv/", {"file": csv_file}, format="multipart")
+        assert r.status_code == 400
+        assert "programa_clave" in r.data["errors"]["file"]
 
 
 class TestArea:
@@ -351,9 +477,9 @@ class TestCargarCatalogosCsv:
             encoding="utf-8",
         )
         (tmp_path / "ueas_ejemplo.csv").write_text(
-            "area_id,clave,nombre,licenciatura_clave,trimestre,tipo,creditos,url\n"
-            "1,1440001,UEA Obligatoria,4,3,OBL,9,\n"
-            "2,1441001,UEA Optativa Rango,4,VII-XII,OPT,,\n",
+            "area_id,clave,nombre,programa_clave,trimestre,tipo,creditos,url\n"
+            "1,1440001,UEA Obligatoria,DiPS,3,OBL,9,\n"
+            "2,1441001,UEA Optativa Rango,DiPS,VII-XII,OPT,,\n",
             encoding="utf-8",
         )
 
@@ -389,3 +515,49 @@ class TestCargarCatalogosCsv:
         assert not Licenciatura.objects.filter(clave="DPS").exists()
         dips = Licenciatura.objects.get(clave="DiPS")
         assert dips.orden == 4
+
+    def test_carga_posgrados_y_uea_posgrado(self, db, tmp_path):
+        """posgrados.csv es opcional; si existe, se cargan y un solo CSV de UEAs mezcla licenciatura/posgrado."""
+        from django.core.management import call_command
+
+        self._escribir_csvs(tmp_path)
+        (tmp_path / "posgrados.csv").write_text(
+            "clave,nombre\n"
+            "PPCDA,Posgrado en Procesos Culturales para el Diseño y el Arte\n"
+            "PDB,Posgrado en Diseño Bioclimático\n",
+            encoding="utf-8",
+        )
+        (tmp_path / "ueas_ejemplo.csv").write_text(
+            "area_id,clave,nombre,programa_clave,trimestre,tipo,creditos,url\n"
+            "1,1440001,UEA Obligatoria,DiPS,3,OBL,9,\n"
+            "2,1441001,UEA Optativa Rango,DiPS,VII-XII,OPT,,\n"
+            "1,9000010,UEA Posgrado Demo,PDB,1,OBL,9,\n",
+            encoding="utf-8",
+        )
+        call_command("cargar_catalogos_csv", csv_dir=tmp_path)
+
+        assert Posgrado.objects.count() == 2
+        assert list(
+            Posgrado.objects.order_by("orden").values_list("clave", flat=True)
+        ) == ["PPCDA", "PDB"]
+        assert UEA.objects.count() == 3
+        uea_pos = UEA.objects.get(clave="9000010")
+        assert uea_pos.posgrado.clave == "PDB"
+        assert uea_pos.licenciatura is None
+        uea_lic = UEA.objects.get(clave="1440001")
+        assert uea_lic.licenciatura.clave == "DiPS"
+        assert uea_lic.posgrado is None
+
+        # Segunda corrida no duplica.
+        call_command("cargar_catalogos_csv", csv_dir=tmp_path)
+        assert Posgrado.objects.count() == 2
+        assert UEA.objects.count() == 3
+
+    def test_omite_posgrados_si_no_existe_csv(self, db, tmp_path):
+        """Si posgrados.csv no existe, el comando no falla y simplemente lo omite."""
+        from django.core.management import call_command
+
+        self._escribir_csvs(tmp_path)
+        call_command("cargar_catalogos_csv", csv_dir=tmp_path)
+        assert Posgrado.objects.count() == 0
+        assert UEA.objects.count() == 2
