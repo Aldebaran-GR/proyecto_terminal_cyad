@@ -2,7 +2,7 @@
 
 from rest_framework import serializers
 
-from .models import Area, Departamento, Licenciatura, Periodo, UEA
+from .models import Area, Departamento, Licenciatura, Periodo, Posgrado, UEA
 
 
 class DepartamentoSerializer(serializers.ModelSerializer):
@@ -26,6 +26,20 @@ class LicenciaturaSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "created_at", "updated_at"]
 
 
+class PosgradoSerializer(serializers.ModelSerializer):
+    departamento_nombre = serializers.CharField(
+        source="departamento.nombre", read_only=True, default=None
+    )
+
+    class Meta:
+        model = Posgrado
+        fields = [
+            "id", "clave", "nombre", "orden", "departamento", "departamento_nombre",
+            "estado", "created_at", "updated_at",
+        ]
+        read_only_fields = ["id", "created_at", "updated_at"]
+
+
 class AreaSerializer(serializers.ModelSerializer):
     class Meta:
         model = Area
@@ -38,7 +52,10 @@ class AreaSerializer(serializers.ModelSerializer):
 
 class UEASerializer(serializers.ModelSerializer):
     licenciatura_nombre = serializers.CharField(
-        source="licenciatura.nombre", read_only=True
+        source="licenciatura.nombre", read_only=True, default=None
+    )
+    posgrado_nombre = serializers.CharField(
+        source="posgrado.nombre", read_only=True, default=None
     )
     area_nombre = serializers.CharField(
         source="area.nombre", read_only=True, default=None
@@ -52,11 +69,21 @@ class UEASerializer(serializers.ModelSerializer):
         fields = [
             "id", "clave", "nombre",
             "licenciatura", "licenciatura_nombre",
+            "posgrado", "posgrado_nombre",
             "area", "area_nombre", "area_descripcion",
             "trimestre", "tipo", "creditos", "liga", "estado",
             "created_at", "updated_at",
         ]
         read_only_fields = ["id", "created_at", "updated_at"]
+
+    def validate(self, attrs):
+        licenciatura = attrs.get("licenciatura", getattr(self.instance, "licenciatura", None))
+        posgrado = attrs.get("posgrado", getattr(self.instance, "posgrado", None))
+        if bool(licenciatura) == bool(posgrado):
+            raise serializers.ValidationError(
+                "Una UEA debe pertenecer a una Licenciatura o a un Posgrado (no ambos ni ninguno)."
+            )
+        return attrs
 
 
 class PeriodoSerializer(serializers.ModelSerializer):

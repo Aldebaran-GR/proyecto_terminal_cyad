@@ -6,6 +6,7 @@ from .views import (
     DepartamentoViewSet,
     LicenciaturaViewSet,
     PeriodoViewSet,
+    PosgradoViewSet,
     PublicLicenciaturaListView,
     PublicUEAListView,
     UEAViewSet,
@@ -14,6 +15,7 @@ from .views import (
 router = DefaultRouter()
 router.register("departamentos", DepartamentoViewSet, basename="departamento")
 router.register("licenciaturas", LicenciaturaViewSet, basename="licenciatura")
+router.register("posgrados", PosgradoViewSet, basename="posgrado")
 router.register("areas", AreaViewSet, basename="area")
 router.register("uea", UEAViewSet, basename="uea")
 router.register("periodos", PeriodoViewSet, basename="periodo")

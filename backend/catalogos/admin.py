@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Area, Departamento, Licenciatura, Periodo, UEA
+from .models import Area, Departamento, Licenciatura, Periodo, Posgrado, UEA
 
 
 @admin.register(Departamento)
@@ -19,6 +19,15 @@ class LicenciaturaAdmin(admin.ModelAdmin):
     ordering = ("orden", "nombre")
 
 
+@admin.register(Posgrado)
+class PosgradoAdmin(admin.ModelAdmin):
+    list_display = ("clave", "nombre", "orden", "departamento", "estado")
+    list_editable = ("orden",)
+    list_filter = ("estado", "departamento")
+    search_fields = ("clave", "nombre")
+    ordering = ("orden", "nombre")
+
+
 @admin.register(Area)
 class AreaAdmin(admin.ModelAdmin):
     list_display = ("nombre", "descripcion", "estado")
@@ -28,9 +37,13 @@ class AreaAdmin(admin.ModelAdmin):
 
 @admin.register(UEA)
 class UEAAdmin(admin.ModelAdmin):
-    list_display = ("clave", "nombre", "licenciatura", "area", "trimestre", "tipo", "estado")
-    list_filter = ("licenciatura", "area", "tipo", "estado")
+    list_display = ("clave", "nombre", "programa", "area", "trimestre", "tipo", "estado")
+    list_filter = ("licenciatura", "posgrado", "area", "tipo", "estado")
     search_fields = ("clave", "nombre")
+
+    @admin.display(description="Programa")
+    def programa(self, obj):
+        return obj.licenciatura or obj.posgrado
 
 
 @admin.register(Periodo)

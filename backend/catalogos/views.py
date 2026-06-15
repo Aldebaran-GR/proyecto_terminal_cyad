@@ -13,12 +13,13 @@ from rest_framework.response import Response
 
 from core.permissions import IsAdmin, IsAdminOrReadOnly
 
-from .models import Area, Departamento, Licenciatura, Periodo, UEA
+from .models import Area, Departamento, Licenciatura, Periodo, Posgrado, UEA
 from .serializers import (
     AreaSerializer,
     DepartamentoSerializer,
     LicenciaturaSerializer,
     PeriodoSerializer,
+    PosgradoSerializer,
     UEASerializer,
 )
 
@@ -43,6 +44,15 @@ class LicenciaturaViewSet(viewsets.ModelViewSet):
     search_fields = ["clave", "nombre"]
 
 
+class PosgradoViewSet(viewsets.ModelViewSet):
+    queryset = Posgrado.objects.select_related("departamento").all()
+    serializer_class = PosgradoSerializer
+    permission_classes = [IsAdminOrReadOnly]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
+    filterset_fields = ["estado", "departamento"]
+    search_fields = ["clave", "nombre"]
+
+
 class AreaViewSet(viewsets.ModelViewSet):
     queryset = Area.objects.all()
     serializer_class = AreaSerializer
@@ -53,11 +63,11 @@ class AreaViewSet(viewsets.ModelViewSet):
 
 
 class UEAViewSet(viewsets.ModelViewSet):
-    queryset = UEA.objects.select_related("licenciatura", "area").all()
+    queryset = UEA.objects.select_related("licenciatura", "posgrado", "area").all()
     serializer_class = UEASerializer
     permission_classes = [IsAdminOrReadOnly]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields = ["estado", "licenciatura", "area", "tipo", "trimestre"]
+    filterset_fields = ["estado", "licenciatura", "posgrado", "area", "tipo", "trimestre"]
     search_fields = ["clave", "nombre"]
     ordering_fields = ["trimestre", "nombre", "clave"]
 
@@ -67,9 +77,13 @@ class UEAViewSet(viewsets.ModelViewSet):
         """POST /api/v1/uea/import-csv/ — Importa UEA desde un archivo CSV.
 
         Columnas esperadas (con encabezado):
-            clave, nombre, licenciatura_clave, trimestre, tipo, creditos,
+            clave, nombre, programa_clave, trimestre, tipo, creditos,
             area_nombre, area_descripcion, url
-        Las columnas area_nombre, area_descripcion y url son opcionales.
+
+        Obligatorias: clave, nombre, programa_clave.
+        `programa_clave` acepta la clave de una Licenciatura o de un Posgrado;
+        el sistema detecta a cuál pertenece. Si una misma clave existe en
+        ambas tablas la fila se rechaza como ambigua.
         """
         archivo = request.FILES.get("file")
         if not archivo:
@@ -81,13 +95,18 @@ class UEAViewSet(viewsets.ModelViewSet):
         decoded = archivo.read().decode("utf-8-sig")
         reader = csv.DictReader(io.StringIO(decoded))
 
-        required_cols = {"clave", "nombre", "licenciatura_clave"}
-        if not required_cols.issubset(set(reader.fieldnames or [])):
+        fieldnames = set(reader.fieldnames or [])
+        required_cols = {"clave", "nombre", "programa_clave"}
+        faltantes = required_cols - fieldnames
+        if faltantes:
             return Response(
                 {
                     "success": False,
                     "errors": {
-                        "file": f"El CSV debe tener las columnas: {', '.join(required_cols)}"
+                        "file": (
+                            "El CSV debe tener las columnas clave, nombre y "
+                            f"programa_clave. Faltan: {', '.join(sorted(faltantes))}."
+                        )
                     },
                 },
                 status=status.HTTP_400_BAD_REQUEST,
@@ -95,20 +114,36 @@ class UEAViewSet(viewsets.ModelViewSet):
 
         created, updated, errors = 0, 0, []
         lic_cache = {l.clave: l for l in Licenciatura.objects.all()}
+        pos_cache = {p.clave: p for p in Posgrado.objects.all()}
         area_cache = {(a.nombre, a.descripcion): a for a in Area.objects.all()}
+        colisiones = set(lic_cache) & set(pos_cache)
 
         for i, row in enumerate(reader, start=2):
             clave = row.get("clave", "").strip()
             nombre = row.get("nombre", "").strip()
-            lic_clave = row.get("licenciatura_clave", "").strip()
 
-            if not (clave and nombre and lic_clave):
-                errors.append(f"Fila {i}: clave, nombre y licenciatura_clave son obligatorios.")
+            if not (clave and nombre):
+                errors.append(f"Fila {i}: clave y nombre son obligatorios.")
                 continue
 
-            licenciatura = lic_cache.get(lic_clave)
-            if not licenciatura:
-                errors.append(f"Fila {i}: licenciatura_clave '{lic_clave}' no existe.")
+            programa_clave = (row.get("programa_clave") or "").strip()
+            if not programa_clave:
+                errors.append(f"Fila {i}: programa_clave es obligatoria.")
+                continue
+            if programa_clave in colisiones:
+                errors.append(
+                    f"Fila {i}: clave '{programa_clave}' es ambigua "
+                    "(existe en Licenciatura y Posgrado)."
+                )
+                continue
+
+            licenciatura = lic_cache.get(programa_clave)
+            posgrado = None if licenciatura else pos_cache.get(programa_clave)
+            if not licenciatura and not posgrado:
+                errors.append(
+                    f"Fila {i}: programa_clave '{programa_clave}' no corresponde "
+                    "a ninguna Licenciatura ni Posgrado."
+                )
                 continue
 
             # Área opcional: si trae nombre, hace upsert por (nombre, descripcion).
@@ -135,6 +170,7 @@ class UEAViewSet(viewsets.ModelViewSet):
             defaults = {
                 "nombre": nombre,
                 "licenciatura": licenciatura,
+                "posgrado": posgrado,
                 "area": area_obj,
                 "trimestre": (row.get("trimestre") or "").strip(),
                 "tipo": (row.get("tipo") or UEA.Tipo.OBLIGATORIA).strip(),
@@ -188,12 +224,15 @@ class PublicUEAListView(generics.ListAPIView):
     def get_queryset(self):
         qs = (
             UEA.objects.filter(estado=True)
-            .select_related("licenciatura", "area")
+            .select_related("licenciatura", "posgrado", "area")
             .order_by("clave")
         )
         lic = self.request.query_params.get("licenciatura")
         if lic:
             qs = qs.filter(licenciatura_id=lic)
+        pos = self.request.query_params.get("posgrado")
+        if pos:
+            qs = qs.filter(posgrado_id=pos)
         return qs
 
 

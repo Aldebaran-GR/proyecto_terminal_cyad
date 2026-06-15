@@ -1,6 +1,7 @@
 """Modelos de catálogos institucionales de CyAD UAM Azcapotzalco."""
 
 from django.db import models
+from django.db.models import CheckConstraint, Q
 
 from core.models import EstadoActivoModel, TimeStampedModel
 
@@ -43,6 +44,29 @@ class Licenciatura(TimeStampedModel, EstadoActivoModel):
         return f"{self.clave} — {self.nombre}"
 
 
+class Posgrado(TimeStampedModel, EstadoActivoModel):
+    """Posgrado ofrecido por CyAD (maestría, especialidad, doctorado)."""
+
+    clave = models.CharField("Clave", max_length=20, unique=True)
+    nombre = models.CharField("Nombre", max_length=200)
+    orden = models.PositiveSmallIntegerField("Orden", default=0)
+    departamento = models.ForeignKey(
+        Departamento,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="posgrados",
+    )
+
+    class Meta:
+        verbose_name = "Posgrado"
+        verbose_name_plural = "Posgrados"
+        ordering = ["orden", "nombre"]
+
+    def __str__(self):
+        return f"{self.clave} — {self.nombre}"
+
+
 class Area(TimeStampedModel, EstadoActivoModel):
     """Área curricular a la que pertenece una UEA (Licenciatura, optativas, etc.)."""
 
@@ -73,6 +97,15 @@ class UEA(TimeStampedModel, EstadoActivoModel):
         Licenciatura,
         on_delete=models.PROTECT,
         related_name="ueas",
+        null=True,
+        blank=True,
+    )
+    posgrado = models.ForeignKey(
+        Posgrado,
+        on_delete=models.PROTECT,
+        related_name="ueas",
+        null=True,
+        blank=True,
     )
     area = models.ForeignKey(
         Area,
@@ -94,7 +127,16 @@ class UEA(TimeStampedModel, EstadoActivoModel):
     class Meta:
         verbose_name = "UEA"
         verbose_name_plural = "UEA"
-        ordering = ["licenciatura", "trimestre", "nombre"]
+        ordering = ["licenciatura", "posgrado", "trimestre", "nombre"]
+        constraints = [
+            CheckConstraint(
+                condition=(
+                    (Q(licenciatura__isnull=False) & Q(posgrado__isnull=True))
+                    | (Q(licenciatura__isnull=True) & Q(posgrado__isnull=False))
+                ),
+                name="uea_xor_licenciatura_posgrado",
+            ),
+        ]
 
     def __str__(self):
         return f"{self.clave} — {self.nombre}"
