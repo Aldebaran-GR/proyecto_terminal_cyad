@@ -65,7 +65,10 @@ class CartaTematicaSerializer(serializers.ModelSerializer):
         return _profesor_correo(obj)
 
     def get_puede_editar_ahora(self, obj):
-        return obj.puede_editar() and bool(obj.periodo and obj.periodo.activo_cartas)
+        # "Modificable ahora" = el periodo del documento es el periodo activo
+        # del recurso. El estado PUBLICADO/BORRADOR lo maneja el frontend con
+        # el flujo "despublicar antes de editar/eliminar".
+        return bool(obj.periodo and obj.periodo.activo_cartas)
 
     class Meta:
         model = CartaTematica
@@ -134,7 +137,7 @@ class RequisitoRecuperacionSerializer(serializers.ModelSerializer):
         return _profesor_correo(obj)
 
     def get_puede_editar_ahora(self, obj):
-        return obj.puede_editar() and bool(obj.periodo and obj.periodo.activo_requisitos)
+        return bool(obj.periodo and obj.periodo.activo_requisitos)
 
     class Meta:
         model = RequisitoRecuperacion
