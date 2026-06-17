@@ -645,3 +645,54 @@ class TestCartaTematicaGatePeriodo:
         r = client.get(f"/api/v1/cartas-tematicas/{carta_id}/")
         assert r.status_code == 200
         assert r.data["puede_editar_ahora"] is False
+
+    def test_puede_editar_ahora_true_para_publicado_en_periodo_activo(
+        self, client, usuario_prof1, profesor1, uea, periodo
+    ):
+        """Regresión: una carta PUBLICADA en periodo activo debe reportar
+        `puede_editar_ahora=True` para que el frontend habilite el flujo de
+        despublicar-y-editar. Antes el serializer mezclaba estado del doc con
+        flag de periodo y los botones quedaban deshabilitados aunque el periodo
+        estuviera abierto.
+        """
+        auth(client, "prof_doc1@cyad.uam.mx", "Prof1234!")
+        r = self._crear_carta(client, uea.id)
+        carta_id = r.data["id"]
+        r = client.post(
+            f"/api/v1/cartas-tematicas/{carta_id}/cambiar-estado/",
+            {"estado": "PUBLICADO"},
+            format="json",
+        )
+        assert r.status_code == 200, r.data
+        r = client.get(f"/api/v1/cartas-tematicas/{carta_id}/")
+        assert r.status_code == 200
+        assert r.data["estado"] == "PUBLICADO"
+        assert r.data["puede_editar_ahora"] is True
+
+
+class TestRequisitoGatePeriodo:
+    """Espejo mínimo para Requisitos — la misma regresión de PUBLICADO en
+    periodo activo aplica.
+    """
+
+    def test_puede_editar_ahora_true_para_publicado_en_periodo_activo(
+        self, client, usuario_prof1, profesor1, uea, periodo
+    ):
+        auth(client, "prof_doc1@cyad.uam.mx", "Prof1234!")
+        r = client.post(
+            "/api/v1/requisitos-recuperacion/",
+            requisito_payload(uea.id),
+            format="json",
+        )
+        assert r.status_code == 201, r.data
+        req_id = r.data["id"]
+        r = client.post(
+            f"/api/v1/requisitos-recuperacion/{req_id}/cambiar-estado/",
+            {"estado": "PUBLICADO"},
+            format="json",
+        )
+        assert r.status_code == 200, r.data
+        r = client.get(f"/api/v1/requisitos-recuperacion/{req_id}/")
+        assert r.status_code == 200
+        assert r.data["estado"] == "PUBLICADO"
+        assert r.data["puede_editar_ahora"] is True

@@ -453,7 +453,8 @@ class TestFormulariosDisponibles:
         self, client, admin, usuario_prof, profesor, periodo,
     ):
         """Formularios PUBLICADOS de un periodo SIN activo_autoevaluacion=True
-        no deben aparecer al profesor (trimestres pasados ocultos)."""
+        no deben aparecer al profesor (trimestres pasados ocultos) — A MENOS
+        que el profesor ya tenga una respuesta para consultar."""
         periodo_viejo = Periodo.objects.create(
             clave="25-OLDAE",
             fecha_inicio="2025-01-01",
@@ -472,6 +473,50 @@ class TestFormulariosDisponibles:
         ids = [f["id"] for f in r.data["results"]]
         assert formulario_actual.id in ids
         assert formulario_viejo.id not in ids
+
+    def test_profesor_ve_historial_cuando_ya_respondio(
+        self, client, admin, usuario_prof, profesor, periodo,
+    ):
+        """Si el profesor ya respondió un formulario, debe seguir viéndolo en
+        la lista aunque el periodo del formulario ya no esté activo para AE
+        — para que pueda consultar su resultado. La tarjeta debe traer
+        `periodo_abierto=False` para que la UI sepa que es solo consulta.
+        """
+        formulario = make_formulario(periodo, admin)
+        formulario.publicar()
+        # Profesor crea y envía respuesta con el periodo activo.
+        Respuesta.objects.create(
+            formulario=formulario,
+            profesor=profesor,
+            estado=Respuesta.Estado.ENVIADO,
+            version_formulario=formulario.version,
+        )
+        # Admin cierra la autoevaluación del periodo.
+        periodo.activo_autoevaluacion = False
+        periodo.save(update_fields=["activo_autoevaluacion"])
+        auth_prof(client)
+        r = client.get("/api/v1/formularios-disponibles/")
+        assert r.status_code == 200, r.data
+        ids = [f["id"] for f in r.data["results"]]
+        assert formulario.id in ids
+        tarjeta = next(f for f in r.data["results"] if f["id"] == formulario.id)
+        assert tarjeta["periodo_abierto"] is False
+        assert tarjeta["ya_respondido"] is True
+
+    def test_profesor_no_ve_historial_sin_respuesta(
+        self, client, admin, usuario_prof, profesor, periodo,
+    ):
+        """Espejo del anterior: sin respuesta del profesor, un formulario de
+        periodo inactivo NO aparece en la lista del profesor."""
+        periodo.activo_autoevaluacion = False
+        periodo.save(update_fields=["activo_autoevaluacion"])
+        formulario = make_formulario(periodo, admin)
+        formulario.publicar()
+        auth_prof(client)
+        r = client.get("/api/v1/formularios-disponibles/")
+        assert r.status_code == 200
+        ids = [f["id"] for f in r.data["results"]]
+        assert formulario.id not in ids
 
 
 # ---------------------------------------------------------------------------
