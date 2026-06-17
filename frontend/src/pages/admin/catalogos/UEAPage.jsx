@@ -35,12 +35,14 @@ export default function UEAPage() {
   const { data, isLoading } = useQuery({
     queryKey: ['uea', search, progFilter],
     queryFn: () => {
-      const params = {}
+      // page_size=200 (máximo permitido por la API) para traer el catálogo
+      // completo de UEA en una sola página; la tabla no implementa
+      // paginación propia.
+      const params = { page_size: 200 }
       if (search) params.search = search
       if (progFilter.startsWith('lic-')) params.licenciatura = progFilter.slice(4)
       else if (progFilter.startsWith('pos-')) params.posgrado = progFilter.slice(4)
-      return getUEA(Object.keys(params).length ? params : undefined)
-        .then((r) => r.data?.results ?? r.data ?? [])
+      return getUEA(params).then((r) => r.data?.results ?? r.data ?? [])
     },
   })
   const { data: lics = [] } = useQuery({

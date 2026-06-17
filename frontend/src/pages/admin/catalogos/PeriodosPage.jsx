@@ -80,11 +80,19 @@ export default function PeriodosPage() {
   const closeModal = () => { setModal(false); setApiError(null) }
 
   const saveMut = useMutation({
-    mutationFn: (d) => selected ? updatePeriodo(selected.id, d) : createPeriodo(d),
+    mutationFn: (d) => (
+      selected ? updatePeriodo(selected.id, d) : createPeriodo(d)
+    ),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['periodos'] }); closeModal() },
     onError: (e) => {
       const data = e.response?.data
-      setApiError(data?.clave?.[0] || data?.fecha_fin?.[0] || data?.non_field_errors?.[0] || data?.detail || 'Error al guardar.')
+      setApiError(
+        data?.clave?.[0]
+        || data?.fecha_fin?.[0]
+        || data?.non_field_errors?.[0]
+        || data?.detail
+        || 'Error al guardar.'
+      )
     },
   })
   const delMut = useMutation({
@@ -133,13 +141,23 @@ export default function PeriodosPage() {
     { key: 'fecha_fin', label: 'Fin', className: 'w-28' },
     {
       key: 'flags', label: 'Activo para…',
-      render: (_, row) => (
-        <div className="flex flex-wrap gap-1.5">
-          <FlagChip label="Cartas"          value={row.activo_cartas}          busy={toggleMut.isPending} onToggle={() => toggleFlag(row, 'activo_cartas')} />
-          <FlagChip label="Requisitos"      value={row.activo_requisitos}      busy={toggleMut.isPending} onToggle={() => toggleFlag(row, 'activo_requisitos')} />
-          <FlagChip label="Autoevaluación"  value={row.activo_autoevaluacion}  busy={toggleMut.isPending} onToggle={() => toggleFlag(row, 'activo_autoevaluacion')} />
-        </div>
-      ),
+      render: (_, row) => {
+        const cell = (label, flagField) => (
+          <FlagChip
+            label={label}
+            value={row[flagField]}
+            busy={toggleMut.isPending}
+            onToggle={() => toggleFlag(row, flagField)}
+          />
+        )
+        return (
+          <div className="flex flex-wrap gap-2">
+            {cell('Cartas', 'activo_cartas')}
+            {cell('Requisitos', 'activo_requisitos')}
+            {cell('Autoevaluación', 'activo_autoevaluacion')}
+          </div>
+        )
+      },
     },
     { key: 'estado', label: 'Estado', className: 'w-24', render: (v) => <Badge label={v ? 'ACTIVO' : 'INACTIVO'} variant={v ? 'ACTIVO' : 'INACTIVO'} /> },
     {
@@ -211,12 +229,12 @@ export default function PeriodosPage() {
                 ['activo_cartas',         'Cartas Temáticas'],
                 ['activo_requisitos',     'Requisitos de Recuperación'],
                 ['activo_autoevaluacion', 'Autoevaluación'],
-              ].map(([key, label]) => (
-                <label key={key} className="flex items-center gap-2 cursor-pointer">
+              ].map(([flagKey, label]) => (
+                <label key={flagKey} className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="checkbox"
-                    checked={form[key]}
-                    onChange={(e) => setForm((p) => ({ ...p, [key]: e.target.checked }))}
+                    checked={form[flagKey]}
+                    onChange={(e) => setForm((p) => ({ ...p, [flagKey]: e.target.checked }))}
                     className="h-4 w-4 accent-indigo-600"
                   />
                   <span className="text-sm text-slate-700">{label}</span>
