@@ -29,6 +29,7 @@ const emptyEdit = (row) => ({
   nombre_completo: row.nombre_completo,
   correo_institucional: row.correo_institucional,
   numero_economico: row.numero_economico ?? '',
+  departamento: row.departamento ?? '',
   estado: row.estado,
 })
 
@@ -104,7 +105,7 @@ export default function ProfesoresPage() {
   })
 
   const editMut = useMutation({
-    mutationFn: (d) => updateProfesor(selected.id, d),
+    mutationFn: (d) => updateProfesor(selected.id, { ...d, departamento: d.departamento || null }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['profesores'] }); closeModal() },
     onError: (e) => setApiError(extractError(e, 'Error al guardar.')),
   })
@@ -165,6 +166,7 @@ export default function ProfesoresPage() {
       render: (v, row) => <div><p className="font-medium">{v}</p><p className="text-xs text-slate-400">{row.correo_institucional}</p></div>,
     },
     { key: 'numero_economico', label: 'N° Económico', className: 'w-28', render: (v) => v ?? <span className="text-slate-400">—</span> },
+    { key: 'departamento_nombre', label: 'Departamento', className: 'w-40', render: (v) => v ?? <span className="text-slate-400">—</span> },
     {
       key: 'usuario', label: 'Email de acceso',
       render: (v) => <span className="text-xs text-slate-500">{v?.email}</span>,
@@ -321,6 +323,12 @@ export default function ProfesoresPage() {
           <FormField label="Nombre completo"><input value={editForm.nombre_completo ?? ''} onChange={fe('nombre_completo')} className={inputCls} /></FormField>
           <FormField label="Correo institucional"><input value={editForm.correo_institucional ?? ''} onChange={fe('correo_institucional')} className={inputCls} /></FormField>
           <FormField label="Número económico"><input value={editForm.numero_economico ?? ''} onChange={fe('numero_economico')} className={inputCls} /></FormField>
+          <FormField label="Departamento">
+            <select value={editForm.departamento ?? ''} onChange={fe('departamento')} className={inputCls}>
+              <option value="">-- Sin asignar --</option>
+              {deptos.map((d) => <option key={d.id} value={d.id}>{d.nombre}</option>)}
+            </select>
+          </FormField>
           <label className="flex items-start gap-2 cursor-pointer">
             <input
               type="checkbox"
