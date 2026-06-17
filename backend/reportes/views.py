@@ -241,6 +241,73 @@ class CumplimientoLicenciaturaView(APIView):
 
 
 # ---------------------------------------------------------------------------
+# Autoevaluación por profesor
+# ---------------------------------------------------------------------------
+
+
+class AutoevaluacionProfesoresView(APIView):
+    """
+    GET /api/v1/reportes/autoevaluacion-profesores/
+    ?periodo=<id>       — opcional; por defecto activo
+    ?departamento=<id>  — opcional; filtra por departamento del profesor
+
+    Lista de profesores activos con el porcentaje obtenido en la
+    autoevaluación del periodo (0 si no la han enviado), su número
+    económico y su departamento.
+    """
+
+    permission_classes = [IsAuthenticated, IsAdmin]
+
+    def get(self, request):
+        periodo = _periodo_o_activo(request.query_params.get("periodo"))
+        departamento_id = request.query_params.get("departamento")
+
+        profesores_qs = Profesor.objects.filter(estado=True).select_related("departamento")
+        if departamento_id:
+            profesores_qs = profesores_qs.filter(departamento_id=departamento_id)
+
+        formulario = None
+        porcentajes = {}
+        if periodo:
+            formulario = Formulario.objects.filter(periodo=periodo).order_by("-created_at").first()
+            if formulario:
+                respuestas = Respuesta.objects.filter(
+                    formulario=formulario,
+                    estado=Respuesta.Estado.ENVIADO,
+                    version_formulario=formulario.version,
+                )
+                porcentajes = {r.profesor_id: r.porcentaje for r in respuestas}
+
+        profesores = [
+            {
+                "id": profesor.id,
+                "nombre_completo": profesor.nombre_completo,
+                "numero_economico": profesor.numero_economico,
+                "departamento_id": profesor.departamento_id,
+                "departamento_nombre": profesor.departamento.nombre if profesor.departamento else None,
+                "porcentaje": float(porcentajes.get(profesor.id, 0) or 0),
+            }
+            for profesor in profesores_qs.order_by("nombre_completo")
+        ]
+
+        return Response(
+            {
+                "periodo": _serializar_periodo(periodo),
+                "formulario": (
+                    {
+                        "id": formulario.id,
+                        "titulo": formulario.titulo,
+                        "version": formulario.version,
+                        "estado": formulario.estado,
+                    }
+                    if formulario else None
+                ),
+                "profesores": profesores,
+            }
+        )
+
+
+# ---------------------------------------------------------------------------
 # Resumen de autoevaluación
 # ---------------------------------------------------------------------------
 

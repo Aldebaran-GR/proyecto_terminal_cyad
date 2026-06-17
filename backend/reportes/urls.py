@@ -3,6 +3,7 @@
 from django.urls import path
 
 from .views import (
+    AutoevaluacionProfesoresView,
     CumplimientoLicenciaturaView,
     CumplimientoView,
     DashboardView,
@@ -21,5 +22,10 @@ urlpatterns = [
         "reportes/autoevaluacion/",
         ResumenAutoevaluacionView.as_view(),
         name="reporte-autoevaluacion",
+    ),
+    path(
+        "reportes/autoevaluacion-profesores/",
+        AutoevaluacionProfesoresView.as_view(),
+        name="reporte-autoevaluacion-profesores",
     ),
 ]
