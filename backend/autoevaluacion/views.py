@@ -426,7 +426,6 @@ class FormulariosDisponiblesViewSet(viewsets.ReadOnlyModelViewSet):
         # Solo formularios cuyo periodo esté activo para Autoevaluación.
         # Así, formularios de trimestres pasados ya no se muestran al profesor
         # aunque sigan en la BD para consulta del admin.
-        from catalogos.models import Periodo
         return (
             Formulario.objects.filter(
                 estado__in=[
@@ -470,8 +469,21 @@ class RespuestaViewSet(viewsets.ModelViewSet):
         except Exception:
             return Respuesta.objects.none()
 
+    def _bloqueo_periodo(self):
+        return ValidationError({
+            "periodo": [
+                "La autoevaluación de este periodo ya no está abierta."
+            ]
+        })
+
+    def _periodo_abierto(self, formulario):
+        p = getattr(formulario, "periodo", None)
+        return bool(p and p.estado and p.activo_autoevaluacion)
+
     def perform_create(self, serializer):
         formulario = serializer.validated_data["formulario"]
+        if not self._periodo_abierto(formulario):
+            raise self._bloqueo_periodo()
         try:
             serializer.save(
                 profesor=self.request.user.perfil_profesor,
@@ -484,6 +496,12 @@ class RespuestaViewSet(viewsets.ModelViewSet):
                 ]
             })
 
+    def perform_update(self, serializer):
+        formulario = serializer.instance.formulario
+        if not self._periodo_abierto(formulario):
+            raise self._bloqueo_periodo()
+        serializer.save()
+
     @action(detail=True, methods=["post"])
     def enviar(self, request, pk=None):
         """Valida preguntas obligatorias, calcula puntaje y marca la respuesta como ENVIADO."""
@@ -491,6 +509,9 @@ class RespuestaViewSet(viewsets.ModelViewSet):
 
         if respuesta.estado == Respuesta.Estado.ENVIADO:
             raise ValidationError({"non_field_errors": ["La respuesta ya fue enviada."]})
+
+        if not self._periodo_abierto(respuesta.formulario):
+            raise self._bloqueo_periodo()
 
         # — Validar preguntas obligatorias —
         preguntas_obligatorias = respuesta.formulario.preguntas.filter(obligatoria=True)
