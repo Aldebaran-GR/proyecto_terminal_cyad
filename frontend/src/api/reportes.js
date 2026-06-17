@@ -11,3 +11,6 @@ export const getCumplimientoLicenciatura = (params) =>
 
 export const getResumenAutoevaluacion = (params) =>
   client.get('/reportes/autoevaluacion/', { params })
+
+export const getAutoevaluacionProfesores = (params) =>
+  client.get('/reportes/autoevaluacion-profesores/', { params })

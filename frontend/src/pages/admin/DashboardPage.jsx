@@ -1,8 +1,34 @@
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { getDashboard, getCumplimiento } from '../../api/reportes'
+import * as XLSX from 'xlsx'
+import { getDashboard, getCumplimiento, getAutoevaluacionProfesores } from '../../api/reportes'
+import { getCartas, getRequisitos } from '../../api/documentos'
+import { getLicenciaturas, getDepartamentos } from '../../api/catalogos'
 import Loading from '../../components/ui/Loading'
 import Alert from '../../components/ui/Alert'
+import Button from '../../components/ui/Button'
+import { inputCls } from '../../components/ui/FormField'
 import { useAuth } from '../../auth/AuthContext'
+
+// Mapea una fila de documento (Carta o Requisito) a las columnas del Excel.
+// El enlace solo se llena para documentos PUBLICADO — los BORRADOR no tienen
+// página pública.
+function rowToExcel(row, publicPath) {
+  const enlace = row.estado === 'PUBLICADO'
+    ? `${window.location.origin}/publico/${publicPath}/${row.id}`
+    : ''
+  return {
+    Profesor: row.profesor_nombre ?? '',
+    Económico: row.profesor_economico ?? '',
+    UEA: row.uea_nombre ?? '',
+    Grupo: row.nombre_grupo ?? '',
+    Estado: row.estado ?? '',
+    Actualizada: row.updated_at ? new Date(row.updated_at).toLocaleDateString('es-MX') : '',
+    Enlace: enlace,
+    Licenciatura: row.licenciatura_nombre ?? row.posgrado_nombre ?? '',
+    Departamento: row.departamento_nombre ?? '',
+  }
+}
 
 function StatCard({ label, value, sub, color = 'indigo' }) {
   const colors = {
@@ -44,6 +70,14 @@ function DocGroup({ title, data }) {
 
 export default function AdminDashboardPage() {
   const { user } = useAuth()
+  const [filtroLic, setFiltroLic] = useState('')
+  const [filtroDepto, setFiltroDepto] = useState('')
+  const [downloading, setDownloading] = useState(false)
+  const [downloadError, setDownloadError] = useState(null)
+
+  const [filtroDeptoAE, setFiltroDeptoAE] = useState('')
+  const [downloadingAE, setDownloadingAE] = useState(false)
+  const [downloadErrorAE, setDownloadErrorAE] = useState(null)
 
   const { data: dash, isLoading: dashLoading, error: dashError } = useQuery({
     queryKey: ['dashboard'],
@@ -56,6 +90,87 @@ export default function AdminDashboardPage() {
     queryFn: () => getCumplimiento().then((r) => r.data),
     staleTime: 60_000,
   })
+
+  const { data: lics = [] } = useQuery({
+    queryKey: ['licenciaturas'],
+    queryFn: () => getLicenciaturas().then((r) => r.data?.results ?? r.data ?? []),
+    staleTime: 5 * 60_000,
+  })
+  const { data: deptos = [] } = useQuery({
+    queryKey: ['departamentos'],
+    queryFn: () => getDepartamentos().then((r) => r.data?.results ?? r.data ?? []),
+    staleTime: 5 * 60_000,
+  })
+
+  // Descarga un .xlsx con dos hojas (Cartas Temáticas + Requisitos), aplicando
+  // los filtros de licenciatura (de la UEA) y departamento (del profesor).
+  // page_size=200 = max_page_size actual; con la data demo bastan, y un TODO
+  // queda anotado por si más adelante hay que paginar.
+  // Nota seguridad: la lib `xlsx` (SheetJS community) tiene vulns reportadas
+  // que solo afectan el *parseo* de XLSX externos; aquí solo escribimos
+  // archivos desde data ya validada por el backend.
+  async function descargarExcel() {
+    setDownloadError(null)
+    setDownloading(true)
+    try {
+      const params = { page_size: 200 }
+      if (filtroLic) params.uea__licenciatura = filtroLic
+      if (filtroDepto) params.profesor__departamento = filtroDepto
+
+      const [cartasRes, reqsRes] = await Promise.all([
+        getCartas(params),
+        getRequisitos(params),
+      ])
+      const cartas = cartasRes.data?.results ?? cartasRes.data ?? []
+      const reqs = reqsRes.data?.results ?? reqsRes.data ?? []
+
+      const wb = XLSX.utils.book_new()
+      const wsCartas = XLSX.utils.json_to_sheet(cartas.map((r) => rowToExcel(r, 'cartas')))
+      const wsReqs = XLSX.utils.json_to_sheet(reqs.map((r) => rowToExcel(r, 'requisitos')))
+      XLSX.utils.book_append_sheet(wb, wsCartas, 'Cartas Temáticas')
+      XLSX.utils.book_append_sheet(wb, wsReqs, 'Requisitos')
+
+      const fecha = new Date().toISOString().slice(0, 10)
+      XLSX.writeFile(wb, `informe_documentos_${fecha}.xlsx`)
+    } catch (e) {
+      setDownloadError(e?.response?.data?.detail || e?.message || 'No se pudo generar el Excel.')
+    } finally {
+      setDownloading(false)
+    }
+  }
+
+  // Descarga un .xlsx con la puntuación de autoevaluación de cada profesor
+  // activo (0% si no la han enviado), su número económico y departamento.
+  // Filtra opcionalmente por departamento del profesor.
+  async function descargarExcelAutoevaluaciones() {
+    setDownloadErrorAE(null)
+    setDownloadingAE(true)
+    try {
+      const params = {}
+      if (filtroDeptoAE) params.departamento = filtroDeptoAE
+
+      const res = await getAutoevaluacionProfesores(params)
+      const profesores = res.data?.profesores ?? []
+
+      const rows = profesores.map((p) => ({
+        Profesor: p.nombre_completo ?? '',
+        Económico: p.numero_economico ?? '',
+        Departamento: p.departamento_nombre ?? '',
+        'Puntuación (%)': p.porcentaje ?? 0,
+      }))
+
+      const wb = XLSX.utils.book_new()
+      const ws = XLSX.utils.json_to_sheet(rows)
+      XLSX.utils.book_append_sheet(wb, ws, 'Autoevaluaciones')
+
+      const fecha = new Date().toISOString().slice(0, 10)
+      XLSX.writeFile(wb, `informe_autoevaluaciones_${fecha}.xlsx`)
+    } catch (e) {
+      setDownloadErrorAE(e?.response?.data?.detail || e?.message || 'No se pudo generar el Excel.')
+    } finally {
+      setDownloadingAE(false)
+    }
+  }
 
   if (dashLoading) return <Loading />
 
@@ -114,6 +229,81 @@ export default function AdminDashboardPage() {
       <div className="grid gap-4 md:grid-cols-2">
         <DocGroup title="Cartas Temáticas" data={dash?.cartas_tematicas} />
         <DocGroup title="Requisitos de Recuperación" data={dash?.requisitos_recuperacion} />
+      </div>
+
+      {/* Descargar informe en Excel */}
+      <div className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+        <h2 className="mb-1 text-sm font-semibold text-slate-700">Descargar informe</h2>
+        <p className="mb-4 text-xs text-slate-500">
+          Genera un Excel con dos hojas (Cartas Temáticas y Requisitos) con todos
+          los documentos de la administración. Filtra opcionalmente por la
+          licenciatura de la UEA o por el departamento del profesor.
+        </p>
+        {downloadError && (
+          <Alert type="error" onClose={() => setDownloadError(null)}>{downloadError}</Alert>
+        )}
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="min-w-[220px]">
+            <label className="block text-xs font-medium text-slate-600 mb-1">Licenciatura (de la UEA)</label>
+            <select value={filtroLic} onChange={(e) => setFiltroLic(e.target.value)} className={inputCls}>
+              <option value="">— Todas —</option>
+              {lics.map((l) => <option key={l.id} value={l.id}>{l.nombre}</option>)}
+            </select>
+          </div>
+          <div className="min-w-[220px]">
+            <label className="block text-xs font-medium text-slate-600 mb-1">Departamento (del profesor)</label>
+            <select value={filtroDepto} onChange={(e) => setFiltroDepto(e.target.value)} className={inputCls}>
+              <option value="">— Todos —</option>
+              {deptos.map((d) => <option key={d.id} value={d.id}>{d.nombre}</option>)}
+            </select>
+          </div>
+          <Button onClick={descargarExcel} loading={downloading}>
+            Descargar Excel
+          </Button>
+          {(filtroLic || filtroDepto) && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => { setFiltroLic(''); setFiltroDepto('') }}
+            >
+              Limpiar filtros
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {/* Descargar reporte de autoevaluaciones */}
+      <div className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+        <h2 className="mb-1 text-sm font-semibold text-slate-700">Descargar autoevaluaciones</h2>
+        <p className="mb-4 text-xs text-slate-500">
+          Genera un Excel con la puntuación de autoevaluación de cada profesor
+          activo en el periodo (0% si aún no la contesta), su número económico
+          y su departamento. Filtra opcionalmente por departamento.
+        </p>
+        {downloadErrorAE && (
+          <Alert type="error" onClose={() => setDownloadErrorAE(null)}>{downloadErrorAE}</Alert>
+        )}
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="min-w-[220px]">
+            <label className="block text-xs font-medium text-slate-600 mb-1">Departamento</label>
+            <select value={filtroDeptoAE} onChange={(e) => setFiltroDeptoAE(e.target.value)} className={inputCls}>
+              <option value="">— Todos —</option>
+              {deptos.map((d) => <option key={d.id} value={d.id}>{d.nombre}</option>)}
+            </select>
+          </div>
+          <Button onClick={descargarExcelAutoevaluaciones} loading={downloadingAE}>
+            Descargar Excel
+          </Button>
+          {filtroDeptoAE && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setFiltroDeptoAE('')}
+            >
+              Limpiar filtro
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Cumplimiento por departamento */}
