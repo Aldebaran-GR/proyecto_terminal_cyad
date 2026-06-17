@@ -10,6 +10,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getRequisitos, deleteRequisito, cambiarEstadoRequisito } from '../../../api/documentos'
+import { getPeriodosActivos } from '../../../api/catalogos'
 import Button from '../../../components/ui/Button'
 import Badge from '../../../components/ui/Badge'
 import Table from '../../../components/ui/Table'
@@ -26,6 +27,12 @@ export default function RequisitosListPage() {
     queryKey: ['requisitos'],
     queryFn: () => getRequisitos().then((r) => r.data),
   })
+
+  const { data: activos } = useQuery({
+    queryKey: ['periodos-activos'],
+    queryFn: () => getPeriodosActivos().then((r) => r.data),
+  })
+  const periodoRequisitosActivo = activos?.requisitos ?? null
 
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: ['requisitos'] })
@@ -159,9 +166,15 @@ export default function RequisitosListPage() {
             Documentos de recuperación por UEA y grupo.
           </p>
         </div>
-        <Link to="/profesor/requisitos/nuevo">
-          <Button>+ Nuevo Requisito</Button>
-        </Link>
+        {periodoRequisitosActivo ? (
+          <Link to="/profesor/requisitos/nuevo">
+            <Button>+ Nuevo Requisito</Button>
+          </Link>
+        ) : (
+          <Button disabled title="El administrador no ha habilitado ningún periodo para Requisitos de Recuperación">
+            + Nuevo Requisito
+          </Button>
+        )}
       </div>
 
       {apiError && (
@@ -173,9 +186,15 @@ export default function RequisitosListPage() {
           title="Sin requisitos de recuperación"
           description="Crea tu primer documento de requisitos para el trimestre actual."
           action={
-            <Link to="/profesor/requisitos/nuevo">
-              <Button>+ Nuevo Requisito</Button>
-            </Link>
+            periodoRequisitosActivo ? (
+              <Link to="/profesor/requisitos/nuevo">
+                <Button>+ Nuevo Requisito</Button>
+              </Link>
+            ) : (
+              <Button disabled title="El administrador no ha habilitado ningún periodo para Requisitos de Recuperación">
+                + Nuevo Requisito
+              </Button>
+            )
           }
         />
       ) : (

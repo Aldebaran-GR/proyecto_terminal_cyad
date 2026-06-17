@@ -14,6 +14,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getCartas, deleteCarta, cambiarEstadoCarta } from '../../../api/documentos'
+import { getPeriodosActivos } from '../../../api/catalogos'
 import Button from '../../../components/ui/Button'
 import Badge from '../../../components/ui/Badge'
 import Table from '../../../components/ui/Table'
@@ -30,6 +31,12 @@ export default function CartasListPage() {
     queryKey: ['cartas'],
     queryFn: () => getCartas().then((r) => r.data),
   })
+
+  const { data: activos } = useQuery({
+    queryKey: ['periodos-activos'],
+    queryFn: () => getPeriodosActivos().then((r) => r.data),
+  })
+  const periodoCartasActivo = activos?.cartas ?? null
 
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: ['cartas'] })
@@ -163,9 +170,15 @@ export default function CartasListPage() {
             Documentos de planeación académica por UEA y grupo.
           </p>
         </div>
-        <Link to="/profesor/cartas/nueva">
-          <Button>+ Nueva Carta</Button>
-        </Link>
+        {periodoCartasActivo ? (
+          <Link to="/profesor/cartas/nueva">
+            <Button>+ Nueva Carta</Button>
+          </Link>
+        ) : (
+          <Button disabled title="El administrador no ha habilitado ningún periodo para Cartas Temáticas">
+            + Nueva Carta
+          </Button>
+        )}
       </div>
 
       {apiError && (
@@ -177,9 +190,15 @@ export default function CartasListPage() {
           title="Sin cartas temáticas"
           description="Crea tu primera carta temática para el trimestre actual."
           action={
-            <Link to="/profesor/cartas/nueva">
-              <Button>+ Nueva Carta</Button>
-            </Link>
+            periodoCartasActivo ? (
+              <Link to="/profesor/cartas/nueva">
+                <Button>+ Nueva Carta</Button>
+              </Link>
+            ) : (
+              <Button disabled title="El administrador no ha habilitado ningún periodo para Cartas Temáticas">
+                + Nueva Carta
+              </Button>
+            )
           }
         />
       ) : (
