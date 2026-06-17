@@ -32,6 +32,10 @@ export default function RequisitosAdminPage() {
       render: (v) => <span className="font-medium">{v}</span>,
     },
     {
+      key: 'profesor_economico', label: 'Económico', className: 'w-24',
+      render: (v) => v ?? <span className="text-slate-400">—</span>,
+    },
+    {
       key: 'uea_nombre', label: 'UEA',
       render: (v, row) => <div><p>{v}</p><p className="text-xs text-slate-400">{row.periodo_clave}</p></div>,
     },
@@ -40,12 +44,33 @@ export default function RequisitosAdminPage() {
       render: (v, row) => <div><p>{v}</p><p className="text-xs text-slate-400">ID: {row.id_grupo}</p></div>,
     },
     {
+      key: 'licenciatura_nombre', label: 'Programa',
+      render: (_, row) => row.licenciatura_nombre ?? row.posgrado_nombre ?? <span className="text-slate-400">—</span>,
+    },
+    {
+      key: 'departamento_nombre', label: 'Departamento',
+      render: (v) => v ?? <span className="text-slate-400">—</span>,
+    },
+    {
       key: 'fecha_hora', label: 'Fecha / hora',
       render: (v) => v || <span className="text-slate-400">—</span>,
     },
     {
       key: 'estado', label: 'Estado', className: 'w-24',
       render: (v) => <Badge label={v} variant={v} />,
+    },
+    {
+      key: 'enlace', label: 'Enlace', className: 'w-28',
+      render: (_, row) => row.estado === 'PUBLICADO' ? (
+        <a
+          href={`/publico/requisitos/${row.id}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-indigo-600 underline hover:text-indigo-700"
+        >
+          Ver público
+        </a>
+      ) : <span className="text-slate-400">—</span>,
     },
     {
       key: 'updated_at', label: 'Actualizado', className: 'w-32',
