@@ -948,3 +948,35 @@ class TestEstadisticas:
         # Con ?version=1 devuelve la de v1
         r2 = client.get(f"/api/v1/formularios/{formulario.id}/estadisticas/?version=1")
         assert r2.data["total_respuestas_enviadas"] == 1
+
+
+# ---------------------------------------------------------------------------
+# Gate por flag activo_autoevaluacion — bloquea create / enviar al profesor
+# ---------------------------------------------------------------------------
+
+
+class TestAutoevaluacionGatePeriodo:
+    """Si el periodo deja de tener `activo_autoevaluacion=True`, el profesor
+    pierde la capacidad de crear y enviar respuestas. El ciclo del Formulario
+    (BORRADOR → PUBLICADO → CERRADO) se mantiene aparte.
+    """
+
+    def test_enviar_respuesta_bloqueado_si_flag_apagado(
+        self, client, admin, usuario_prof, profesor, periodo
+    ):
+        formulario = make_formulario(periodo, admin)
+        formulario.publicar()
+        # Profesor crea respuesta con el flag activo.
+        auth_prof(client)
+        r = client.post(
+            "/api/v1/respuestas/", {"formulario": formulario.id}, format="json",
+        )
+        assert r.status_code == 201, r.data
+        resp_id = r.data["id"]
+        # Admin apaga el flag de autoevaluación.
+        periodo.activo_autoevaluacion = False
+        periodo.save(update_fields=["activo_autoevaluacion"])
+        # Profesor intenta enviar → 400 con error en clave `periodo`.
+        r = client.post(f"/api/v1/respuestas/{resp_id}/enviar/")
+        assert r.status_code == 400
+        assert "periodo" in str(r.data).lower()

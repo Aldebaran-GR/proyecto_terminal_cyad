@@ -317,3 +317,74 @@ class TestResumenAutoevaluacion:
         auth_as(client, "pnoae@cyad.uam.mx")
         r = client.get("/api/v1/reportes/autoevaluacion/")
         assert r.status_code == 403
+
+
+# ---------------------------------------------------------------------------
+# Autoevaluación por profesor
+# ---------------------------------------------------------------------------
+
+
+class TestAutoevaluacionProfesores:
+    def test_estructura(self, client, admin, depto, periodo):
+        auth_admin(client)
+        r = client.get("/api/v1/reportes/autoevaluacion-profesores/")
+        assert r.status_code == 200
+        assert "periodo" in r.data
+        assert "formulario" in r.data
+        assert "profesores" in r.data
+
+    def test_profesor_sin_respuesta_0_porciento(self, client, admin, depto, periodo):
+        _make_prof(None, "psinae@cyad.uam.mx", "P Sin Respuesta", depto)
+        formulario = Formulario.objects.create(titulo="F AE Sin", periodo=periodo, created_by=admin)
+        formulario.publicar()
+        auth_admin(client)
+        r = client.get(f"/api/v1/reportes/autoevaluacion-profesores/?periodo={periodo.id}")
+        assert r.status_code == 200
+        prof_data = next(p for p in r.data["profesores"] if p["nombre_completo"] == "P Sin Respuesta")
+        assert prof_data["porcentaje"] == 0
+
+    def test_profesor_con_respuesta_enviada(self, client, admin, depto, periodo):
+        prof = _make_prof(None, "pconae@cyad.uam.mx", "P Con Respuesta", depto)
+        formulario = Formulario.objects.create(titulo="F AE Con", periodo=periodo, created_by=admin)
+        formulario.publicar()
+        Respuesta.objects.create(
+            formulario=formulario,
+            profesor=prof,
+            estado=Respuesta.Estado.ENVIADO,
+            version_formulario=formulario.version,
+            puntaje_obtenido=80,
+            puntaje_maximo=100,
+            porcentaje=80,
+        )
+        auth_admin(client)
+        r = client.get(f"/api/v1/reportes/autoevaluacion-profesores/?periodo={periodo.id}")
+        assert r.status_code == 200
+        prof_data = next(p for p in r.data["profesores"] if p["nombre_completo"] == "P Con Respuesta")
+        assert float(prof_data["porcentaje"]) == 80.0
+
+    def test_filtro_departamento(self, client, admin, depto, depto2, periodo):
+        _make_prof(None, "pfae1@cyad.uam.mx", "P Filtro AE1", depto)
+        _make_prof(None, "pfae2@cyad.uam.mx", "P Filtro AE2", depto2)
+        auth_admin(client)
+        r = client.get(f"/api/v1/reportes/autoevaluacion-profesores/?departamento={depto.id}")
+        assert r.status_code == 200
+        nombres = [p["nombre_completo"] for p in r.data["profesores"]]
+        assert "P Filtro AE1" in nombres
+        assert "P Filtro AE2" not in nombres
+
+    def test_incluye_numero_economico_y_departamento(self, client, admin, depto, periodo):
+        prof = _make_prof(None, "pecoae@cyad.uam.mx", "P Economico AE", depto)
+        prof.numero_economico = "98765"
+        prof.save()
+        auth_admin(client)
+        r = client.get(f"/api/v1/reportes/autoevaluacion-profesores/?periodo={periodo.id}")
+        assert r.status_code == 200
+        prof_data = next(p for p in r.data["profesores"] if p["nombre_completo"] == "P Economico AE")
+        assert prof_data["numero_economico"] == "98765"
+        assert prof_data["departamento_nombre"] == depto.nombre
+
+    def test_profesor_no_accede(self, client, admin, depto):
+        _make_prof(None, "pnoaeprof@cyad.uam.mx", "P NoAE Prof", depto)
+        auth_as(client, "pnoaeprof@cyad.uam.mx")
+        r = client.get("/api/v1/reportes/autoevaluacion-profesores/")
+        assert r.status_code == 403

@@ -230,8 +230,10 @@ class TestCartaTematicaCRUD:
         r = client.delete(f"/api/v1/cartas-tematicas/{cid}/")
         assert r.status_code == 400
 
-    def test_profesor_oculta_periodo_inactivo(self, client, usuario_prof1, profesor1, uea, periodo):
-        """El profesor NO debe ver sus cartas de periodos sin activo_cartas=True."""
+    def test_profesor_ve_historial_de_periodos_inactivos(self, client, usuario_prof1, profesor1, uea, periodo):
+        """El profesor LISTA sus cartas de periodos sin activo_cartas=True para
+        poder consultarlas, pero `puede_editar_ahora` debe ser False para ellas.
+        """
         from catalogos.models import Periodo
         from documentos.models import CartaTematica
         # Periodo viejo, inactivo para cartas
@@ -255,10 +257,13 @@ class TestCartaTematicaCRUD:
         r = client.get("/api/v1/cartas-tematicas/")
         assert r.status_code == 200
         results = r.data.get("results", r.data)
-        # Solo debe aparecer la del periodo activo
-        ids_grupo = [c["id_grupo"] for c in results]
-        assert "HOY-1" in ids_grupo
-        assert "VIEJO" not in ids_grupo
+        por_id_grupo = {c["id_grupo"]: c for c in results}
+        # Ambas aparecen — el profesor puede consultar su historial.
+        assert "HOY-1" in por_id_grupo
+        assert "VIEJO" in por_id_grupo
+        # Solo la del periodo activo es modificable.
+        assert por_id_grupo["HOY-1"]["puede_editar_ahora"] is True
+        assert por_id_grupo["VIEJO"]["puede_editar_ahora"] is False
 
     def test_admin_ve_todos_los_periodos(self, client, admin, usuario_prof1, profesor1, uea, periodo):
         """El admin sí ve las cartas de cualquier periodo."""
@@ -508,3 +513,135 @@ class TestPublicRequisito:
         )
         r = APIClient().get(f"/api/v1/publico/requisitos/{rr.id}/")
         assert r.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# Gate por flag activo_* — profesor solo modifica docs del periodo activo
+# ---------------------------------------------------------------------------
+
+class TestCartaTematicaGatePeriodo:
+    """Cuando `activo_cartas` deja de estar en True, el profesor pierde la
+    capacidad de editar/borrar/cambiar-estado sobre esas cartas (las ve sólo
+    como consulta). Al reactivar el flag, vuelve a poder editar.
+    """
+
+    def _crear_carta(self, client, uea_id):
+        return client.post(
+            "/api/v1/cartas-tematicas/",
+            carta_payload(uea_id),
+            format="json",
+        )
+
+    def _apagar_cartas(self, periodo):
+        periodo.activo_cartas = False
+        periodo.save(update_fields=["activo_cartas"])
+
+    def _encender_cartas(self, periodo):
+        periodo.activo_cartas = True
+        periodo.save(update_fields=["activo_cartas"])
+
+    def test_create_bloqueado_sin_periodo_activo(
+        self, client, usuario_prof1, profesor1, uea, periodo
+    ):
+        self._apagar_cartas(periodo)
+        auth(client, "prof_doc1@cyad.uam.mx", "Prof1234!")
+        r = self._crear_carta(client, uea.id)
+        assert r.status_code == 400
+        assert "periodo" in str(r.data).lower()
+
+    def test_update_bloqueado_cuando_flag_se_apaga(
+        self, client, usuario_prof1, profesor1, uea, periodo
+    ):
+        auth(client, "prof_doc1@cyad.uam.mx", "Prof1234!")
+        r = self._crear_carta(client, uea.id)
+        assert r.status_code == 201
+        carta_id = r.data["id"]
+        self._apagar_cartas(periodo)
+        r = client.patch(
+            f"/api/v1/cartas-tematicas/{carta_id}/",
+            {"objetivo_general": "Nuevo objetivo"},
+            format="json",
+        )
+        assert r.status_code == 400
+        assert "periodo" in str(r.data).lower()
+
+    def test_admin_reactiva_flag_desbloquea_profesor(
+        self, client, admin, usuario_prof1, profesor1, uea, periodo
+    ):
+        """Al volver a activar `activo_cartas`, el profesor vuelve a poder editar."""
+        auth(client, "prof_doc1@cyad.uam.mx", "Prof1234!")
+        r = self._crear_carta(client, uea.id)
+        assert r.status_code == 201
+        carta_id = r.data["id"]
+        # Admin apaga el flag
+        auth(client, "admin_doc@cyad.uam.mx", "Admin1234!")
+        client.patch(
+            f"/api/v1/periodos/{periodo.id}/",
+            {"activo_cartas": False},
+            format="json",
+        )
+        # Profesor bloqueado
+        auth(client, "prof_doc1@cyad.uam.mx", "Prof1234!")
+        r = client.patch(
+            f"/api/v1/cartas-tematicas/{carta_id}/",
+            {"objetivo_general": "X"},
+            format="json",
+        )
+        assert r.status_code == 400
+        # Admin reactiva el flag
+        auth(client, "admin_doc@cyad.uam.mx", "Admin1234!")
+        r = client.patch(
+            f"/api/v1/periodos/{periodo.id}/",
+            {"activo_cartas": True},
+            format="json",
+        )
+        assert r.status_code == 200, r.data
+        # Profesor edita de nuevo
+        auth(client, "prof_doc1@cyad.uam.mx", "Prof1234!")
+        r = client.patch(
+            f"/api/v1/cartas-tematicas/{carta_id}/",
+            {"objetivo_general": "Desbloqueado"},
+            format="json",
+        )
+        assert r.status_code == 200, r.data
+        assert r.data["objetivo_general"] == "Desbloqueado"
+
+    def test_destroy_bloqueado_si_flag_apagado(
+        self, client, usuario_prof1, profesor1, uea, periodo
+    ):
+        auth(client, "prof_doc1@cyad.uam.mx", "Prof1234!")
+        r = self._crear_carta(client, uea.id)
+        carta_id = r.data["id"]
+        self._apagar_cartas(periodo)
+        r = client.delete(f"/api/v1/cartas-tematicas/{carta_id}/")
+        assert r.status_code == 400
+        assert "periodo" in str(r.data).lower()
+        assert CartaTematica.objects.filter(pk=carta_id).exists()
+
+    def test_cambiar_estado_bloqueado_si_flag_apagado(
+        self, client, usuario_prof1, profesor1, uea, periodo
+    ):
+        auth(client, "prof_doc1@cyad.uam.mx", "Prof1234!")
+        r = self._crear_carta(client, uea.id)
+        carta_id = r.data["id"]
+        self._apagar_cartas(periodo)
+        r = client.post(
+            f"/api/v1/cartas-tematicas/{carta_id}/cambiar-estado/",
+            {"estado": "PUBLICADO"},
+            format="json",
+        )
+        assert r.status_code == 400
+        assert "periodo" in str(r.data).lower()
+
+    def test_puede_editar_ahora_refleja_flag(
+        self, client, usuario_prof1, profesor1, uea, periodo
+    ):
+        auth(client, "prof_doc1@cyad.uam.mx", "Prof1234!")
+        r = self._crear_carta(client, uea.id)
+        carta_id = r.data["id"]
+        assert r.data["puede_editar_ahora"] is True
+        # Apago el flag y vuelvo a consultar
+        self._apagar_cartas(periodo)
+        r = client.get(f"/api/v1/cartas-tematicas/{carta_id}/")
+        assert r.status_code == 200
+        assert r.data["puede_editar_ahora"] is False
