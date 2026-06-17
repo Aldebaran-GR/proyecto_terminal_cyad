@@ -3,7 +3,7 @@
 from decimal import Decimal
 
 from django.db import IntegrityError
-from django.db.models import ProtectedError
+from django.db.models import ProtectedError, Q
 from django.utils import timezone
 
 from django_filters.rest_framework import DjangoFilterBackend
@@ -423,18 +423,29 @@ class FormulariosDisponiblesViewSet(viewsets.ReadOnlyModelViewSet):
     filterset_fields = ["periodo"]
 
     def get_queryset(self):
-        # Solo formularios cuyo periodo esté activo para Autoevaluación.
-        # Así, formularios de trimestres pasados ya no se muestran al profesor
-        # aunque sigan en la BD para consulta del admin.
+        # Visibles para el profesor:
+        #   (a) Formularios PUBLICADO/CERRADO cuyo periodo está activo para AE.
+        #   (b) Formularios donde el profesor ya tiene una Respuesta — aunque
+        #       el periodo del formulario ya esté cerrado (consulta histórica).
+        base = Formulario.objects.filter(
+            estado__in=[
+                Formulario.Estado.PUBLICADO,
+                Formulario.Estado.CERRADO,
+            ],
+        )
+        user = self.request.user
+        try:
+            profesor = user.perfil_profesor
+        except Exception:
+            profesor = None
+        abiertos = Q(periodo__activo_autoevaluacion=True, periodo__estado=True)
+        if profesor is not None:
+            historial = Q(respuestas__profesor=profesor)
+            base = base.filter(abiertos | historial)
+        else:
+            base = base.filter(abiertos)
         return (
-            Formulario.objects.filter(
-                estado__in=[
-                    Formulario.Estado.PUBLICADO,
-                    Formulario.Estado.CERRADO,
-                ],
-                periodo__activo_autoevaluacion=True,
-                periodo__estado=True,
-            )
+            base.distinct()
             .select_related("periodo")
             .prefetch_related(
                 "secciones__preguntas__opciones",

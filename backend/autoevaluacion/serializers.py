@@ -286,6 +286,7 @@ class FormularioDisponibleSerializer(serializers.ModelSerializer):
     """
 
     periodo_clave = serializers.CharField(source="periodo.clave", read_only=True)
+    periodo_abierto = serializers.SerializerMethodField()
     ya_respondido = serializers.SerializerMethodField()
     respuesta_id = serializers.SerializerMethodField()
     respuesta_estado = serializers.SerializerMethodField()
@@ -303,6 +304,7 @@ class FormularioDisponibleSerializer(serializers.ModelSerializer):
             "descripcion",
             "periodo",
             "periodo_clave",
+            "periodo_abierto",
             "estado",
             "version",
             "published_at",
@@ -315,6 +317,10 @@ class FormularioDisponibleSerializer(serializers.ModelSerializer):
             "niveles",
             "puntaje_maximo_posible",
         ]
+
+    def get_periodo_abierto(self, obj):
+        p = obj.periodo
+        return bool(p and p.estado and p.activo_autoevaluacion)
 
     def _get_respuesta_actual(self, obj):
         """Devuelve la respuesta del profesor a la versión actual del formulario."""
