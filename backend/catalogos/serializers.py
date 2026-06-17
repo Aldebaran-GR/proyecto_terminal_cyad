@@ -95,7 +95,7 @@ class PeriodoSerializer(serializers.ModelSerializer):
             "activo", "estado",
             "created_at", "updated_at",
         ]
-        # `activo` ahora es derivado (OR de los tres flags por recurso);
+        # `activo` es derivado (OR de los tres flags por recurso);
         # nunca debería enviarse desde el cliente.
         read_only_fields = ["id", "activo", "created_at", "updated_at"]
 

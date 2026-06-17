@@ -344,7 +344,5 @@ class PeriodoViewSet(viewsets.ModelViewSet):
         return Response({
             "cartas": _serializar(Periodo.get_activo(Periodo.Recurso.CARTAS)),
             "requisitos": _serializar(Periodo.get_activo(Periodo.Recurso.REQUISITOS)),
-            "autoevaluacion": _serializar(
-                Periodo.get_activo(Periodo.Recurso.AUTOEVALUACION)
-            ),
+            "autoevaluacion": _serializar(Periodo.get_activo(Periodo.Recurso.AUTOEVALUACION)),
         })

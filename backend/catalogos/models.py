@@ -191,8 +191,16 @@ class Periodo(TimeStampedModel):
 
     # ── Helpers ──────────────────────────────────────────────────────────
     @classmethod
-    def get_activo(cls, recurso):
-        """Devuelve el Periodo activo para el recurso indicado (o None)."""
+    def get_activo(cls, recurso, hoy=None):
+        """Devuelve el Periodo activo para el recurso o None.
+
+        Un periodo está "activo para crear/editar" si:
+          - estado=True
+          - flag del recurso = True
+
+        `hoy` se acepta por compatibilidad con call-sites antiguos pero ya no
+        se utiliza (la disponibilidad la decide únicamente el flag).
+        """
         field = cls._RECURSO_FIELD.get(recurso)
         if not field:
             return None
