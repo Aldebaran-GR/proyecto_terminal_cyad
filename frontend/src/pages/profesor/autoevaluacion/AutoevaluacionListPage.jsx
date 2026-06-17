@@ -9,7 +9,14 @@ import EmptyState from '../../../components/ui/EmptyState'
 import Badge from '../../../components/ui/Badge'
 import Button from '../../../components/ui/Button'
 
-function EstadoRespuestaBadge({ yaRespondido, respuestaEstado, formularioEstado }) {
+function EstadoRespuestaBadge({ yaRespondido, respuestaEstado, formularioEstado, periodoAbierto }) {
+  if (!periodoAbierto && yaRespondido) {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600">
+        Periodo cerrado — solo consulta
+      </span>
+    )
+  }
   if (formularioEstado === 'CERRADO' && !yaRespondido) {
     return (
       <span className="inline-flex items-center gap-1 rounded-full bg-slate-200 px-2.5 py-0.5 text-xs font-medium text-slate-700">
@@ -93,6 +100,7 @@ export default function AutoevaluacionListPage() {
                   yaRespondido={f.ya_respondido}
                   respuestaEstado={f.respuesta_estado}
                   formularioEstado={f.estado}
+                  periodoAbierto={f.periodo_abierto}
                 />
               </div>
 
@@ -120,6 +128,10 @@ export default function AutoevaluacionListPage() {
                       Ver resultado
                     </Button>
                   </Link>
+                ) : f.periodo_abierto === false ? (
+                  <Button size="sm" disabled className="w-full">
+                    Periodo cerrado
+                  </Button>
                 ) : f.estado === 'CERRADO' ? (
                   <Button size="sm" disabled className="w-full">
                     Ya no acepta respuestas
