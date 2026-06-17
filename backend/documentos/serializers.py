@@ -40,10 +40,23 @@ class CartaTematicaSerializer(serializers.ModelSerializer):
 
     profesor_nombre = serializers.SerializerMethodField()
     profesor_correo = serializers.SerializerMethodField()
+    profesor_economico = serializers.CharField(
+        source="profesor.numero_economico", read_only=True, default=None,
+    )
+    departamento_nombre = serializers.CharField(
+        source="profesor.departamento.nombre", read_only=True, default=None,
+    )
     uea_nombre = serializers.CharField(source="uea.nombre", read_only=True)
     uea_clave = serializers.CharField(source="uea.clave", read_only=True)
     uea_liga = serializers.CharField(source="uea.liga", read_only=True)
+    licenciatura_nombre = serializers.CharField(
+        source="uea.licenciatura.nombre", read_only=True, default=None,
+    )
+    posgrado_nombre = serializers.CharField(
+        source="uea.posgrado.nombre", read_only=True, default=None,
+    )
     periodo_clave = serializers.CharField(source="periodo.clave", read_only=True)
+    puede_editar_ahora = serializers.SerializerMethodField()
 
     def get_profesor_nombre(self, obj):
         return _profesor_nombre(obj)
@@ -51,11 +64,16 @@ class CartaTematicaSerializer(serializers.ModelSerializer):
     def get_profesor_correo(self, obj):
         return _profesor_correo(obj)
 
+    def get_puede_editar_ahora(self, obj):
+        return obj.puede_editar() and bool(obj.periodo and obj.periodo.activo_cartas)
+
     class Meta:
         model = CartaTematica
         fields = [
             "id", "profesor", "profesor_nombre", "profesor_correo",
+            "profesor_economico", "departamento_nombre",
             "uea", "uea_nombre", "uea_clave", "uea_liga",
+            "licenciatura_nombre", "posgrado_nombre",
             "periodo", "periodo_clave",
             "nombre_grupo", "id_grupo", "horario", "modalidad",
             # Contenido (10 campos de texto libre)
@@ -63,11 +81,14 @@ class CartaTematicaSerializer(serializers.ModelSerializer):
             "contenido_sintetico", "objetivos_aprendizaje", "requerimientos",
             "conocimientos_previos", "modalidad_evaluacion",
             "revisiones_asesorias", "bibliografia", "calendarizacion_actividades",
-            "estado",
+            "estado", "puede_editar_ahora",
             "created_at", "updated_at",
         ]
         # `periodo` lo asigna el ViewSet (auto desde el periodo activo).
-        read_only_fields = ["id", "profesor", "periodo", "created_at", "updated_at"]
+        read_only_fields = [
+            "id", "profesor", "periodo", "puede_editar_ahora",
+            "created_at", "updated_at",
+        ]
 
     def validate(self, attrs):
         # Solo se puede editar mientras esté en BORRADOR. Si el profesor quiere
@@ -89,9 +110,22 @@ class CartaTematicaSerializer(serializers.ModelSerializer):
 class RequisitoRecuperacionSerializer(serializers.ModelSerializer):
     profesor_nombre = serializers.SerializerMethodField()
     profesor_correo = serializers.SerializerMethodField()
+    profesor_economico = serializers.CharField(
+        source="profesor.numero_economico", read_only=True, default=None,
+    )
+    departamento_nombre = serializers.CharField(
+        source="profesor.departamento.nombre", read_only=True, default=None,
+    )
     uea_nombre = serializers.CharField(source="uea.nombre", read_only=True)
     uea_clave = serializers.CharField(source="uea.clave", read_only=True)
+    licenciatura_nombre = serializers.CharField(
+        source="uea.licenciatura.nombre", read_only=True, default=None,
+    )
+    posgrado_nombre = serializers.CharField(
+        source="uea.posgrado.nombre", read_only=True, default=None,
+    )
     periodo_clave = serializers.CharField(source="periodo.clave", read_only=True)
+    puede_editar_ahora = serializers.SerializerMethodField()
 
     def get_profesor_nombre(self, obj):
         return _profesor_nombre(obj)
@@ -99,20 +133,28 @@ class RequisitoRecuperacionSerializer(serializers.ModelSerializer):
     def get_profesor_correo(self, obj):
         return _profesor_correo(obj)
 
+    def get_puede_editar_ahora(self, obj):
+        return obj.puede_editar() and bool(obj.periodo and obj.periodo.activo_requisitos)
+
     class Meta:
         model = RequisitoRecuperacion
         fields = [
             "id", "profesor", "profesor_nombre", "profesor_correo",
+            "profesor_economico", "departamento_nombre",
             "uea", "uea_nombre", "uea_clave",
+            "licenciatura_nombre", "posgrado_nombre",
             "periodo", "periodo_clave",
             "nombre_grupo", "id_grupo", "horario", "modalidad",
             # Contenido propio del Requisito de Recuperación
             "lugar", "duracion_aprox", "fecha_hora",
             "recursos_necesarios", "requisitos", "notas",
-            "estado",
+            "estado", "puede_editar_ahora",
             "created_at", "updated_at",
         ]
-        read_only_fields = ["id", "profesor", "periodo", "created_at", "updated_at"]
+        read_only_fields = [
+            "id", "profesor", "periodo", "puede_editar_ahora",
+            "created_at", "updated_at",
+        ]
 
     def validate(self, attrs):
         # Misma regla que CartaTematica: solo editable en BORRADOR.

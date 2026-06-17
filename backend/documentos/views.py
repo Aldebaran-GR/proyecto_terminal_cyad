@@ -31,11 +31,10 @@ class DocumentoMixin:
     o devolver todos (ADMIN), asignar profesor y periodo automáticamente al crear.
 
     Cada ViewSet declara `recurso_activo` (Periodo.Recurso.*) para indicar de
-    qué tipo de recurso es el documento; al crear, el periodo se toma del
-    Periodo con el flag correspondiente activado, y al listar para el profesor
-    solo se devuelven los documentos cuyo periodo tenga ese flag activo
-    (los documentos de trimestres pasados quedan ocultos para el profesor,
-    pero siguen disponibles para el admin).
+    qué tipo de recurso es el documento. El profesor LISTA todos sus
+    documentos (incluidos los de trimestres pasados, como consulta), pero
+    solo puede modificar/borrar los que pertenezcan al periodo cuyo flag
+    `activo_{recurso}` esté en True.
     """
 
     recurso_activo = None  # Sobrescrito por cada ViewSet concreto.
@@ -45,14 +44,9 @@ class DocumentoMixin:
         qs = super().get_queryset()
         if user.es_profesor:
             try:
-                qs = qs.filter(profesor=user.perfil_profesor)
+                return qs.filter(profesor=user.perfil_profesor)
             except Exception:
                 return qs.none()
-            # Solo periodos activos para este recurso (trimestres pasados ocultos).
-            field = Periodo._RECURSO_FIELD.get(self.recurso_activo) if self.recurso_activo else None
-            if field:
-                qs = qs.filter(**{f"periodo__{field}": True})
-            return qs
         return qs  # ADMIN ve todo
 
     def _resolver_periodo(self):
@@ -60,6 +54,31 @@ class DocumentoMixin:
         if not self.recurso_activo:
             return None
         return Periodo.get_activo(self.recurso_activo)
+
+    def _profesor_puede_modificar(self, obj):
+        """¿Puede este request modificar/borrar `obj` ahora mismo?
+
+        Reglas:
+          - Admin u otros roles: siempre sí (el resto de permisos manda).
+          - Profesor: solo si el periodo del documento es el periodo activo
+            de ese recurso (los documentos de trimestres pasados quedan
+            como consulta, no editables).
+        """
+        user = self.request.user
+        if not getattr(user, "es_profesor", False):
+            return True
+        periodo_activo = self._resolver_periodo()
+        if periodo_activo is None:
+            return False
+        return obj.periodo_id == periodo_activo.id
+
+    def _bloqueo_periodo(self):
+        return ValidationError({
+            "periodo": [
+                "Este documento ya no es modificable: su periodo está cerrado. "
+                "Solo puedes editar documentos del periodo activo."
+            ]
+        })
 
     def perform_create(self, serializer):
         user = self.request.user
@@ -86,11 +105,27 @@ class DocumentoMixin:
                 {"non_field_errors": ["Ya existe un documento para este profesor, periodo, UEA y grupo."]}
             )
 
+    def perform_update(self, serializer):
+        obj = serializer.instance
+        if not self._profesor_puede_modificar(obj):
+            raise self._bloqueo_periodo()
+        serializer.save()
+
     def destroy(self, request, *args, **kwargs):
         obj = self.get_object()
         if not obj.puede_eliminar():
             return Response(
                 {"success": False, "errors": {"estado": "Solo se pueden eliminar documentos en estado BORRADOR."}},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if not self._profesor_puede_modificar(obj):
+            return Response(
+                {"success": False, "errors": {
+                    "periodo": (
+                        "Este documento ya no es modificable: su periodo está cerrado. "
+                        "Solo puedes editar documentos del periodo activo."
+                    )
+                }},
                 status=status.HTTP_400_BAD_REQUEST,
             )
         return super().destroy(request, *args, **kwargs)
@@ -106,6 +141,16 @@ class DocumentoMixin:
                 {"success": False, "errors": {"estado": f"Estado inválido. Opciones: {estados_validos}"}},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        if not self._profesor_puede_modificar(obj):
+            return Response(
+                {"success": False, "errors": {
+                    "periodo": (
+                        "Este documento ya no es modificable: su periodo está cerrado. "
+                        "Solo puedes editar documentos del periodo activo."
+                    )
+                }},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         obj.estado = nuevo
         obj.save(update_fields=["estado"])
         return Response({"success": True, "estado": obj.estado})
@@ -113,12 +158,19 @@ class DocumentoMixin:
 
 class CartaTematicaViewSet(DocumentoMixin, viewsets.ModelViewSet):
     queryset = CartaTematica.objects.select_related(
-        "profesor", "uea", "periodo"
+        "profesor__departamento",
+        "uea__licenciatura",
+        "uea__posgrado",
+        "periodo",
     ).all()
     serializer_class = CartaTematicaSerializer
     permission_classes = [IsAuthenticated, IsOwnerProfesorOrAdminReadOnly]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields = ["estado", "periodo", "uea"]
+    filterset_fields = [
+        "estado", "periodo", "uea",
+        "uea__licenciatura", "uea__posgrado",
+        "profesor__departamento",
+    ]
     search_fields = ["nombre_grupo", "id_grupo", "uea__nombre"]
     ordering_fields = ["created_at", "updated_at", "estado"]
     recurso_activo = Periodo.Recurso.CARTAS
@@ -126,12 +178,19 @@ class CartaTematicaViewSet(DocumentoMixin, viewsets.ModelViewSet):
 
 class RequisitoRecuperacionViewSet(DocumentoMixin, viewsets.ModelViewSet):
     queryset = RequisitoRecuperacion.objects.select_related(
-        "profesor", "uea", "periodo"
+        "profesor__departamento",
+        "uea__licenciatura",
+        "uea__posgrado",
+        "periodo",
     ).all()
     serializer_class = RequisitoRecuperacionSerializer
     permission_classes = [IsAuthenticated, IsOwnerProfesorOrAdminReadOnly]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields = ["estado", "periodo", "uea"]
+    filterset_fields = [
+        "estado", "periodo", "uea",
+        "uea__licenciatura", "uea__posgrado",
+        "profesor__departamento",
+    ]
     search_fields = ["nombre_grupo", "id_grupo", "uea__nombre"]
     ordering_fields = ["created_at", "updated_at", "estado"]
     recurso_activo = Periodo.Recurso.REQUISITOS
