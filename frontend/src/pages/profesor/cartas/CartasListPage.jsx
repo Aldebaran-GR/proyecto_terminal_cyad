@@ -117,7 +117,12 @@ export default function CartasListPage() {
       key: 'actions',
       label: '',
       className: 'text-right w-64',
-      render: (_, row) => (
+      render: (_, row) => {
+        // puede_editar_ahora viene del backend e integra estado BORRADOR y el
+        // flag activo_cartas del periodo del documento.
+        const periodoCerrado = row.puede_editar_ahora === false
+        const tooltip = periodoCerrado ? 'Periodo cerrado' : undefined
+        return (
         <div className="flex justify-end gap-2">
           <Link to={`/profesor/cartas/${row.id}/preview`}>
             <Button size="sm" variant="secondary">Ver</Button>
@@ -126,6 +131,8 @@ export default function CartasListPage() {
             size="sm"
             variant="secondary"
             loading={editMut.isPending && editMut.variables?.id === row.id}
+            disabled={periodoCerrado}
+            title={tooltip}
             onClick={() => onEditClick(row)}
           >
             Editar
@@ -134,12 +141,14 @@ export default function CartasListPage() {
             size="sm"
             variant="danger"
             loading={deleteMut.isPending && deleteMut.variables?.id === row.id}
+            disabled={periodoCerrado}
+            title={tooltip}
             onClick={() => onDeleteClick(row)}
           >
             Eliminar
           </Button>
         </div>
-      ),
+      )},
     },
   ]
 

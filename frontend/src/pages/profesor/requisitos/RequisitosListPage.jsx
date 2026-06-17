@@ -115,7 +115,10 @@ export default function RequisitosListPage() {
       key: 'actions',
       label: '',
       className: 'text-right w-64',
-      render: (_, row) => (
+      render: (_, row) => {
+        const periodoCerrado = row.puede_editar_ahora === false
+        const tooltip = periodoCerrado ? 'Periodo cerrado' : undefined
+        return (
         <div className="flex justify-end gap-2">
           <Link to={`/profesor/requisitos/${row.id}/preview`}>
             <Button size="sm" variant="secondary">Ver</Button>
@@ -124,6 +127,8 @@ export default function RequisitosListPage() {
             size="sm"
             variant="secondary"
             loading={editMut.isPending && editMut.variables?.id === row.id}
+            disabled={periodoCerrado}
+            title={tooltip}
             onClick={() => onEditClick(row)}
           >
             Editar
@@ -132,12 +137,14 @@ export default function RequisitosListPage() {
             size="sm"
             variant="danger"
             loading={deleteMut.isPending && deleteMut.variables?.id === row.id}
+            disabled={periodoCerrado}
+            title={tooltip}
             onClick={() => onDeleteClick(row)}
           >
             Eliminar
           </Button>
         </div>
-      ),
+      )},
     },
   ]
 
