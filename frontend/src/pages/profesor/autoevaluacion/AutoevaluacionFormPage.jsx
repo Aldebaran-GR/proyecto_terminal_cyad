@@ -71,12 +71,17 @@ function ResultCard({ respuesta }) {
 
 /* ─── Renderizadores por tipo de pregunta ────────────────── */
 function QuestionRenderer({ pregunta, value = {}, onChange }) {
-  const { tipo, opciones = [], config = {} } = pregunta
+  const { tipo, opciones = [], filas = [], config = {} } = pregunta
   const valorTexto = value.valor_texto ?? ''
   const opcionesSeleccionadas = value.opciones_seleccionadas ?? []
+  const celdas = value.celdas ?? []
 
   const setTexto = (v) => onChange({ ...value, valor_texto: v, opciones_seleccionadas: [] })
   const setOpciones = (ids) => onChange({ ...value, valor_texto: '', opciones_seleccionadas: ids })
+  const setCell = (filaId, opcionId) => {
+    const updated = celdas.filter((c) => c.fila !== filaId)
+    onChange({ ...value, celdas: [...updated, { fila: filaId, opcion: opcionId }] })
+  }
 
   switch (tipo) {
     case 'TEXTO_CORTO':
@@ -238,6 +243,49 @@ function QuestionRenderer({ pregunta, value = {}, onChange }) {
       )
     }
 
+    case 'CUADRICULA': {
+      if (!filas.length || !opciones.length) {
+        return <p className="text-sm text-slate-400 italic">Cuadrícula sin configurar.</p>
+      }
+      return (
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm border-collapse">
+            <thead>
+              <tr>
+                <th className="border border-slate-200 bg-slate-50 px-3 py-2 w-1/3" />
+                {opciones.map((col) => (
+                  <th key={col.id} className="border border-slate-200 bg-slate-50 px-3 py-2 text-center text-xs font-medium text-slate-700">
+                    {col.texto}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {filas.map((fila) => {
+                const selected = celdas.find((c) => c.fila === fila.id)?.opcion ?? null
+                return (
+                  <tr key={fila.id} className="even:bg-slate-50">
+                    <td className="border border-slate-200 px-3 py-2 text-slate-700">{fila.texto}</td>
+                    {opciones.map((col) => (
+                      <td key={col.id} className={`border border-slate-200 px-3 py-2 text-center transition-colors ${selected === col.id ? 'bg-indigo-50' : ''}`}>
+                        <input
+                          type="radio"
+                          name={`cuad-${pregunta.id}-fila-${fila.id}`}
+                          checked={selected === col.id}
+                          onChange={() => setCell(fila.id, col.id)}
+                          className="accent-indigo-600"
+                        />
+                      </td>
+                    ))}
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      )
+    }
+
     default:
       return <p className="text-sm text-slate-400 italic">Tipo de pregunta desconocido: {tipo}</p>
   }
@@ -282,6 +330,7 @@ export default function AutoevaluacionFormPage() {
       init[item.pregunta] = {
         valor_texto: item.valor_texto || '',
         opciones_seleccionadas: item.opciones_seleccionadas || [],
+        celdas: item.celdas || [],
       }
     })
     setAnswers(init)
@@ -300,6 +349,7 @@ export default function AutoevaluacionFormPage() {
         pregunta: p.id,
         valor_texto: ans.valor_texto ?? '',
         opciones_seleccionadas: ans.opciones_seleccionadas ?? [],
+        celdas: ans.celdas ?? [],
       }
     })
   }, [answers, formulario])

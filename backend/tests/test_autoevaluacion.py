@@ -1243,11 +1243,7 @@ class TestCuadriculaCRUD:
     def test_cuadricula_sin_filas_rechazada(self, client, admin, periodo):
         auth_admin(client)
         formulario = make_formulario(periodo, admin)
-        payload = {
-            **self._PAYLOAD_BASE,
-            "formulario": formulario.id,
-            "filas": [],
-        }
+        payload = {**self._PAYLOAD_BASE, "formulario": formulario.id, "filas": []}
         r = client.post("/api/v1/preguntas/", payload, format="json")
         assert r.status_code == 400
         errors = r.data.get("errors", r.data)
@@ -1256,11 +1252,7 @@ class TestCuadriculaCRUD:
     def test_cuadricula_sin_opciones_rechazada(self, client, admin, periodo):
         auth_admin(client)
         formulario = make_formulario(periodo, admin)
-        payload = {
-            **self._PAYLOAD_BASE,
-            "formulario": formulario.id,
-            "opciones": [],
-        }
+        payload = {**self._PAYLOAD_BASE, "formulario": formulario.id, "opciones": []}
         r = client.post("/api/v1/preguntas/", payload, format="json")
         assert r.status_code == 400
         errors = r.data.get("errors", r.data)
@@ -1300,11 +1292,7 @@ class TestCuadriculaCRUD:
         auth_admin(client)
         client.post(
             "/api/v1/preguntas/",
-            {
-                **self._PAYLOAD_BASE,
-                "formulario": formulario.id,
-                "seccion": seccion.id,
-            },
+            {**self._PAYLOAD_BASE, "formulario": formulario.id, "seccion": seccion.id},
             format="json",
         )
         formulario.publicar()
@@ -1316,3 +1304,153 @@ class TestCuadriculaCRUD:
         cuadricula = next(p for p in preguntas if p["tipo"] == "CUADRICULA")
         assert len(cuadricula["filas"]) == 3
         assert cuadricula["filas"][0]["texto"] == "Puntualidad"
+
+
+# ---------------------------------------------------------------------------
+# CUADRICULA — respuestas del profesor (PR5)
+# ---------------------------------------------------------------------------
+
+
+class TestCuadriculaRespuesta:
+    """PR5: responder CUADRICULA con celdas, validación obligatoria por fila, scoring."""
+
+    def _setup(self, periodo, admin):
+        """
+        Formulario publicado con 1 pregunta CUADRICULA:
+          3 filas × 3 columnas (puntos: 0, 1, 2).
+          maximo = max(0,1,2) × 3 filas = 6.
+        """
+        formulario = make_formulario(periodo, admin)
+        seccion = make_seccion(formulario, peso=100)
+        auth_client = APIClient()
+        auth_admin(auth_client)
+        r = auth_client.post(
+            "/api/v1/preguntas/",
+            {
+                "formulario": formulario.id,
+                "seccion": seccion.id,
+                "tipo": "CUADRICULA",
+                "texto": "Evalúa cada aspecto",
+                "obligatoria": True,
+                "orden": 1,
+                "filas": [
+                    {"texto": "Puntualidad", "orden": 1},
+                    {"texto": "Participación", "orden": 2},
+                    {"texto": "Actitud", "orden": 3},
+                ],
+                "opciones": [
+                    {"texto": "Nunca", "puntos": 0, "orden": 1},
+                    {"texto": "A veces", "puntos": 1, "orden": 2},
+                    {"texto": "Siempre", "puntos": 2, "orden": 3},
+                ],
+            },
+            format="json",
+        )
+        assert r.status_code == 201, r.data
+        pregunta_data = r.data
+        formulario.publicar()
+        return formulario, pregunta_data
+
+    def test_responder_cuadricula_con_celdas(
+        self, client, admin, usuario_prof, profesor, periodo
+    ):
+        formulario, pregunta_data = self._setup(periodo, admin)
+        filas = pregunta_data["filas"]
+        opciones = pregunta_data["opciones"]
+        celdas = [{"fila": f["id"], "opcion": opciones[2]["id"]} for f in filas]
+
+        auth_prof(client)
+        cr = client.post(
+            "/api/v1/respuestas/",
+            {
+                "formulario": formulario.id,
+                "items": [{"pregunta": pregunta_data["id"], "celdas": celdas}],
+            },
+            format="json",
+        )
+        assert cr.status_code == 201, cr.data
+        r = client.post(f"/api/v1/respuestas/{cr.data['id']}/enviar/")
+        assert r.status_code == 200, r.data
+        assert float(r.data["puntaje_obtenido"]) == 6.0
+        assert float(r.data["puntaje_maximo"]) == 6.0
+        assert float(r.data["porcentaje"]) == 100.0
+
+    def test_puntaje_parcial_cuadricula(
+        self, client, admin, usuario_prof, profesor, periodo
+    ):
+        """A veces (1 pt) en 2 filas + Nunca (0 pt) en 1 → obtenido=2, max=6."""
+        formulario, pregunta_data = self._setup(periodo, admin)
+        filas = pregunta_data["filas"]
+        opciones = pregunta_data["opciones"]
+        celdas = [
+            {"fila": filas[0]["id"], "opcion": opciones[1]["id"]},
+            {"fila": filas[1]["id"], "opcion": opciones[1]["id"]},
+            {"fila": filas[2]["id"], "opcion": opciones[0]["id"]},
+        ]
+
+        auth_prof(client)
+        cr = client.post(
+            "/api/v1/respuestas/",
+            {
+                "formulario": formulario.id,
+                "items": [{"pregunta": pregunta_data["id"], "celdas": celdas}],
+            },
+            format="json",
+        )
+        r = client.post(f"/api/v1/respuestas/{cr.data['id']}/enviar/")
+        assert r.status_code == 200
+        assert float(r.data["puntaje_obtenido"]) == 2.0
+        assert float(r.data["puntaje_maximo"]) == 6.0
+
+    def test_cuadricula_obligatoria_falta_fila(
+        self, client, admin, usuario_prof, profesor, periodo
+    ):
+        """Obligatoria con fila sin celda → 400 con preguntas_faltantes."""
+        formulario, pregunta_data = self._setup(periodo, admin)
+        filas = pregunta_data["filas"]
+        opciones = pregunta_data["opciones"]
+        celdas = [
+            {"fila": filas[0]["id"], "opcion": opciones[1]["id"]},
+            {"fila": filas[1]["id"], "opcion": opciones[1]["id"]},
+            # fila[2] sin responder
+        ]
+
+        auth_prof(client)
+        cr = client.post(
+            "/api/v1/respuestas/",
+            {
+                "formulario": formulario.id,
+                "items": [{"pregunta": pregunta_data["id"], "celdas": celdas}],
+            },
+            format="json",
+        )
+        r = client.post(f"/api/v1/respuestas/{cr.data['id']}/enviar/")
+        assert r.status_code == 400
+        errors = r.data.get("errors", r.data)
+        assert "preguntas_faltantes" in errors
+
+    def test_cuadricula_borrador_persiste_celdas(
+        self, client, admin, usuario_prof, profesor, periodo
+    ):
+        """Guardar borrador con celdas y GET devuelve las celdas guardadas."""
+        formulario, pregunta_data = self._setup(periodo, admin)
+        filas = pregunta_data["filas"]
+        opciones = pregunta_data["opciones"]
+        celdas = [{"fila": filas[0]["id"], "opcion": opciones[2]["id"]}]
+
+        auth_prof(client)
+        cr = client.post(
+            "/api/v1/respuestas/",
+            {
+                "formulario": formulario.id,
+                "items": [{"pregunta": pregunta_data["id"], "celdas": celdas}],
+            },
+            format="json",
+        )
+        assert cr.status_code == 201
+        r = client.get(f"/api/v1/respuestas/{cr.data['id']}/")
+        assert r.status_code == 200
+        saved_celdas = r.data["items"][0]["celdas"]
+        assert len(saved_celdas) == 1
+        assert saved_celdas[0]["fila"] == filas[0]["id"]
+        assert saved_celdas[0]["opcion"] == opciones[2]["id"]

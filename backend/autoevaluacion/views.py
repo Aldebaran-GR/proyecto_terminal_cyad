@@ -52,7 +52,12 @@ def _calcular_puntaje(respuesta: Respuesta):
 
     items = list(
         respuesta.items.select_related("pregunta")
-        .prefetch_related("opciones_seleccionadas", "pregunta__opciones")
+        .prefetch_related(
+            "opciones_seleccionadas",
+            "pregunta__opciones",
+            "pregunta__filas",
+            "celdas__opcion",
+        )
     )
 
     for item in items:
@@ -60,6 +65,15 @@ def _calcular_puntaje(respuesta: Respuesta):
         tipo = pregunta.tipo
 
         if tipo in Pregunta.TIPOS_NO_PUNTABLES:
+            continue
+
+        if tipo == Pregunta.Tipo.CUADRICULA:
+            all_opts = list(pregunta.opciones.all())
+            filas = list(pregunta.filas.all())
+            if all_opts and filas:
+                maximo += max(op.puntos for op in all_opts) * len(filas)
+            for celda in item.celdas.all():
+                obtenido += celda.opcion.puntos
             continue
 
         if tipo == Pregunta.Tipo.ESCALA_LINEAL:
@@ -116,7 +130,9 @@ class FormularioViewSet(viewsets.ModelViewSet):
 
     queryset = Formulario.objects.select_related("periodo").prefetch_related(
         "secciones__preguntas__opciones",
+        "secciones__preguntas__filas",
         "preguntas__opciones",
+        "preguntas__filas",
         "niveles",
     )
     permission_classes = [IsAuthenticated, IsAdmin]
@@ -464,7 +480,9 @@ class FormulariosDisponiblesViewSet(viewsets.ReadOnlyModelViewSet):
             .select_related("periodo")
             .prefetch_related(
                 "secciones__preguntas__opciones",
+                "secciones__preguntas__filas",
                 "preguntas__opciones",
+                "preguntas__filas",
                 "niveles",
             )
         )
@@ -490,7 +508,10 @@ class RespuestaViewSet(viewsets.ModelViewSet):
             return (
                 Respuesta.objects.filter(profesor=user.perfil_profesor)
                 .select_related("formulario", "profesor", "nivel_desempeno")
-                .prefetch_related("items__opciones_seleccionadas")
+                .prefetch_related(
+                    "items__opciones_seleccionadas",
+                    "items__celdas__opcion",
+                )
             )
         except Exception:
             return Respuesta.objects.none()
@@ -551,7 +572,10 @@ class RespuestaViewSet(viewsets.ModelViewSet):
                 faltantes.append(pregunta.id)
                 continue
             item = respuesta.items.get(pregunta=pregunta)
-            if pregunta.tiene_opciones():
+            if pregunta.es_cuadricula():
+                if item.celdas.count() < pregunta.filas.count():
+                    faltantes.append(pregunta.id)
+            elif pregunta.tiene_opciones():
                 if not item.opciones_seleccionadas.exists():
                     faltantes.append(pregunta.id)
             elif pregunta.tipo == Pregunta.Tipo.SI_NO:

@@ -255,7 +255,7 @@ class FormularioSerializer(serializers.ModelSerializer):
     def get_puntaje_maximo_posible(self, obj):
         """Suma del puntaje máximo alcanzable por tipo de pregunta."""
         total = Decimal("0")
-        for pregunta in obj.preguntas.prefetch_related("opciones"):
+        for pregunta in obj.preguntas.prefetch_related("opciones", "filas"):
             tipo = pregunta.tipo
             if tipo in Pregunta.TIPOS_NO_PUNTABLES:
                 continue
@@ -273,6 +273,11 @@ class FormularioSerializer(serializers.ModelSerializer):
                 total += sum(
                     op.puntos for op in pregunta.opciones.all() if op.puntos > 0
                 )
+            elif tipo == Pregunta.Tipo.CUADRICULA:
+                opts = list(pregunta.opciones.all())
+                filas = list(pregunta.filas.all())
+                if opts and filas:
+                    total += max(op.puntos for op in opts) * len(filas)
             else:  # OPCION_UNICA, LISTA_DESPLEGABLE
                 opts = list(pregunta.opciones.all())
                 if opts:
@@ -396,7 +401,7 @@ class FormularioDisponibleSerializer(serializers.ModelSerializer):
 
     def get_puntaje_maximo_posible(self, obj):
         total = Decimal("0")
-        for pregunta in obj.preguntas.prefetch_related("opciones"):
+        for pregunta in obj.preguntas.prefetch_related("opciones", "filas"):
             tipo = pregunta.tipo
             if tipo in Pregunta.TIPOS_NO_PUNTABLES:
                 continue
@@ -414,6 +419,11 @@ class FormularioDisponibleSerializer(serializers.ModelSerializer):
                 total += sum(
                     op.puntos for op in pregunta.opciones.all() if op.puntos > 0
                 )
+            elif tipo == Pregunta.Tipo.CUADRICULA:
+                opts = list(pregunta.opciones.all())
+                filas = list(pregunta.filas.all())
+                if opts and filas:
+                    total += max(op.puntos for op in opts) * len(filas)
             else:
                 opts = list(pregunta.opciones.all())
                 if opts:
