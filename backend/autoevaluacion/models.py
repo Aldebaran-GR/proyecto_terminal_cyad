@@ -173,6 +173,7 @@ class Pregunta(models.Model):
         SI_NO = "SI_NO", "Sí / No"
         ESCALA_LINEAL = "ESCALA_LINEAL", "Escala lineal"
         LISTA_DESPLEGABLE = "LISTA_DESPLEGABLE", "Lista desplegable"
+        CUADRICULA = "CUADRICULA", "Cuadrícula de opciones"
 
     # Tipos cuyas respuestas no contribuyen al puntaje (respuesta cualitativa abierta)
     TIPOS_NO_PUNTABLES = {"TEXTO_CORTO", "TEXTO_LARGO"}
@@ -213,6 +214,9 @@ class Pregunta(models.Model):
             self.Tipo.LISTA_DESPLEGABLE,
         )
 
+    def es_cuadricula(self):
+        return self.tipo == self.Tipo.CUADRICULA
+
     def es_puntable(self):
         """Indica si esta pregunta contribuye al puntaje total del formulario."""
         return self.tipo not in self.TIPOS_NO_PUNTABLES
@@ -237,6 +241,24 @@ class OpcionPregunta(models.Model):
 
     def __str__(self):
         return f"{self.texto} ({self.puntos} pts)"
+
+
+class FilaCuadricula(models.Model):
+    """Fila de una pregunta tipo CUADRICULA (Likert). Las columnas reusan OpcionPregunta."""
+
+    pregunta = models.ForeignKey(
+        Pregunta, on_delete=models.CASCADE, related_name="filas"
+    )
+    texto = models.CharField("Texto de la fila", max_length=255)
+    orden = models.PositiveSmallIntegerField(default=0)
+
+    class Meta:
+        ordering = ["orden"]
+        verbose_name = "Fila de cuadrícula"
+        verbose_name_plural = "Filas de cuadrícula"
+
+    def __str__(self):
+        return f"[Fila] {self.texto[:60]}"
 
 
 class NivelDesempeno(models.Model):
@@ -349,3 +371,18 @@ class RespuestaPregunta(models.Model):
         unique_together = [["respuesta", "pregunta"]]
         verbose_name = "Item de respuesta"
         verbose_name_plural = "Items de respuesta"
+
+
+class RespuestaCelda(models.Model):
+    """Respuesta a una celda de CUADRICULA: una opción (columna) elegida por fila."""
+
+    respuesta_pregunta = models.ForeignKey(
+        RespuestaPregunta, on_delete=models.CASCADE, related_name="celdas"
+    )
+    fila = models.ForeignKey(FilaCuadricula, on_delete=models.PROTECT, related_name="+")
+    opcion = models.ForeignKey(OpcionPregunta, on_delete=models.PROTECT, related_name="+")
+
+    class Meta:
+        unique_together = [["respuesta_pregunta", "fila"]]
+        verbose_name = "Celda de respuesta"
+        verbose_name_plural = "Celdas de respuesta"

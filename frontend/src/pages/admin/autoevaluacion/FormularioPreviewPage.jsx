@@ -25,8 +25,7 @@ import { inputCls } from '../../../components/ui/FormField'
 
 /* ─── Render de cada pregunta (sólo lectura) ──────────────────────────── */
 function QuestionPreview({ pregunta }) {
-  const { tipo, opciones = [], config = {} } = pregunta
-  const disabled = true
+  const { tipo, opciones = [], filas = [], config = {} } = pregunta
 
   switch (tipo) {
     case 'TEXTO_CORTO':
@@ -101,6 +100,41 @@ function QuestionPreview({ pregunta }) {
             <span>{config.label_min ?? String(min)}</span>
             <span>{config.label_max ?? String(max)}</span>
           </div>
+        </div>
+      )
+    }
+    case 'CUADRICULA': {
+      const cols = opciones
+      if (!filas.length || !cols.length) {
+        return <p className="text-sm text-slate-400 italic">Cuadrícula sin filas o columnas definidas.</p>
+      }
+      return (
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm border-collapse">
+            <thead>
+              <tr>
+                <th className="border border-slate-200 bg-slate-50 px-3 py-2 text-left text-xs font-medium text-slate-500 w-1/3" />
+                {cols.map((col) => (
+                  <th key={col.id} className="border border-slate-200 bg-slate-50 px-3 py-2 text-center text-xs font-medium text-slate-700">
+                    {col.texto}
+                    {col.puntos > 0 && <span className="block text-slate-400">{col.puntos} pts</span>}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {filas.map((fila) => (
+                <tr key={fila.id} className="even:bg-slate-50">
+                  <td className="border border-slate-200 px-3 py-2 text-slate-700">{fila.texto}</td>
+                  {cols.map((col) => (
+                    <td key={col.id} className="border border-slate-200 px-3 py-2 text-center">
+                      <input type="radio" disabled className="accent-indigo-600" />
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )
     }

@@ -28,6 +28,7 @@ const TIPOS = [
   { value: 'LISTA_DESPLEGABLE', label: 'Lista desplegable' },
   { value: 'SI_NO',             label: 'Sí / No' },
   { value: 'ESCALA_LINEAL',     label: 'Escala lineal' },
+  { value: 'CUADRICULA',        label: 'Cuadrícula de opciones' },
   { value: 'TEXTO_CORTO',       label: 'Texto corto' },
   { value: 'TEXTO_LARGO',       label: 'Texto largo' },
 ]
@@ -36,7 +37,7 @@ const NIVEL_COLORES = ['green', 'blue', 'yellow', 'red', 'gray']
 
 const emptyPregunta = (orden = 1, seccion = null) => ({
   tipo: 'OPCION_UNICA', texto: '', ayuda: '', obligatoria: true, orden,
-  config: {}, opciones: [], seccion,
+  config: {}, opciones: [], filas: [], seccion,
 })
 const emptyNivel = (orden = 0) => ({
   nombre: '', porcentaje_min: '', porcentaje_max: '', observacion: '', color: 'gray', orden,
@@ -70,6 +71,26 @@ function OpcionesEditor({ opciones, onChange }) {
   )
 }
 
+/* ─── FilasEditor ────────────────────────────────────────── */
+function FilasEditor({ filas, onChange }) {
+  const add = () => onChange([...filas, { texto: '', orden: filas.length + 1 }])
+  const remove = (i) => onChange(filas.filter((_, idx) => idx !== i))
+  const update = (i, val) => onChange(filas.map((f, idx) => idx === i ? { ...f, texto: val } : f))
+  return (
+    <div className="space-y-2">
+      {filas.map((f, i) => (
+        <div key={i} className="flex gap-2 items-center">
+          <span className="shrink-0 text-xs text-slate-400 w-5 text-right">{i + 1}.</span>
+          <input value={f.texto} onChange={(e) => update(i, e.target.value)}
+            placeholder="Texto de la fila" className={`${inputBase} min-w-0 flex-1`} />
+          <button type="button" onClick={() => remove(i)} className="shrink-0 text-slate-400 hover:text-rose-500">×</button>
+        </div>
+      ))}
+      <button type="button" onClick={add} className="text-xs text-indigo-600 hover:underline">+ Añadir fila</button>
+    </div>
+  )
+}
+
 /* ─── PreguntaModal ───────────────────────────────────────── */
 function PreguntaModal({ onClose, initial, onSave, loading, secciones = [] }) {
   const [q, setQ] = useState(initial ?? emptyPregunta())
@@ -77,8 +98,9 @@ function PreguntaModal({ onClose, initial, onSave, loading, secciones = [] }) {
   const fc = (key) => (e) => setQ((p) => ({ ...p, config: { ...p.config, [key]: e.target.value } }))
 
   const tieneOpciones = TIPOS_CON_OPCIONES.includes(q.tipo)
-  const esSiNo  = q.tipo === 'SI_NO'
-  const esEscala = q.tipo === 'ESCALA_LINEAL'
+  const esSiNo      = q.tipo === 'SI_NO'
+  const esEscala    = q.tipo === 'ESCALA_LINEAL'
+  const esCuadricula = q.tipo === 'CUADRICULA'
 
   return (
     <Modal open onClose={onClose} size="2xl"
@@ -91,7 +113,9 @@ function PreguntaModal({ onClose, initial, onSave, loading, secciones = [] }) {
         <div className="flex items-end gap-4">
           <div className="flex-1">
             <FormField label="Tipo">
-              <select value={q.tipo} onChange={(e) => setQ((p) => ({ ...p, tipo: e.target.value, opciones: [], config: {} }))} className={inputCls}>
+              <select value={q.tipo}
+                onChange={(e) => setQ((p) => ({ ...p, tipo: e.target.value, opciones: [], filas: [], config: {} }))}
+                className={inputCls}>
                 {TIPOS.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
               </select>
             </FormField>
@@ -122,6 +146,23 @@ function PreguntaModal({ onClose, initial, onSave, loading, secciones = [] }) {
           <div>
             <p className="text-sm font-medium text-slate-700 mb-2">Opciones <span className="text-xs text-slate-400">(texto + puntos que suma cada opción)</span></p>
             <OpcionesEditor opciones={q.opciones ?? []} onChange={(ops) => setQ((p) => ({ ...p, opciones: ops }))} />
+          </div>
+        )}
+
+        {esCuadricula && (
+          <div className="grid grid-cols-2 gap-6 rounded-xl border border-indigo-100 bg-indigo-50/40 p-4">
+            <div>
+              <p className="text-sm font-medium text-slate-700 mb-2">
+                Filas <span className="text-xs text-slate-400">(enunciados a evaluar)</span>
+              </p>
+              <FilasEditor filas={q.filas ?? []} onChange={(fs) => setQ((p) => ({ ...p, filas: fs }))} />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-slate-700 mb-2">
+                Columnas <span className="text-xs text-slate-400">(opciones de respuesta + puntos)</span>
+              </p>
+              <OpcionesEditor opciones={q.opciones ?? []} onChange={(ops) => setQ((p) => ({ ...p, opciones: ops }))} />
+            </div>
           </div>
         )}
 
@@ -166,7 +207,12 @@ function PreguntaRow({ p, idx, secciones, editable, onEdit, onDelete, onMover })
           {p.obligatoria && <span className="text-xs text-rose-500">*obligatoria</span>}
         </div>
         <p className="text-sm text-slate-800">{p.texto}</p>
-        {p.opciones?.length > 0 && (
+        {p.tipo === 'CUADRICULA' && (
+          <p className="text-xs text-slate-500 mt-1">
+            {p.filas?.length ?? 0} filas × {p.opciones?.length ?? 0} columnas
+          </p>
+        )}
+        {p.tipo !== 'CUADRICULA' && p.opciones?.length > 0 && (
           <ul className="mt-1 space-y-0.5">
             {p.opciones.map((op) => (
               <li key={op.id} className="text-xs text-slate-500">· {op.texto} <span className="text-slate-400">({op.puntos} pts)</span></li>
@@ -364,6 +410,9 @@ export default function FormularioBuilderPage() {
         opciones: (q.opciones || []).map((op, i) => ({
           texto: op.texto, valor: op.valor || '', puntos: Number(op.puntos) || 0, orden: i + 1,
         })),
+        filas: (q.filas || []).map((f, i) => ({
+          texto: f.texto, orden: i + 1,
+        })),
       }
       return q.id ? updatePregunta(q.id, payload) : createPregunta(payload)
     },
@@ -386,7 +435,7 @@ export default function FormularioBuilderPage() {
     setQModal(true)
   }
   const openEditPregunta = (p) => {
-    setEditingQ({ ...p, opciones: p.opciones ?? [] })
+    setEditingQ({ ...p, opciones: p.opciones ?? [], filas: p.filas ?? [] })
     setQModal(true)
   }
 

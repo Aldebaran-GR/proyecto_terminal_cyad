@@ -5,11 +5,13 @@ from decimal import Decimal
 from rest_framework import serializers
 
 from .models import (
+    FilaCuadricula,
     Formulario,
     NivelDesempeno,
     OpcionPregunta,
     Pregunta,
     Respuesta,
+    RespuestaCelda,
     RespuestaPregunta,
     Seccion,
 )
@@ -36,8 +38,15 @@ class OpcionPreguntaPublicSerializer(serializers.ModelSerializer):
         fields = ["id", "texto", "valor", "orden"]
 
 
+class FilaCuadriculaSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = FilaCuadricula
+        fields = ["id", "texto", "orden"]
+
+
 class PreguntaSerializer(serializers.ModelSerializer):
     opciones = OpcionPreguntaSerializer(many=True, required=False)
+    filas = FilaCuadriculaSerializer(many=True, required=False)
 
     class Meta:
         model = Pregunta
@@ -52,26 +61,52 @@ class PreguntaSerializer(serializers.ModelSerializer):
             "orden",
             "config",
             "opciones",
+            "filas",
         ]
+
+    def validate(self, attrs):
+        tipo = attrs.get("tipo", getattr(self.instance, "tipo", None))
+        if tipo == Pregunta.Tipo.CUADRICULA:
+            filas = attrs.get("filas", list(getattr(self.instance, "filas", []).all()) if self.instance else [])
+            opciones = attrs.get("opciones", list(getattr(self.instance, "opciones", []).all()) if self.instance else [])
+            if not filas:
+                raise serializers.ValidationError(
+                    {"filas": "Una pregunta tipo Cuadrícula requiere al menos una fila."}
+                )
+            if not opciones:
+                raise serializers.ValidationError(
+                    {"opciones": "Una pregunta tipo Cuadrícula requiere al menos una columna (opción)."}
+                )
+        return attrs
 
     def _save_opciones(self, pregunta, opciones_data):
         pregunta.opciones.all().delete()
         for op in opciones_data:
             OpcionPregunta.objects.create(pregunta=pregunta, **op)
 
+    def _save_filas(self, pregunta, filas_data):
+        pregunta.filas.all().delete()
+        for fila in filas_data:
+            FilaCuadricula.objects.create(pregunta=pregunta, **fila)
+
     def create(self, validated_data):
         opciones_data = validated_data.pop("opciones", [])
+        filas_data = validated_data.pop("filas", [])
         pregunta = Pregunta.objects.create(**validated_data)
         self._save_opciones(pregunta, opciones_data)
+        self._save_filas(pregunta, filas_data)
         return pregunta
 
     def update(self, instance, validated_data):
         opciones_data = validated_data.pop("opciones", None)
+        filas_data = validated_data.pop("filas", None)
         for attr, val in validated_data.items():
             setattr(instance, attr, val)
         instance.save()
         if opciones_data is not None:
             self._save_opciones(instance, opciones_data)
+        if filas_data is not None:
+            self._save_filas(instance, filas_data)
         return instance
 
 
@@ -79,6 +114,7 @@ class PreguntaPublicSerializer(serializers.ModelSerializer):
     """Pregunta para el Profesor — opciones sin puntos."""
 
     opciones = OpcionPreguntaPublicSerializer(many=True, read_only=True)
+    filas = FilaCuadriculaSerializer(many=True, read_only=True)
 
     class Meta:
         model = Pregunta
@@ -93,6 +129,7 @@ class PreguntaPublicSerializer(serializers.ModelSerializer):
             "orden",
             "config",
             "opciones",
+            "filas",
         ]
 
 
@@ -389,16 +426,23 @@ class FormularioDisponibleSerializer(serializers.ModelSerializer):
 # ---------------------------------------------------------------------------
 
 
+class RespuestaCeldaSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = RespuestaCelda
+        fields = ["fila", "opcion"]
+
+
 class RespuestaPreguntaSerializer(serializers.ModelSerializer):
     opciones_seleccionadas = serializers.PrimaryKeyRelatedField(
         many=True,
         queryset=OpcionPregunta.objects.all(),
         required=False,
     )
+    celdas = RespuestaCeldaSerializer(many=True, required=False)
 
     class Meta:
         model = RespuestaPregunta
-        fields = ["id", "pregunta", "valor_texto", "opciones_seleccionadas"]
+        fields = ["id", "pregunta", "valor_texto", "opciones_seleccionadas", "celdas"]
 
 
 class RespuestaSerializer(serializers.ModelSerializer):
@@ -453,9 +497,12 @@ class RespuestaSerializer(serializers.ModelSerializer):
         respuesta.items.all().delete()
         for item_data in items_data:
             opciones = item_data.pop("opciones_seleccionadas", [])
+            celdas = item_data.pop("celdas", [])
             rp = RespuestaPregunta.objects.create(respuesta=respuesta, **item_data)
             if opciones:
                 rp.opciones_seleccionadas.set(opciones)
+            for celda in celdas:
+                RespuestaCelda.objects.create(respuesta_pregunta=rp, **celda)
 
     def create(self, validated_data):
         items_data = validated_data.pop("items", [])

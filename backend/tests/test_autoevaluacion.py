@@ -1202,3 +1202,117 @@ class TestSeccionPeso:
         make_seccion(formulario, peso=100)
         r = client.post(f"/api/v1/formularios/{formulario.id}/publicar/")
         assert r.status_code == 200
+
+
+# ---------------------------------------------------------------------------
+# CUADRICULA — tipo Likert (filas × columnas)
+# ---------------------------------------------------------------------------
+
+
+class TestCuadriculaCRUD:
+    """PR4: tipo CUADRICULA — filas + columnas (opciones con puntos)."""
+
+    _PAYLOAD_BASE = {
+        "tipo": "CUADRICULA",
+        "texto": "Evalúa los siguientes aspectos",
+        "obligatoria": True,
+        "orden": 1,
+        "filas": [
+            {"texto": "Puntualidad", "orden": 1},
+            {"texto": "Participación", "orden": 2},
+            {"texto": "Actitud", "orden": 3},
+        ],
+        "opciones": [
+            {"texto": "Nunca", "puntos": 0, "orden": 1},
+            {"texto": "A veces", "puntos": 1, "orden": 2},
+            {"texto": "Siempre", "puntos": 2, "orden": 3},
+        ],
+    }
+
+    def test_admin_crea_cuadricula(self, client, admin, periodo):
+        auth_admin(client)
+        formulario = make_formulario(periodo, admin)
+        payload = {**self._PAYLOAD_BASE, "formulario": formulario.id}
+        r = client.post("/api/v1/preguntas/", payload, format="json")
+        assert r.status_code == 201
+        assert r.data["tipo"] == "CUADRICULA"
+        assert len(r.data["filas"]) == 3
+        assert len(r.data["opciones"]) == 3
+        assert r.data["filas"][0]["texto"] == "Puntualidad"
+
+    def test_cuadricula_sin_filas_rechazada(self, client, admin, periodo):
+        auth_admin(client)
+        formulario = make_formulario(periodo, admin)
+        payload = {
+            **self._PAYLOAD_BASE,
+            "formulario": formulario.id,
+            "filas": [],
+        }
+        r = client.post("/api/v1/preguntas/", payload, format="json")
+        assert r.status_code == 400
+        errors = r.data.get("errors", r.data)
+        assert "filas" in errors
+
+    def test_cuadricula_sin_opciones_rechazada(self, client, admin, periodo):
+        auth_admin(client)
+        formulario = make_formulario(periodo, admin)
+        payload = {
+            **self._PAYLOAD_BASE,
+            "formulario": formulario.id,
+            "opciones": [],
+        }
+        r = client.post("/api/v1/preguntas/", payload, format="json")
+        assert r.status_code == 400
+        errors = r.data.get("errors", r.data)
+        assert "opciones" in errors
+
+    def test_cuadricula_patch_reemplaza_filas(self, client, admin, periodo):
+        """PATCH con nuevas filas reemplaza completamente las existentes."""
+        auth_admin(client)
+        formulario = make_formulario(periodo, admin)
+        cr = client.post(
+            "/api/v1/preguntas/",
+            {**self._PAYLOAD_BASE, "formulario": formulario.id},
+            format="json",
+        )
+        p_id = cr.data["id"]
+        r = client.patch(
+            f"/api/v1/preguntas/{p_id}/",
+            {
+                "filas": [
+                    {"texto": "Nuevafila 1", "orden": 1},
+                    {"texto": "Nuevafila 2", "orden": 2},
+                ],
+                "opciones": [{"texto": "Sí", "puntos": 1, "orden": 1}],
+            },
+            format="json",
+        )
+        assert r.status_code == 200
+        assert len(r.data["filas"]) == 2
+        assert r.data["filas"][0]["texto"] == "Nuevafila 1"
+
+    def test_cuadricula_filas_en_serializer_publico(
+        self, client, admin, usuario_prof, profesor, periodo
+    ):
+        """Los profesores ven las filas de CUADRICULA en la vista pública."""
+        formulario = make_formulario(periodo, admin)
+        seccion = make_seccion(formulario, peso=100)
+        auth_admin(client)
+        client.post(
+            "/api/v1/preguntas/",
+            {
+                **self._PAYLOAD_BASE,
+                "formulario": formulario.id,
+                "seccion": seccion.id,
+            },
+            format="json",
+        )
+        formulario.publicar()
+
+        auth_prof(client)
+        r = client.get("/api/v1/formularios-disponibles/")
+        assert r.status_code == 200
+        preguntas = r.data["results"][0]["preguntas"]
+        cuadricula = next(p for p in preguntas if p["tipo"] == "CUADRICULA")
+        assert len(cuadricula["filas"]) == 3
+        assert cuadricula["filas"][0]["texto"] == "Puntualidad"
