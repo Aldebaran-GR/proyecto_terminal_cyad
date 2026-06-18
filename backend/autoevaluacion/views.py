@@ -130,8 +130,23 @@ class FormularioViewSet(viewsets.ModelViewSet):
             return FormularioListSerializer
         return FormularioSerializer
 
+    def _validar_periodo_habilitado(self, periodo):
+        """Solo se permite crear/mover formularios a periodos habilitados para autoevaluación."""
+        if periodo is None or not (periodo.estado and periodo.activo_autoevaluacion):
+            raise ValidationError({
+                "periodo": [
+                    "El periodo seleccionado no está habilitado para autoevaluaciones."
+                ]
+            })
+
     def perform_create(self, serializer):
+        self._validar_periodo_habilitado(serializer.validated_data.get("periodo"))
         serializer.save(created_by=self.request.user)
+
+    def perform_update(self, serializer):
+        periodo = serializer.validated_data.get("periodo", serializer.instance.periodo)
+        self._validar_periodo_habilitado(periodo)
+        serializer.save()
 
     def perform_destroy(self, instance):
         """Borra el formulario y sus respuestas en cascada.

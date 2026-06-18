@@ -41,6 +41,13 @@ export default function AutoevaluacionAdminPage() {
     queryKey: ['periodos'],
     queryFn: () => getPeriodos().then((r) => r.data?.results ?? r.data ?? []),
   })
+  // Solo se pueden crear autoevaluaciones para periodos habilitados; el
+  // backend rechaza lo contrario. Filtramos en cliente para no listar opciones
+  // que el admin no podría elegir.
+  const periodosElegibles = periodos.filter(
+    (p) => p.activo_autoevaluacion && p.estado !== false,
+  )
+  const sinPeriodoElegible = periodosElegibles.length === 0
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ['formularios'] })
 
@@ -52,7 +59,14 @@ export default function AutoevaluacionAdminPage() {
       // Llevar directo al builder para empezar a editar
       if (r?.data?.id) navigate(`/admin/autoevaluacion/${r.data.id}`)
     },
-    onError: (e) => setApiError(e.response?.data?.detail || 'Error al crear el formulario.'),
+    onError: (e) => {
+      const data = e.response?.data || {}
+      const errs = data.errors || data
+      const msg = errs.periodo?.[0]
+        || data.detail
+        || 'Error al crear el formulario.'
+      setApiError(msg)
+    },
   })
 
   // Considera tanto PUBLICADO como CERRADO como "no editable directo";
@@ -178,6 +192,7 @@ export default function AutoevaluacionAdminPage() {
           <Button variant="secondary" onClick={() => setCreateModal(false)}>Cancelar</Button>
           <Button
             loading={createMut.isPending}
+            disabled={sinPeriodoElegible || !newForm.periodo}
             onClick={() => createMut.mutate({
               titulo: newForm.titulo,
               descripcion: newForm.descripcion,
@@ -188,16 +203,28 @@ export default function AutoevaluacionAdminPage() {
           </Button>
         </>}>
         <div className="space-y-4">
+          {sinPeriodoElegible && (
+            <Alert type="info">
+              No hay periodos habilitados para autoevaluación. Activa la
+              autoevaluación en un periodo desde Catálogos antes de crear un
+              formulario.
+            </Alert>
+          )}
           <FormField label="Título" required>
             <input value={newForm.titulo} onChange={(e) => setNewForm((p) => ({ ...p, titulo: e.target.value }))} className={inputCls} placeholder="ej. Autoevaluación Docente 26-I" />
           </FormField>
           <FormField label="Descripción">
             <textarea value={newForm.descripcion} onChange={(e) => setNewForm((p) => ({ ...p, descripcion: e.target.value }))} rows={2} className={inputCls} placeholder="Descripción del formulario" />
           </FormField>
-          <FormField label="Periodo" required>
-            <select value={newForm.periodo} onChange={(e) => setNewForm((p) => ({ ...p, periodo: e.target.value }))} className={inputCls}>
+          <FormField label="Periodo" required hint="Solo se listan los periodos habilitados para autoevaluación.">
+            <select
+              value={newForm.periodo}
+              onChange={(e) => setNewForm((p) => ({ ...p, periodo: e.target.value }))}
+              className={inputCls}
+              disabled={sinPeriodoElegible}
+            >
               <option value="">-- Selecciona --</option>
-              {periodos.map((p) => <option key={p.id} value={p.id}>{p.clave}</option>)}
+              {periodosElegibles.map((p) => <option key={p.id} value={p.id}>{p.clave}</option>)}
             </select>
           </FormField>
           <p className="text-xs text-slate-400">
