@@ -129,13 +129,20 @@ def make_formulario(periodo, admin_user=None):
     )
 
 
-def make_pregunta(formulario, tipo=Pregunta.Tipo.TEXTO_CORTO, orden=1, obligatoria=True):
+def make_seccion(formulario, titulo="General", peso=100, orden=0):
+    return Seccion.objects.create(
+        formulario=formulario, titulo=titulo, peso=peso, orden=orden
+    )
+
+
+def make_pregunta(formulario, tipo=Pregunta.Tipo.TEXTO_CORTO, orden=1, obligatoria=True, seccion=None):
     return Pregunta.objects.create(
         formulario=formulario,
         tipo=tipo,
         texto=f"Pregunta {orden}",
         obligatoria=obligatoria,
         orden=orden,
+        seccion=seccion,
     )
 
 
@@ -218,6 +225,7 @@ class TestFormularioEstados:
     def test_publicar_formulario(self, client, admin, periodo):
         auth_admin(client)
         formulario = make_formulario(periodo, admin)
+        make_seccion(formulario, peso=100)
         r = client.post(f"/api/v1/formularios/{formulario.id}/publicar/")
         assert r.status_code == 200
         assert r.data["estado"] == "PUBLICADO"
@@ -226,6 +234,7 @@ class TestFormularioEstados:
     def test_no_publicar_ya_publicado(self, client, admin, periodo):
         auth_admin(client)
         formulario = make_formulario(periodo, admin)
+        make_seccion(formulario, peso=100)
         formulario.publicar()
         r = client.post(f"/api/v1/formularios/{formulario.id}/publicar/")
         assert r.status_code == 400
@@ -233,6 +242,7 @@ class TestFormularioEstados:
     def test_cerrar_formulario(self, client, admin, periodo):
         auth_admin(client)
         formulario = make_formulario(periodo, admin)
+        make_seccion(formulario, peso=100)
         formulario.publicar()
         r = client.post(f"/api/v1/formularios/{formulario.id}/cerrar/")
         assert r.status_code == 200
@@ -247,6 +257,7 @@ class TestFormularioEstados:
     def test_publicar_revision_incrementa_version(self, client, admin, periodo):
         auth_admin(client)
         formulario = make_formulario(periodo, admin)
+        make_seccion(formulario, peso=100)
         formulario.publicar()
         formulario.cerrar()
         r = client.post(f"/api/v1/formularios/{formulario.id}/publicar-revision/")
@@ -265,6 +276,7 @@ class TestFormularioEstados:
         """PUBLICADO → BORRADOR vía /despublicar/, conservando versión."""
         auth_admin(client)
         formulario = make_formulario(periodo, admin)
+        make_seccion(formulario, peso=100)
         formulario.publicar()
         assert formulario.estado == "PUBLICADO"
         r = client.post(f"/api/v1/formularios/{formulario.id}/despublicar/")
@@ -285,7 +297,8 @@ class TestFormularioEstados:
     def test_no_editar_pregunta_formulario_publicado(self, client, admin, periodo):
         auth_admin(client)
         formulario = make_formulario(periodo, admin)
-        pregunta = make_pregunta(formulario)
+        seccion = make_seccion(formulario, peso=100)
+        pregunta = make_pregunta(formulario, seccion=seccion)
         formulario.publicar()
         r = client.patch(
             f"/api/v1/preguntas/{pregunta.id}/",
@@ -429,6 +442,7 @@ class TestNivelDesempeno:
 class TestFormulariosDisponibles:
     def test_profesor_ve_formularios_publicados(self, client, admin, usuario_prof, profesor, periodo):
         formulario = make_formulario(periodo, admin)
+        make_seccion(formulario, peso=100)
         formulario.publicar()
         auth_prof(client)
         r = client.get("/api/v1/formularios-disponibles/")
@@ -462,9 +476,11 @@ class TestFormulariosDisponibles:
             # Sin activo_autoevaluacion=True
         )
         formulario_viejo = make_formulario(periodo_viejo, admin)
+        make_seccion(formulario_viejo, peso=100)
         formulario_viejo.publicar()
         # Formulario del periodo actual (con activo_autoevaluacion=True por fixture)
         formulario_actual = make_formulario(periodo, admin)
+        make_seccion(formulario_actual, peso=100)
         formulario_actual.publicar()
         auth_prof(client)
         r = client.get("/api/v1/formularios-disponibles/")
@@ -483,6 +499,7 @@ class TestFormulariosDisponibles:
         `periodo_abierto=False` para que la UI sepa que es solo consulta.
         """
         formulario = make_formulario(periodo, admin)
+        make_seccion(formulario, peso=100)
         formulario.publicar()
         # Profesor crea y envía respuesta con el periodo activo.
         Respuesta.objects.create(
@@ -511,6 +528,7 @@ class TestFormulariosDisponibles:
         periodo.activo_autoevaluacion = False
         periodo.save(update_fields=["activo_autoevaluacion"])
         formulario = make_formulario(periodo, admin)
+        make_seccion(formulario, peso=100)
         formulario.publicar()
         auth_prof(client)
         r = client.get("/api/v1/formularios-disponibles/")
@@ -527,6 +545,7 @@ class TestFormulariosDisponibles:
 class TestResponderFormulario:
     def test_profesor_crea_respuesta_borrador(self, client, admin, usuario_prof, profesor, periodo):
         formulario = make_formulario(periodo, admin)
+        make_seccion(formulario, peso=100)
         formulario.publicar()
         auth_prof(client)
         r = client.post(
@@ -540,6 +559,7 @@ class TestResponderFormulario:
 
     def test_no_responder_formulario_cerrado(self, client, admin, usuario_prof, profesor, periodo):
         formulario = make_formulario(periodo, admin)
+        make_seccion(formulario, peso=100)
         formulario.publicar()
         formulario.cerrar()
         auth_prof(client)
@@ -552,6 +572,7 @@ class TestResponderFormulario:
 
     def test_no_duplicar_respuesta_misma_version(self, client, admin, usuario_prof, profesor, periodo):
         formulario = make_formulario(periodo, admin)
+        make_seccion(formulario, peso=100)
         formulario.publicar()
         auth_prof(client)
         client.post("/api/v1/respuestas/", {"formulario": formulario.id}, format="json")
@@ -560,7 +581,8 @@ class TestResponderFormulario:
 
     def test_profesor_envia_respuesta(self, client, admin, usuario_prof, profesor, periodo):
         formulario = make_formulario(periodo, admin)
-        pregunta = make_pregunta(formulario, tipo=Pregunta.Tipo.TEXTO_CORTO)
+        seccion = make_seccion(formulario, peso=100)
+        pregunta = make_pregunta(formulario, tipo=Pregunta.Tipo.TEXTO_CORTO, seccion=seccion)
         formulario.publicar()
         auth_prof(client)
         create_r = client.post(
@@ -578,7 +600,8 @@ class TestResponderFormulario:
 
     def test_envio_falla_sin_obligatorias(self, client, admin, usuario_prof, profesor, periodo):
         formulario = make_formulario(periodo, admin)
-        make_pregunta(formulario, tipo=Pregunta.Tipo.TEXTO_CORTO, obligatoria=True)
+        seccion = make_seccion(formulario, peso=100)
+        make_pregunta(formulario, tipo=Pregunta.Tipo.TEXTO_CORTO, obligatoria=True, seccion=seccion)
         formulario.publicar()
         auth_prof(client)
         create_r = client.post(
@@ -592,7 +615,8 @@ class TestResponderFormulario:
 
     def test_no_modificar_respuesta_enviada(self, client, admin, usuario_prof, profesor, periodo):
         formulario = make_formulario(periodo, admin)
-        pregunta = make_pregunta(formulario, tipo=Pregunta.Tipo.TEXTO_CORTO)
+        seccion = make_seccion(formulario, peso=100)
+        pregunta = make_pregunta(formulario, tipo=Pregunta.Tipo.TEXTO_CORTO, seccion=seccion)
         formulario.publicar()
         auth_prof(client)
         create_r = client.post(
@@ -616,6 +640,7 @@ class TestResponderFormulario:
         self, client, admin, usuario_prof, usuario_prof2, profesor, profesor2, periodo
     ):
         formulario = make_formulario(periodo, admin)
+        make_seccion(formulario, peso=100)
         formulario.publicar()
         auth_prof(client)
         create_r = client.post(
@@ -640,7 +665,8 @@ class TestVersionadoFormulario:
     ):
         """Tras publicar_revision, ya_respondido vuelve a False."""
         formulario = make_formulario(periodo, admin)
-        pregunta = make_pregunta(formulario, tipo=Pregunta.Tipo.TEXTO_CORTO)
+        seccion = make_seccion(formulario, peso=100)
+        pregunta = make_pregunta(formulario, tipo=Pregunta.Tipo.TEXTO_CORTO, seccion=seccion)
         formulario.publicar()
 
         # Profesor responde y envía v1
@@ -673,7 +699,8 @@ class TestVersionadoFormulario:
     ):
         """Las respuestas de la versión anterior no se eliminan."""
         formulario = make_formulario(periodo, admin)
-        pregunta = make_pregunta(formulario, tipo=Pregunta.Tipo.TEXTO_CORTO)
+        seccion = make_seccion(formulario, peso=100)
+        pregunta = make_pregunta(formulario, tipo=Pregunta.Tipo.TEXTO_CORTO, seccion=seccion)
         formulario.publicar()
 
         auth_prof(client)
@@ -700,7 +727,8 @@ class TestVersionadoFormulario:
     ):
         """Profesor puede crear una nueva respuesta para la versión 2."""
         formulario = make_formulario(periodo, admin)
-        pregunta = make_pregunta(formulario, tipo=Pregunta.Tipo.TEXTO_CORTO)
+        seccion = make_seccion(formulario, peso=100)
+        pregunta = make_pregunta(formulario, tipo=Pregunta.Tipo.TEXTO_CORTO, seccion=seccion)
         formulario.publicar()
 
         # Responde v1
@@ -739,8 +767,10 @@ class TestScoringEnvio:
     def _crear_formulario_con_nivel(self, periodo, admin):
         """Formulario con 1 pregunta OPCION_UNICA (max 3 pts) y niveles."""
         formulario = make_formulario(periodo, admin)
+        seccion = make_seccion(formulario, peso=100)
         pregunta = Pregunta.objects.create(
             formulario=formulario,
+            seccion=seccion,
             tipo=Pregunta.Tipo.OPCION_UNICA,
             texto="¿Cómo evalúas tu planeación?",
             obligatoria=True,
@@ -789,8 +819,10 @@ class TestScoringEnvio:
         self, client, admin, usuario_prof, profesor, periodo
     ):
         formulario = make_formulario(periodo, admin)
+        seccion = make_seccion(formulario, peso=100)
         pregunta = Pregunta.objects.create(
             formulario=formulario,
+            seccion=seccion,
             tipo=Pregunta.Tipo.CASILLAS,
             texto="Selecciona las que aplican",
             obligatoria=True,
@@ -825,7 +857,8 @@ class TestScoringEnvio:
     ):
         """Preguntas de texto no contribuyen al puntaje."""
         formulario = make_formulario(periodo, admin)
-        make_pregunta(formulario, tipo=Pregunta.Tipo.TEXTO_CORTO, orden=1)
+        seccion = make_seccion(formulario, peso=100)
+        make_pregunta(formulario, tipo=Pregunta.Tipo.TEXTO_CORTO, orden=1, seccion=seccion)
         formulario.publicar()
 
         auth_prof(client)
@@ -849,8 +882,10 @@ class TestScoringEnvio:
     ):
         """Si el porcentaje no coincide con ningún nivel, nivel_desempeno es None."""
         formulario = make_formulario(periodo, admin)
+        seccion = make_seccion(formulario, peso=100)
         pregunta = Pregunta.objects.create(
             formulario=formulario,
+            seccion=seccion,
             tipo=Pregunta.Tipo.OPCION_UNICA,
             texto="Pregunta",
             obligatoria=True,
@@ -874,8 +909,9 @@ class TestScoringEnvio:
         # Para que no coincida, usamos pregunta con máx 4 pero opción de 2 pts (50%)
         # Recreamos con opción de 2 pts y otra de 4 pts (la seleccionada es la de 2)
         formulario2 = make_formulario(periodo, admin)
+        seccion2 = make_seccion(formulario2, peso=100)
         p2 = Pregunta.objects.create(
-            formulario=formulario2, tipo=Pregunta.Tipo.OPCION_UNICA,
+            formulario=formulario2, seccion=seccion2, tipo=Pregunta.Tipo.OPCION_UNICA,
             texto="P2", obligatoria=True, orden=1,
         )
         op_baja = OpcionPregunta.objects.create(pregunta=p2, texto="Baja", puntos=2, orden=1)
@@ -920,7 +956,8 @@ class TestScoringEnvio:
 class TestEstadisticas:
     def test_estadisticas_formulario(self, client, admin, usuario_prof, profesor, periodo):
         formulario = make_formulario(periodo, admin)
-        pregunta = make_pregunta(formulario, tipo=Pregunta.Tipo.TEXTO_CORTO)
+        seccion = make_seccion(formulario, peso=100)
+        pregunta = make_pregunta(formulario, tipo=Pregunta.Tipo.TEXTO_CORTO, seccion=seccion)
         formulario.publicar()
 
         respuesta = Respuesta.objects.create(
@@ -940,7 +977,8 @@ class TestEstadisticas:
 
     def test_estadisticas_con_escala_lineal(self, client, admin, usuario_prof, profesor, periodo):
         formulario = make_formulario(periodo, admin)
-        pregunta = make_pregunta(formulario, tipo=Pregunta.Tipo.ESCALA_LINEAL)
+        seccion = make_seccion(formulario, peso=100)
+        pregunta = make_pregunta(formulario, tipo=Pregunta.Tipo.ESCALA_LINEAL, seccion=seccion)
         formulario.publicar()
 
         from accounts.models import Usuario as U
@@ -970,7 +1008,8 @@ class TestEstadisticas:
     def test_estadisticas_solo_version_actual(self, client, admin, usuario_prof, profesor, periodo):
         """Las estadísticas filtran por versión; respuestas de v1 no aparecen en v2."""
         formulario = make_formulario(periodo, admin)
-        pregunta = make_pregunta(formulario, tipo=Pregunta.Tipo.TEXTO_CORTO)
+        seccion = make_seccion(formulario, peso=100)
+        make_pregunta(formulario, tipo=Pregunta.Tipo.TEXTO_CORTO, seccion=seccion)
         formulario.publicar()
 
         # Respuesta v1
@@ -1010,6 +1049,7 @@ class TestAutoevaluacionGatePeriodo:
         self, client, admin, usuario_prof, profesor, periodo
     ):
         formulario = make_formulario(periodo, admin)
+        make_seccion(formulario, peso=100)
         formulario.publicar()
         # Profesor crea respuesta con el flag activo.
         auth_prof(client)
@@ -1025,3 +1065,140 @@ class TestAutoevaluacionGatePeriodo:
         r = client.post(f"/api/v1/respuestas/{resp_id}/enviar/")
         assert r.status_code == 400
         assert "periodo" in str(r.data).lower()
+
+
+# ---------------------------------------------------------------------------
+# Gate por flag activo_autoevaluacion al CREAR un formulario (admin)
+# ---------------------------------------------------------------------------
+
+
+class TestGatePeriodoEnCreacionFormulario:
+    """El admin solo puede crear/mover formularios a periodos habilitados para
+    autoevaluación. Si el periodo no tiene `activo_autoevaluacion=True` y
+    `estado=True`, la creación o el cambio de periodo deben rechazarse con 400.
+    """
+
+    def _periodo_inactivo(self):
+        return Periodo.objects.create(
+            clave="26-IIAE",
+            fecha_inicio="2026-05-04",
+            fecha_fin="2026-08-07",
+            activo_autoevaluacion=False,
+        )
+
+    def test_admin_no_crea_formulario_con_periodo_inactivo(self, client, admin):
+        auth_admin(client)
+        periodo_off = self._periodo_inactivo()
+        r = client.post(
+            "/api/v1/formularios/",
+            {"titulo": "AE bloqueada", "periodo": periodo_off.id},
+            format="json",
+        )
+        assert r.status_code == 400, r.data
+        assert "periodo" in r.data.get("errors", r.data)
+
+    def test_admin_no_mueve_formulario_a_periodo_inactivo(
+        self, client, admin, periodo
+    ):
+        auth_admin(client)
+        formulario = make_formulario(periodo, admin)
+        periodo_off = self._periodo_inactivo()
+        r = client.patch(
+            f"/api/v1/formularios/{formulario.id}/",
+            {"periodo": periodo_off.id},
+            format="json",
+        )
+        assert r.status_code == 400, r.data
+        assert "periodo" in r.data.get("errors", r.data)
+
+    def test_admin_crea_formulario_con_periodo_activo(self, client, admin, periodo):
+        auth_admin(client)
+        r = client.post(
+            "/api/v1/formularios/",
+            {"titulo": "AE habilitada", "periodo": periodo.id},
+            format="json",
+        )
+        assert r.status_code == 201, r.data
+        assert r.data["estado"] == "BORRADOR"
+
+
+# ---------------------------------------------------------------------------
+# Ponderación por sección — validación de peso al publicar
+# ---------------------------------------------------------------------------
+
+
+class TestSeccionPeso:
+    """PR2: Seccion.peso y _validar_estructura_para_publicar."""
+
+    def test_crear_seccion_con_peso_valido(self, client, admin, periodo):
+        auth_admin(client)
+        formulario = make_formulario(periodo, admin)
+        r = client.post(
+            "/api/v1/secciones/",
+            {"formulario": formulario.id, "titulo": "A", "peso": "60.00", "orden": 1},
+            format="json",
+        )
+        assert r.status_code == 201
+        assert float(r.data["peso"]) == 60.0
+
+    def test_peso_negativo_rechazado(self, client, admin, periodo):
+        auth_admin(client)
+        formulario = make_formulario(periodo, admin)
+        r = client.post(
+            "/api/v1/secciones/",
+            {"formulario": formulario.id, "titulo": "A", "peso": "-1", "orden": 1},
+            format="json",
+        )
+        assert r.status_code == 400
+
+    def test_peso_mayor_100_rechazado(self, client, admin, periodo):
+        auth_admin(client)
+        formulario = make_formulario(periodo, admin)
+        r = client.post(
+            "/api/v1/secciones/",
+            {"formulario": formulario.id, "titulo": "A", "peso": "101", "orden": 1},
+            format="json",
+        )
+        assert r.status_code == 400
+
+    def test_publicar_falla_sin_secciones(self, client, admin, periodo):
+        auth_admin(client)
+        formulario = make_formulario(periodo, admin)
+        r = client.post(f"/api/v1/formularios/{formulario.id}/publicar/")
+        assert r.status_code == 400
+        assert "sección" in str(r.data).lower() or "seccion" in str(r.data).lower()
+
+    def test_publicar_falla_si_suma_distinta_de_100(self, client, admin, periodo):
+        auth_admin(client)
+        formulario = make_formulario(periodo, admin)
+        make_seccion(formulario, titulo="A", peso=60)
+        make_seccion(formulario, titulo="B", peso=30)
+        r = client.post(f"/api/v1/formularios/{formulario.id}/publicar/")
+        assert r.status_code == 400
+        assert "100" in str(r.data) or "peso" in str(r.data).lower()
+
+    def test_publicar_falla_con_pregunta_sin_seccion(self, client, admin, periodo):
+        auth_admin(client)
+        formulario = make_formulario(periodo, admin)
+        make_seccion(formulario, peso=100)
+        make_pregunta(formulario, tipo=Pregunta.Tipo.TEXTO_CORTO)  # sin seccion
+        r = client.post(f"/api/v1/formularios/{formulario.id}/publicar/")
+        assert r.status_code == 400
+        assert "sección" in str(r.data).lower() or "seccion" in str(r.data).lower() or "huérfana" in str(r.data).lower()
+
+    def test_publicar_exitoso_con_secciones_correctas(self, client, admin, periodo):
+        auth_admin(client)
+        formulario = make_formulario(periodo, admin)
+        seccion = make_seccion(formulario, peso=100)
+        make_pregunta(formulario, tipo=Pregunta.Tipo.TEXTO_CORTO, seccion=seccion)
+        r = client.post(f"/api/v1/formularios/{formulario.id}/publicar/")
+        assert r.status_code == 200
+        assert r.data["estado"] == "PUBLICADO"
+
+    def test_publicar_exitoso_sin_preguntas_solo_secciones(self, client, admin, periodo):
+        """Una sección vacía (sin preguntas) no bloquea publicar."""
+        auth_admin(client)
+        formulario = make_formulario(periodo, admin)
+        make_seccion(formulario, peso=100)
+        r = client.post(f"/api/v1/formularios/{formulario.id}/publicar/")
+        assert r.status_code == 200

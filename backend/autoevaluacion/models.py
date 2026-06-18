@@ -1,5 +1,7 @@
 """Modelos del módulo Autoevaluación: form builder + respuestas + scoring + versionado."""
 
+from decimal import Decimal
+
 from django.db import models
 from django.utils import timezone
 
@@ -47,9 +49,39 @@ class Formulario(TimeStampedModel):
     def __str__(self):
         return f"{self.titulo} v{self.version} ({self.get_estado_display()})"
 
+    def _validar_estructura_para_publicar(self):
+        """Verifica que el formulario tenga estructura válida antes de publicar.
+
+        Reglas:
+        1. Al menos una sección definida.
+        2. Suma de pesos de secciones = 100 (tolerancia ±0.01 para decimales).
+        3. Ninguna pregunta fuera de sección.
+        4. Cada sección con peso > 0 debe tener al menos una pregunta puntable.
+        """
+        secciones = list(self.secciones.all())
+        if not secciones:
+            raise ValueError(
+                "Debe definir al menos una sección antes de publicar."
+            )
+
+        suma = sum(s.peso for s in secciones)
+        if abs(suma - Decimal("100")) > Decimal("0.01"):
+            raise ValueError(
+                f"La suma de pesos de las secciones debe ser 100 % "
+                f"(actual: {suma} %). Ajusta los pesos antes de publicar."
+            )
+
+        huerfanas = self.preguntas.filter(seccion__isnull=True).count()
+        if huerfanas:
+            raise ValueError(
+                f"Hay {huerfanas} pregunta(s) sin sección asignada. "
+                "Asígnalas a una sección antes de publicar."
+            )
+
     def publicar(self):
         if self.estado != self.Estado.BORRADOR:
             raise ValueError("Solo se puede publicar un formulario en estado BORRADOR.")
+        self._validar_estructura_para_publicar()
         self.estado = self.Estado.PUBLICADO
         self.published_at = timezone.now()
         self.save(update_fields=["estado", "published_at"])
@@ -101,6 +133,7 @@ class Formulario(TimeStampedModel):
             raise ValueError(
                 "Solo se puede publicar una revisión de un formulario CERRADO."
             )
+        self._validar_estructura_para_publicar()
         self.version += 1
         self.estado = self.Estado.PUBLICADO
         self.published_at = timezone.now()
@@ -114,6 +147,13 @@ class Seccion(models.Model):
     titulo = models.CharField("Título", max_length=255)
     descripcion = models.TextField("Descripción", blank=True)
     orden = models.PositiveSmallIntegerField(default=0)
+    # Peso porcentual de esta sección en el cálculo total (0–100).
+    # La suma de pesos de todas las secciones del formulario debe ser 100
+    # para poder publicar. Default=0 es backward-compatible: los formularios
+    # existentes solo fallan la validación si se intenta republicarlos.
+    peso = models.DecimalField(
+        "Peso (%)", max_digits=5, decimal_places=2, default=0
+    )
 
     class Meta:
         ordering = ["orden"]

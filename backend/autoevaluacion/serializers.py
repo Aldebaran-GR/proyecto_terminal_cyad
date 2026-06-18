@@ -101,17 +101,24 @@ class SeccionSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Seccion
-        fields = ["id", "formulario", "titulo", "descripcion", "orden", "preguntas"]
+        fields = ["id", "formulario", "titulo", "descripcion", "orden", "peso", "preguntas"]
+
+    def validate_peso(self, value):
+        if value < 0 or value > 100:
+            raise serializers.ValidationError(
+                "El peso debe estar entre 0 y 100."
+            )
+        return value
 
 
 class SeccionPublicSerializer(serializers.ModelSerializer):
-    """Sección para el Profesor — preguntas sin puntos."""
+    """Sección para el Profesor — preguntas sin puntos. Incluye peso para transparencia."""
 
     preguntas = PreguntaPublicSerializer(many=True, read_only=True)
 
     class Meta:
         model = Seccion
-        fields = ["id", "formulario", "titulo", "descripcion", "orden", "preguntas"]
+        fields = ["id", "formulario", "titulo", "descripcion", "orden", "peso", "preguntas"]
 
 
 # ---------------------------------------------------------------------------
