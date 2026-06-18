@@ -15,7 +15,9 @@ from rest_framework.response import Response
 
 from core.permissions import IsAdmin, IsProfesor
 
-from .models import Formulario, NivelDesempeno, Pregunta, Respuesta, Seccion
+from django.db import transaction
+
+from .models import Formulario, NivelDesempeno, Pregunta, Respuesta, RespuestaSeccion, Seccion
 from .serializers import (
     FormularioDisponibleSerializer,
     FormularioListSerializer,
@@ -33,23 +35,20 @@ from .serializers import (
 
 
 def _calcular_puntaje(respuesta: Respuesta):
-    """Calcula (puntaje_obtenido, puntaje_maximo) para una respuesta.
+    """Calcula puntaje ponderado por sección para una respuesta.
 
-    Reglas por tipo de pregunta:
-        TEXTO_CORTO / TEXTO_LARGO  → no puntable (se ignora)
-        OPCION_UNICA               → puntos de la opción seleccionada
-                                     máx = opción de mayor puntaje
-        CASILLAS                   → suma de puntos de todas las seleccionadas
-                                     máx = suma de opciones con puntos > 0
-        LISTA_DESPLEGABLE          → igual que OPCION_UNICA
-        ESCALA_LINEAL              → valor × config.puntos_factor
-                                     máx = config.max × puntos_factor
-        SI_NO                      → config.puntos_si o config.puntos_no
-                                     máx = max(puntos_si, puntos_no)
+    Itera las secciones del formulario (en orden), acumula obtenido/maximo por
+    sección y devuelve:
+        {
+          "secciones": [{"seccion_id", "peso", "obtenido", "maximo", "porcentaje"}],
+          "porcentaje_ponderado": Decimal,   # Σ (% sección × peso / 100)
+          "puntaje_obtenido_total": Decimal,
+          "puntaje_maximo_total": Decimal,
+        }
+
+    Las preguntas sin sección no contribuyen al puntaje (no deben existir en
+    formularios publicados por la validación de _validar_estructura_para_publicar).
     """
-    obtenido = Decimal("0")
-    maximo = Decimal("0")
-
     items = list(
         respuesta.items.select_related("pregunta")
         .prefetch_related(
@@ -59,57 +58,97 @@ def _calcular_puntaje(respuesta: Respuesta):
             "celdas__opcion",
         )
     )
+    item_by_pregunta = {item.pregunta_id: item for item in items}
 
-    for item in items:
-        pregunta = item.pregunta
-        tipo = pregunta.tipo
+    secciones = list(
+        respuesta.formulario.secciones
+        .prefetch_related("preguntas__opciones", "preguntas__filas")
+        .order_by("orden")
+    )
 
-        if tipo in Pregunta.TIPOS_NO_PUNTABLES:
-            continue
+    resultado_secciones = []
+    puntaje_obtenido_total = Decimal("0")
+    puntaje_maximo_total = Decimal("0")
 
-        if tipo == Pregunta.Tipo.CUADRICULA:
-            all_opts = list(pregunta.opciones.all())
-            filas = list(pregunta.filas.all())
-            if all_opts and filas:
-                maximo += max(op.puntos for op in all_opts) * len(filas)
-            for celda in item.celdas.all():
-                obtenido += celda.opcion.puntos
-            continue
+    for seccion in secciones:
+        sec_obtenido = Decimal("0")
+        sec_maximo = Decimal("0")
 
-        if tipo == Pregunta.Tipo.ESCALA_LINEAL:
-            cfg = pregunta.config or {}
-            factor = Decimal(str(cfg.get("puntos_factor", 1)))
-            max_val = Decimal(str(cfg.get("max", 5)))
-            maximo += max_val * factor
-            if item.valor_texto:
-                try:
-                    obtenido += Decimal(item.valor_texto) * factor
-                except Exception:
-                    pass
+        for pregunta in seccion.preguntas.all():
+            tipo = pregunta.tipo
+            if tipo in Pregunta.TIPOS_NO_PUNTABLES:
+                continue
 
-        elif tipo == Pregunta.Tipo.SI_NO:
-            cfg = pregunta.config or {}
-            pts_si = Decimal(str(cfg.get("puntos_si", 1)))
-            pts_no = Decimal(str(cfg.get("puntos_no", 0)))
-            maximo += max(pts_si, pts_no)
-            if item.valor_texto == "SI":
-                obtenido += pts_si
-            elif item.valor_texto == "NO":
-                obtenido += pts_no
+            item = item_by_pregunta.get(pregunta.id)
 
-        else:  # OPCION_UNICA, CASILLAS, LISTA_DESPLEGABLE
-            all_opts = list(pregunta.opciones.all())
-            positive_opts = [op for op in all_opts if op.puntos > 0]
+            if tipo == Pregunta.Tipo.CUADRICULA:
+                all_opts = list(pregunta.opciones.all())
+                filas = list(pregunta.filas.all())
+                if all_opts and filas:
+                    sec_maximo += max(op.puntos for op in all_opts) * len(filas)
+                if item:
+                    for celda in item.celdas.all():
+                        sec_obtenido += celda.opcion.puntos
 
-            if tipo == Pregunta.Tipo.CASILLAS:
-                maximo += sum(op.puntos for op in positive_opts)
-            else:
-                maximo += max((op.puntos for op in all_opts), default=Decimal("0"))
+            elif tipo == Pregunta.Tipo.ESCALA_LINEAL:
+                cfg = pregunta.config or {}
+                factor = Decimal(str(cfg.get("puntos_factor", 1)))
+                max_val = Decimal(str(cfg.get("max", 5)))
+                sec_maximo += max_val * factor
+                if item and item.valor_texto:
+                    try:
+                        sec_obtenido += Decimal(item.valor_texto) * factor
+                    except Exception:
+                        pass
 
-            for opcion in item.opciones_seleccionadas.all():
-                obtenido += opcion.puntos
+            elif tipo == Pregunta.Tipo.SI_NO:
+                cfg = pregunta.config or {}
+                pts_si = Decimal(str(cfg.get("puntos_si", 1)))
+                pts_no = Decimal(str(cfg.get("puntos_no", 0)))
+                sec_maximo += max(pts_si, pts_no)
+                if item:
+                    if item.valor_texto == "SI":
+                        sec_obtenido += pts_si
+                    elif item.valor_texto == "NO":
+                        sec_obtenido += pts_no
 
-    return obtenido, maximo
+            else:  # OPCION_UNICA, CASILLAS, LISTA_DESPLEGABLE
+                all_opts = list(pregunta.opciones.all())
+                positive_opts = [op for op in all_opts if op.puntos > 0]
+                if tipo == Pregunta.Tipo.CASILLAS:
+                    sec_maximo += sum(op.puntos for op in positive_opts)
+                else:
+                    sec_maximo += max((op.puntos for op in all_opts), default=Decimal("0"))
+                if item:
+                    for opcion in item.opciones_seleccionadas.all():
+                        sec_obtenido += opcion.puntos
+
+        sec_porcentaje = (
+            round(sec_obtenido / sec_maximo * Decimal("100"), 2)
+            if sec_maximo > 0
+            else Decimal("0")
+        )
+        resultado_secciones.append({
+            "seccion_id": seccion.id,
+            "peso": seccion.peso,
+            "obtenido": sec_obtenido,
+            "maximo": sec_maximo,
+            "porcentaje": sec_porcentaje,
+        })
+        puntaje_obtenido_total += sec_obtenido
+        puntaje_maximo_total += sec_maximo
+
+    porcentaje_ponderado = round(
+        sum(s["porcentaje"] * s["peso"] / Decimal("100") for s in resultado_secciones),
+        2,
+    )
+
+    return {
+        "secciones": resultado_secciones,
+        "porcentaje_ponderado": porcentaje_ponderado,
+        "puntaje_obtenido_total": puntaje_obtenido_total,
+        "puntaje_maximo_total": puntaje_maximo_total,
+    }
 
 
 def _asignar_nivel(formulario: Formulario, porcentaje: Decimal):
@@ -511,6 +550,7 @@ class RespuestaViewSet(viewsets.ModelViewSet):
                 .prefetch_related(
                     "items__opciones_seleccionadas",
                     "items__celdas__opcion",
+                    "secciones_resultado__seccion",
                 )
             )
         except Exception:
@@ -590,27 +630,35 @@ class RespuestaViewSet(viewsets.ModelViewSet):
                 "detail": "Hay preguntas obligatorias sin responder.",
             })
 
-        # — Calcular puntaje —
-        obtenido, maximo = _calcular_puntaje(respuesta)
-        porcentaje = (
-            round(obtenido / maximo * Decimal("100"), 2)
-            if maximo > 0
-            else Decimal("0")
-        )
-        nivel = _asignar_nivel(respuesta.formulario, porcentaje)
+        # — Calcular puntaje ponderado por sección —
+        resultado = _calcular_puntaje(respuesta)
+        porcentaje_ponderado = resultado["porcentaje_ponderado"]
+        nivel = _asignar_nivel(respuesta.formulario, porcentaje_ponderado)
 
-        # — Persistir —
-        respuesta.estado = Respuesta.Estado.ENVIADO
-        respuesta.enviado_at = timezone.now()
-        respuesta.puntaje_obtenido = obtenido
-        respuesta.puntaje_maximo = maximo
-        respuesta.porcentaje = porcentaje
-        respuesta.nivel_desempeno = nivel
-        respuesta.save(update_fields=[
-            "estado", "enviado_at",
-            "puntaje_obtenido", "puntaje_maximo", "porcentaje",
-            "nivel_desempeno",
-        ])
+        # — Persistir en transacción atómica —
+        with transaction.atomic():
+            respuesta.estado = Respuesta.Estado.ENVIADO
+            respuesta.enviado_at = timezone.now()
+            respuesta.puntaje_obtenido = resultado["puntaje_obtenido_total"]
+            respuesta.puntaje_maximo = resultado["puntaje_maximo_total"]
+            respuesta.porcentaje = porcentaje_ponderado
+            respuesta.nivel_desempeno = nivel
+            respuesta.save(update_fields=[
+                "estado", "enviado_at",
+                "puntaje_obtenido", "puntaje_maximo", "porcentaje",
+                "nivel_desempeno",
+            ])
+
+            respuesta.secciones_resultado.all().delete()
+            for sec_data in resultado["secciones"]:
+                RespuestaSeccion.objects.create(
+                    respuesta=respuesta,
+                    seccion_id=sec_data["seccion_id"],
+                    peso=sec_data["peso"],
+                    puntaje_obtenido=sec_data["obtenido"],
+                    puntaje_maximo=sec_data["maximo"],
+                    porcentaje=sec_data["porcentaje"],
+                )
 
         serializer = self.get_serializer(respuesta)
         return Response(serializer.data)

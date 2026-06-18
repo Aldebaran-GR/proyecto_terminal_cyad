@@ -386,3 +386,32 @@ class RespuestaCelda(models.Model):
         unique_together = [["respuesta_pregunta", "fila"]]
         verbose_name = "Celda de respuesta"
         verbose_name_plural = "Celdas de respuesta"
+
+
+class RespuestaSeccion(models.Model):
+    """Snapshot del puntaje por sección al momento de enviar la respuesta.
+
+    El campo `peso` se copia desde `Seccion.peso` para que el desglose histórico
+    sea estable aunque el admin cambie los pesos y republique el formulario.
+    """
+
+    respuesta = models.ForeignKey(
+        Respuesta, on_delete=models.CASCADE, related_name="secciones_resultado"
+    )
+    seccion = models.ForeignKey(
+        Seccion, on_delete=models.PROTECT, related_name="resultados"
+    )
+    peso = models.DecimalField("Peso (%)", max_digits=5, decimal_places=2)
+    puntaje_obtenido = models.DecimalField(max_digits=7, decimal_places=2)
+    puntaje_maximo = models.DecimalField(max_digits=7, decimal_places=2)
+    porcentaje = models.DecimalField(
+        "Porcentaje (%)", max_digits=5, decimal_places=2, default=0
+    )
+
+    class Meta:
+        unique_together = [["respuesta", "seccion"]]
+        verbose_name = "Resultado de sección"
+        verbose_name_plural = "Resultados de sección"
+
+    def __str__(self):
+        return f"{self.seccion.titulo} — {self.porcentaje}%"

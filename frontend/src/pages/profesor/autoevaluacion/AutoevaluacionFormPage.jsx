@@ -35,7 +35,13 @@ const NIVEL_COLORS = {
 
 /* ─── Resultado después de enviar ────────────────────────── */
 function ResultCard({ respuesta }) {
-  const { puntaje_obtenido, puntaje_maximo, porcentaje, nivel_desempeno } = respuesta
+  const {
+    puntaje_obtenido,
+    puntaje_maximo,
+    porcentaje,
+    nivel_desempeno,
+    secciones_resultado = [],
+  } = respuesta
   const colorCls =
     NIVEL_COLORS[nivel_desempeno?.color ?? 'gray'] ?? NIVEL_COLORS.gray
   const pct = porcentaje != null ? Number(porcentaje).toFixed(1) : null
@@ -60,6 +66,33 @@ function ResultCard({ respuesta }) {
         <p className="text-sm text-slate-400">
           No se asignó un nivel de desempeño (el admin puede configurarlos más tarde).
         </p>
+      )}
+
+      {secciones_resultado.length > 0 && (
+        <div className="text-left space-y-2">
+          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+            Desglose por sección
+          </p>
+          <div className="divide-y divide-slate-100 rounded-lg border border-slate-200 overflow-hidden">
+            {secciones_resultado.map((sec) => {
+              const aporte = (Number(sec.porcentaje) * Number(sec.peso) / 100).toFixed(1)
+              return (
+                <div key={sec.seccion} className="flex items-center gap-3 px-3 py-2 text-sm">
+                  <div className="flex-1 min-w-0">
+                    <span className="font-medium text-slate-800">{sec.seccion_titulo}</span>
+                    <span className="ml-2 text-xs text-slate-400">
+                      peso {Number(sec.peso).toFixed(0)}%
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3 shrink-0 text-right">
+                    <span className="text-slate-700">{Number(sec.porcentaje).toFixed(1)}%</span>
+                    <span className="text-slate-400 text-xs">→ {aporte}%</span>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
       )}
 
       <Link to="/profesor/autoevaluacion">

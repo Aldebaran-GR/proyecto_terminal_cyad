@@ -5,12 +5,15 @@ from rest_framework.test import APIClient
 
 from accounts.models import Profesor, Usuario
 from autoevaluacion.models import (
+    FilaCuadricula,
     Formulario,
     NivelDesempeno,
     OpcionPregunta,
     Pregunta,
     Respuesta,
+    RespuestaCelda,
     RespuestaPregunta,
+    RespuestaSeccion,
     Seccion,
 )
 from catalogos.models import Departamento, Periodo
@@ -1454,3 +1457,173 @@ class TestCuadriculaRespuesta:
         assert len(saved_celdas) == 1
         assert saved_celdas[0]["fila"] == filas[0]["id"]
         assert saved_celdas[0]["opcion"] == opciones[2]["id"]
+
+
+# ---------------------------------------------------------------------------
+# Ponderación por sección — RespuestaSeccion y porcentaje_ponderado (PR6)
+# ---------------------------------------------------------------------------
+
+
+class TestPonderacionPorSeccion:
+    """PR6: _calcular_puntaje ponderado, RespuestaSeccion snapshot, secciones_resultado."""
+
+    def _setup_dos_secciones(self, periodo, admin):
+        """
+        Formulario publicado con 2 secciones:
+          - Sec A (peso 70): 1 pregunta OPCION_UNICA, opciones 0/1/2 pts, max=2
+          - Sec B (peso 30): 1 pregunta SI_NO (si=1, no=0), max=1
+
+        Calculo esperado si se responde: SecA=max (100%), SecB=si (100%):
+          porcentaje_ponderado = 100*70/100 + 100*30/100 = 100%
+
+        Si se responde SecA=0 (0%), SecB=no (0%):
+          porcentaje_ponderado = 0
+
+        Si se responde SecA=max (100%), SecB=no (0%):
+          porcentaje_ponderado = 100*70/100 + 0*30/100 = 70%
+        """
+        formulario = make_formulario(periodo, admin)
+        sec_a = make_seccion(formulario, titulo="Sección A", peso=70, orden=1)
+        sec_b = make_seccion(formulario, titulo="Sección B", peso=30, orden=2)
+
+        p_a = Pregunta.objects.create(
+            formulario=formulario, seccion=sec_a,
+            tipo=Pregunta.Tipo.OPCION_UNICA, texto="P-A",
+            obligatoria=True, orden=1,
+        )
+        op_a0 = OpcionPregunta.objects.create(pregunta=p_a, texto="Mal", puntos=0, orden=1)
+        OpcionPregunta.objects.create(pregunta=p_a, texto="Bien", puntos=1, orden=2)
+        op_a_max = OpcionPregunta.objects.create(pregunta=p_a, texto="Excelente", puntos=2, orden=3)
+
+        p_b = Pregunta.objects.create(
+            formulario=formulario, seccion=sec_b,
+            tipo=Pregunta.Tipo.SI_NO, texto="P-B",
+            obligatoria=True, orden=1,
+            config={"puntos_si": 1, "puntos_no": 0},
+        )
+
+        formulario.publicar()
+        return formulario, sec_a, sec_b, p_a, op_a0, op_a_max, p_b
+
+    def test_porcentaje_ponderado_dos_secciones_ambas_maximas(
+        self, client, admin, usuario_prof, profesor, periodo
+    ):
+        """SecA 100% (peso 70) + SecB 100% (peso 30) = 100% ponderado."""
+        formulario, sec_a, sec_b, p_a, op_a0, op_a_max, p_b = self._setup_dos_secciones(periodo, admin)
+        auth_prof(client)
+        cr = client.post(
+            "/api/v1/respuestas/",
+            {
+                "formulario": formulario.id,
+                "items": [
+                    {"pregunta": p_a.id, "opciones_seleccionadas": [op_a_max.id]},
+                    {"pregunta": p_b.id, "valor_texto": "SI"},
+                ],
+            },
+            format="json",
+        )
+        r = client.post(f"/api/v1/respuestas/{cr.data['id']}/enviar/")
+        assert r.status_code == 200, r.data
+        assert float(r.data["porcentaje"]) == 100.0
+        secciones = r.data["secciones_resultado"]
+        assert len(secciones) == 2
+        sec_a_res = next(s for s in secciones if s["seccion_titulo"] == "Sección A")
+        assert float(sec_a_res["peso"]) == 70.0
+        assert float(sec_a_res["porcentaje"]) == 100.0
+        sec_b_res = next(s for s in secciones if s["seccion_titulo"] == "Sección B")
+        assert float(sec_b_res["peso"]) == 30.0
+        assert float(sec_b_res["porcentaje"]) == 100.0
+
+    def test_porcentaje_ponderado_seccion_a_llena_b_cero(
+        self, client, admin, usuario_prof, profesor, periodo
+    ):
+        """SecA 100% (peso 70) + SecB 0% (peso 30) = 70% ponderado."""
+        formulario, sec_a, sec_b, p_a, op_a0, op_a_max, p_b = self._setup_dos_secciones(periodo, admin)
+        auth_prof(client)
+        cr = client.post(
+            "/api/v1/respuestas/",
+            {
+                "formulario": formulario.id,
+                "items": [
+                    {"pregunta": p_a.id, "opciones_seleccionadas": [op_a_max.id]},
+                    {"pregunta": p_b.id, "valor_texto": "NO"},
+                ],
+            },
+            format="json",
+        )
+        r = client.post(f"/api/v1/respuestas/{cr.data['id']}/enviar/")
+        assert r.status_code == 200, r.data
+        assert float(r.data["porcentaje"]) == 70.0
+        secciones = r.data["secciones_resultado"]
+        sec_a_res = next(s for s in secciones if s["seccion_titulo"] == "Sección A")
+        assert float(sec_a_res["porcentaje"]) == 100.0
+        sec_b_res = next(s for s in secciones if s["seccion_titulo"] == "Sección B")
+        assert float(sec_b_res["porcentaje"]) == 0.0
+
+    def test_respuesta_seccion_snapshot_peso(
+        self, client, admin, usuario_prof, profesor, periodo
+    ):
+        """RespuestaSeccion guarda snapshot del peso en la BD."""
+        formulario, sec_a, sec_b, p_a, op_a0, op_a_max, p_b = self._setup_dos_secciones(periodo, admin)
+        auth_prof(client)
+        cr = client.post(
+            "/api/v1/respuestas/",
+            {
+                "formulario": formulario.id,
+                "items": [
+                    {"pregunta": p_a.id, "opciones_seleccionadas": [op_a_max.id]},
+                    {"pregunta": p_b.id, "valor_texto": "SI"},
+                ],
+            },
+            format="json",
+        )
+        client.post(f"/api/v1/respuestas/{cr.data['id']}/enviar/")
+
+        resp_a = RespuestaSeccion.objects.get(respuesta_id=cr.data["id"], seccion=sec_a)
+        resp_b = RespuestaSeccion.objects.get(respuesta_id=cr.data["id"], seccion=sec_b)
+        assert float(resp_a.peso) == 70.0
+        assert float(resp_b.peso) == 30.0
+
+    def test_seccion_sin_respuesta_da_cero(
+        self, client, admin, usuario_prof, profesor, periodo
+    ):
+        """Si el profesor no responde preguntas de una sección, porcentaje_seccion = 0."""
+        formulario = make_formulario(periodo, admin)
+        sec_a = make_seccion(formulario, titulo="Sección A", peso=70, orden=1)
+        sec_b = make_seccion(formulario, titulo="Sección B", peso=30, orden=2)
+
+        # Solo preguntas en sec_a; sec_b tiene preguntas de texto (no puntables)
+        p_a = Pregunta.objects.create(
+            formulario=formulario, seccion=sec_a,
+            tipo=Pregunta.Tipo.OPCION_UNICA, texto="P-A",
+            obligatoria=True, orden=1,
+        )
+        op_max = OpcionPregunta.objects.create(pregunta=p_a, texto="Max", puntos=2, orden=1)
+
+        p_b_texto = Pregunta.objects.create(
+            formulario=formulario, seccion=sec_b,
+            tipo=Pregunta.Tipo.TEXTO_CORTO, texto="P-B texto",
+            obligatoria=True, orden=1,
+        )
+
+        formulario.publicar()
+        auth_prof(client)
+        cr = client.post(
+            "/api/v1/respuestas/",
+            {
+                "formulario": formulario.id,
+                "items": [
+                    {"pregunta": p_a.id, "opciones_seleccionadas": [op_max.id]},
+                    {"pregunta": p_b_texto.id, "valor_texto": "Texto libre"},
+                ],
+            },
+            format="json",
+        )
+        r = client.post(f"/api/v1/respuestas/{cr.data['id']}/enviar/")
+        assert r.status_code == 200, r.data
+        # SecA: 100% × 70/100 = 70; SecB: 0 puntable → 0% × 30/100 = 0 → total = 70
+        assert float(r.data["porcentaje"]) == 70.0
+        secciones = r.data["secciones_resultado"]
+        sec_b_res = next(s for s in secciones if s["seccion_titulo"] == "Sección B")
+        assert float(sec_b_res["puntaje_maximo"]) == 0.0
+        assert float(sec_b_res["porcentaje"]) == 0.0

@@ -13,6 +13,7 @@ from .models import (
     Respuesta,
     RespuestaCelda,
     RespuestaPregunta,
+    RespuestaSeccion,
     Seccion,
 )
 
@@ -442,6 +443,21 @@ class RespuestaCeldaSerializer(serializers.ModelSerializer):
         fields = ["fila", "opcion"]
 
 
+class RespuestaSeccionSerializer(serializers.ModelSerializer):
+    seccion_titulo = serializers.CharField(source="seccion.titulo", read_only=True)
+
+    class Meta:
+        model = RespuestaSeccion
+        fields = [
+            "seccion",
+            "seccion_titulo",
+            "peso",
+            "puntaje_obtenido",
+            "puntaje_maximo",
+            "porcentaje",
+        ]
+
+
 class RespuestaPreguntaSerializer(serializers.ModelSerializer):
     opciones_seleccionadas = serializers.PrimaryKeyRelatedField(
         many=True,
@@ -462,6 +478,7 @@ class RespuestaSerializer(serializers.ModelSerializer):
         source="profesor.nombre_completo", read_only=True
     )
     nivel_desempeno = NivelDesempenoResumenSerializer(read_only=True)
+    secciones_resultado = RespuestaSeccionSerializer(many=True, read_only=True)
 
     class Meta:
         model = Respuesta
@@ -478,6 +495,7 @@ class RespuestaSerializer(serializers.ModelSerializer):
             "puntaje_maximo",
             "porcentaje",
             "nivel_desempeno",
+            "secciones_resultado",
             "items",
             "created_at",
             "updated_at",
@@ -492,6 +510,7 @@ class RespuestaSerializer(serializers.ModelSerializer):
             "puntaje_maximo",
             "porcentaje",
             "nivel_desempeno",
+            "secciones_resultado",
             "created_at",
             "updated_at",
         ]
