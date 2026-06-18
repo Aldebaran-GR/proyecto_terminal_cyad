@@ -49,6 +49,9 @@ export const createPregunta = (data) =>
 export const updatePregunta = (id, data) =>
   client.put(`/preguntas/${id}/`, data)
 
+export const patchPregunta = (id, data) =>
+  client.patch(`/preguntas/${id}/`, data)
+
 export const deletePregunta = (id) =>
   client.delete(`/preguntas/${id}/`)
 
