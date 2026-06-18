@@ -671,6 +671,36 @@ export default function FormularioBuilderPage() {
                 </div>
               </div>
 
+              {stats.por_seccion?.length > 0 && (
+                <div>
+                  <h3 className="text-sm font-semibold text-slate-700 mb-3">Por sección</h3>
+                  <div className="space-y-3">
+                    {stats.por_seccion.map((sec) => (
+                      <div key={sec.seccion_id} className="rounded-xl border border-slate-200 bg-white p-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <div>
+                            <span className="text-sm font-medium text-slate-800">{sec.titulo}</span>
+                            <span className="ml-2 text-xs text-slate-400">peso {sec.peso.toFixed(0)}%</span>
+                          </div>
+                          <span className="text-sm font-semibold text-indigo-600">
+                            {sec.promedio_porcentaje != null ? `${sec.promedio_porcentaje}%` : '—'}
+                          </span>
+                        </div>
+                        <div className="w-full bg-slate-100 rounded-full h-3 overflow-hidden">
+                          <div
+                            className="h-full bg-indigo-400 rounded-full transition-all"
+                            style={{ width: sec.promedio_porcentaje != null ? `${sec.promedio_porcentaje}%` : '0%' }}
+                          />
+                        </div>
+                        {sec.total_con_datos > 0 && (
+                          <p className="text-xs text-slate-400 mt-1">{sec.total_con_datos} respuesta(s)</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {stats.distribucion_niveles?.length > 0 && (
                 <div>
                   <h3 className="text-sm font-semibold text-slate-700 mb-3">Distribución por nivel</h3>

@@ -1627,3 +1627,170 @@ class TestPonderacionPorSeccion:
         sec_b_res = next(s for s in secciones if s["seccion_titulo"] == "Sección B")
         assert float(sec_b_res["puntaje_maximo"]) == 0.0
         assert float(sec_b_res["porcentaje"]) == 0.0
+
+
+# ---------------------------------------------------------------------------
+# Estadísticas por sección — endpoint /estadisticas/ (PR7)
+# ---------------------------------------------------------------------------
+
+
+class TestEstadisticasPorSeccion:
+    """PR7: por_seccion en payload de estadísticas."""
+
+    def _setup(self, periodo, admin):
+        """
+        Formulario con 2 secciones (peso 60/40) y una pregunta OPCION_UNICA por sección.
+          Sec A (peso 60): opciones 0/2 pts
+          Sec B (peso 40): opciones 0/4 pts
+        """
+        formulario = make_formulario(periodo, admin)
+        sec_a = make_seccion(formulario, titulo="Sec A", peso=60, orden=1)
+        sec_b = make_seccion(formulario, titulo="Sec B", peso=40, orden=2)
+
+        p_a = Pregunta.objects.create(
+            formulario=formulario, seccion=sec_a,
+            tipo=Pregunta.Tipo.OPCION_UNICA, texto="P-A",
+            obligatoria=True, orden=1,
+        )
+        op_a0 = OpcionPregunta.objects.create(pregunta=p_a, texto="Mal", puntos=0, orden=1)
+        op_a_max = OpcionPregunta.objects.create(pregunta=p_a, texto="Max", puntos=2, orden=2)
+
+        p_b = Pregunta.objects.create(
+            formulario=formulario, seccion=sec_b,
+            tipo=Pregunta.Tipo.OPCION_UNICA, texto="P-B",
+            obligatoria=True, orden=1,
+        )
+        op_b0 = OpcionPregunta.objects.create(pregunta=p_b, texto="Mal", puntos=0, orden=1)
+        op_b_max = OpcionPregunta.objects.create(pregunta=p_b, texto="Max", puntos=4, orden=2)
+
+        formulario.publicar()
+        return formulario, sec_a, sec_b, p_a, op_a0, op_a_max, p_b, op_b0, op_b_max
+
+    def test_por_seccion_en_payload(self, client, admin, periodo):
+        """El endpoint siempre incluye la clave por_seccion."""
+        auth_admin(client)
+        formulario = make_formulario(periodo, admin)
+        make_seccion(formulario, titulo="General", peso=100)
+        r = client.get(f"/api/v1/formularios/{formulario.id}/estadisticas/")
+        assert r.status_code == 200
+        assert "por_seccion" in r.data
+        assert isinstance(r.data["por_seccion"], list)
+        assert len(r.data["por_seccion"]) == 1
+        assert r.data["por_seccion"][0]["titulo"] == "General"
+        assert r.data["por_seccion"][0]["promedio_porcentaje"] is None  # sin respuestas
+
+    def test_promedio_por_seccion_un_profesor(
+        self, client, admin, usuario_prof, profesor, periodo
+    ):
+        """Con una respuesta enviada, el promedio coincide con el porcentaje obtenido."""
+        (formulario, sec_a, sec_b,
+         p_a, op_a0, op_a_max, p_b, op_b0, op_b_max) = self._setup(periodo, admin)
+
+        auth_prof(client)
+        cr = client.post(
+            "/api/v1/respuestas/",
+            {
+                "formulario": formulario.id,
+                "items": [
+                    {"pregunta": p_a.id, "opciones_seleccionadas": [op_a_max.id]},  # 100%
+                    {"pregunta": p_b.id, "opciones_seleccionadas": [op_b0.id]},     # 0%
+                ],
+            },
+            format="json",
+        )
+        client.post(f"/api/v1/respuestas/{cr.data['id']}/enviar/")
+
+        auth_admin(client)
+        r = client.get(f"/api/v1/formularios/{formulario.id}/estadisticas/")
+        assert r.status_code == 200
+        por_seccion = r.data["por_seccion"]
+        sec_a_stat = next(s for s in por_seccion if s["titulo"] == "Sec A")
+        sec_b_stat = next(s for s in por_seccion if s["titulo"] == "Sec B")
+        assert sec_a_stat["promedio_porcentaje"] == 100.0
+        assert sec_b_stat["promedio_porcentaje"] == 0.0
+        assert sec_a_stat["total_con_datos"] == 1
+        assert sec_b_stat["total_con_datos"] == 1
+
+    def test_promedio_por_seccion_varios_profesores(
+        self, client, admin, usuario_prof, profesor, periodo
+    ):
+        """Promedio de SecA: (100 + 0) / 2 = 50."""
+        (formulario, sec_a, sec_b,
+         p_a, op_a0, op_a_max, p_b, op_b0, op_b_max) = self._setup(periodo, admin)
+        from accounts.models import Usuario as U
+
+        for i, (a_op, b_op) in enumerate([(op_a_max, op_b_max), (op_a0, op_b0)]):
+            u = U.objects.create_user(
+                email=f"pstat7_{i}@uam.mx", nombre=f"P7-{i}", password="P1234!",
+                rol=U.Rol.PROFESOR,
+            )
+            p = Profesor.objects.create(
+                usuario=u, nombre_completo=f"P7-{i}",
+                correo_institucional=f"pstat7_{i}@inst.mx",
+                departamento=profesor.departamento,
+            )
+            c = APIClient()
+            r_login = c.post(
+                "/api/v1/auth/login/",
+                {"email": f"pstat7_{i}@uam.mx", "password": "P1234!"},
+                format="json",
+            )
+            c.credentials(HTTP_AUTHORIZATION=f"Bearer {r_login.data['access']}")
+            cr = c.post(
+                "/api/v1/respuestas/",
+                {
+                    "formulario": formulario.id,
+                    "items": [
+                        {"pregunta": p_a.id, "opciones_seleccionadas": [a_op.id]},
+                        {"pregunta": p_b.id, "opciones_seleccionadas": [b_op.id]},
+                    ],
+                },
+                format="json",
+            )
+            c.post(f"/api/v1/respuestas/{cr.data['id']}/enviar/")
+
+        auth_admin(client)
+        r = client.get(f"/api/v1/formularios/{formulario.id}/estadisticas/")
+        por_seccion = r.data["por_seccion"]
+        sec_a_stat = next(s for s in por_seccion if s["titulo"] == "Sec A")
+        # Prof 1: SecA 100%, Prof 2: SecA 0% → promedio 50%
+        assert sec_a_stat["promedio_porcentaje"] == 50.0
+        assert sec_a_stat["total_con_datos"] == 2
+
+    def test_estadisticas_por_seccion_filtra_version(
+        self, client, admin, usuario_prof, profesor, periodo
+    ):
+        """por_seccion respeta el filtro de version — respuestas de v1 no aparecen en v2."""
+        (formulario, sec_a, sec_b,
+         p_a, op_a0, op_a_max, p_b, op_b0, op_b_max) = self._setup(periodo, admin)
+
+        # Responde v1
+        auth_prof(client)
+        cr = client.post(
+            "/api/v1/respuestas/",
+            {
+                "formulario": formulario.id,
+                "items": [
+                    {"pregunta": p_a.id, "opciones_seleccionadas": [op_a_max.id]},
+                    {"pregunta": p_b.id, "opciones_seleccionadas": [op_b_max.id]},
+                ],
+            },
+            format="json",
+        )
+        client.post(f"/api/v1/respuestas/{cr.data['id']}/enviar/")
+
+        # Admin publica v2
+        auth_admin(client)
+        client.post(f"/api/v1/formularios/{formulario.id}/cerrar/")
+        client.post(f"/api/v1/formularios/{formulario.id}/publicar-revision/")
+
+        # Sin ?version → v2 → sin datos
+        r = client.get(f"/api/v1/formularios/{formulario.id}/estadisticas/")
+        assert r.data["version"] == 2
+        sec_a_v2 = next(s for s in r.data["por_seccion"] if s["titulo"] == "Sec A")
+        assert sec_a_v2["promedio_porcentaje"] is None
+
+        # Con ?version=1 → ve los datos de v1
+        r2 = client.get(f"/api/v1/formularios/{formulario.id}/estadisticas/?version=1")
+        sec_a_v1 = next(s for s in r2.data["por_seccion"] if s["titulo"] == "Sec A")
+        assert sec_a_v1["promedio_porcentaje"] == 100.0

@@ -3,7 +3,7 @@
 from decimal import Decimal
 
 from django.db import IntegrityError
-from django.db.models import ProtectedError, Q
+from django.db.models import Avg, ProtectedError, Q
 from django.utils import timezone
 
 from django_filters.rest_framework import DjangoFilterBackend
@@ -376,6 +376,26 @@ class FormularioViewSet(viewsets.ModelViewSet):
             if puntajes else None
         )
 
+        # — Promedio por sección (agrega RespuestaSeccion de la versión actual) —
+        por_seccion = []
+        for seccion in formulario.secciones.order_by("orden"):
+            rs_qs = RespuestaSeccion.objects.filter(
+                respuesta__formulario=formulario,
+                respuesta__estado=Respuesta.Estado.ENVIADO,
+                respuesta__version_formulario=version,
+                seccion=seccion,
+            )
+            promedio_sec = rs_qs.aggregate(avg=Avg("porcentaje"))["avg"]
+            por_seccion.append({
+                "seccion_id": seccion.id,
+                "titulo": seccion.titulo,
+                "peso": float(seccion.peso),
+                "promedio_porcentaje": (
+                    round(float(promedio_sec), 2) if promedio_sec is not None else None
+                ),
+                "total_con_datos": rs_qs.count(),
+            })
+
         return Response({
             "formulario_id": formulario.id,
             "titulo": formulario.titulo,
@@ -384,6 +404,7 @@ class FormularioViewSet(viewsets.ModelViewSet):
             "promedio_porcentaje": promedio_general,
             "distribucion_niveles": distribucion_niveles,
             "sin_nivel_asignado": sin_nivel,
+            "por_seccion": por_seccion,
             "preguntas": resultados,
         })
 
