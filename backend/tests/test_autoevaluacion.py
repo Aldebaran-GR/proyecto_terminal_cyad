@@ -1794,3 +1794,251 @@ class TestEstadisticasPorSeccion:
         r2 = client.get(f"/api/v1/formularios/{formulario.id}/estadisticas/?version=1")
         sec_a_v1 = next(s for s in r2.data["por_seccion"] if s["titulo"] == "Sec A")
         assert sec_a_v1["promedio_porcentaje"] == 100.0
+
+
+# ---------------------------------------------------------------------------
+# Edición de CUADRICULA con respuestas previas (PR8-A)
+# ---------------------------------------------------------------------------
+
+
+class TestEdicionConRespuestasPrevias:
+    """Modificar opciones/filas de CUADRICULA cuando ya existen RespuestaCelda."""
+
+    def _setup(self, periodo, admin, usuario_prof, profesor):
+        """
+        Crea formulario BORRADOR con CUADRICULA (3 filas × 3 opciones),
+        lo publica, el profesor envía respuesta con 'Alto' en todas las filas,
+        luego lo despublica → queda en BORRADOR editable.
+
+        Retorna (formulario, pregunta_data) donde pregunta_data tiene .id,
+        .filas y .opciones con sus IDs.
+        """
+        formulario = make_formulario(periodo, admin)
+        seccion = make_seccion(formulario, peso=100)
+        ac = APIClient()
+        auth_admin(ac)
+        pr = ac.post(
+            "/api/v1/preguntas/",
+            {
+                "formulario": formulario.id,
+                "seccion": seccion.id,
+                "tipo": "CUADRICULA",
+                "texto": "Evalúa cada aspecto",
+                "obligatoria": True,
+                "orden": 1,
+                "filas": [
+                    {"texto": "Puntualidad", "orden": 1},
+                    {"texto": "Dominio", "orden": 2},
+                    {"texto": "Claridad", "orden": 3},
+                ],
+                "opciones": [
+                    {"texto": "Bajo", "puntos": 0, "orden": 1},
+                    {"texto": "Medio", "puntos": 1, "orden": 2},
+                    {"texto": "Alto", "puntos": 2, "orden": 3},
+                ],
+            },
+            format="json",
+        )
+        assert pr.status_code == 201, pr.data
+        pregunta_data = pr.data
+
+        # Publica
+        formulario.publicar()
+
+        # Profesor responde con 'Alto' en todas las filas
+        pc = APIClient()
+        auth_prof(pc)
+        filas = pregunta_data["filas"]
+        alto_id = pregunta_data["opciones"][2]["id"]
+        celdas = [{"fila": f["id"], "opcion": alto_id} for f in filas]
+        cr = pc.post(
+            "/api/v1/respuestas/",
+            {"formulario": formulario.id, "items": [{"pregunta": pregunta_data["id"], "celdas": celdas}]},
+            format="json",
+        )
+        assert cr.status_code == 201, cr.data
+        er = pc.post(f"/api/v1/respuestas/{cr.data['id']}/enviar/")
+        assert er.status_code == 200, er.data
+
+        # Admin despublica → BORRADOR
+        formulario.despublicar()
+
+        return formulario, pregunta_data
+
+    def test_modificar_opcion_cuadricula_con_respuestas_no_500(
+        self, client, admin, usuario_prof, profesor, periodo
+    ):
+        """PATCH con id en opciones/filas existentes → 200, sin ProtectedError."""
+        formulario, pd = self._setup(periodo, admin, usuario_prof, profesor)
+        auth_admin(client)
+        opciones_payload = [
+            {"id": op["id"], "texto": op["texto"], "valor": "", "puntos": float(op["puntos"]) + 1, "orden": op["orden"]}
+            for op in pd["opciones"]
+        ]
+        filas_payload = [
+            {"id": f["id"], "texto": f["texto"], "orden": f["orden"]}
+            for f in pd["filas"]
+        ]
+        r = client.patch(
+            f"/api/v1/preguntas/{pd['id']}/",
+            {"tipo": "CUADRICULA", "texto": pd["texto"], "opciones": opciones_payload, "filas": filas_payload},
+            format="json",
+        )
+        assert r.status_code == 200, r.data
+        # Los puntos se actualizaron
+        puntos_actualizados = [float(op["puntos"]) for op in r.data["opciones"]]
+        assert puntos_actualizados == [1.0, 2.0, 3.0]
+
+    def test_agregar_opcion_cuadricula_con_respuestas(
+        self, client, admin, usuario_prof, profesor, periodo
+    ):
+        """Añadir una nueva opción (sin id) al payload → 200; count = 4."""
+        formulario, pd = self._setup(periodo, admin, usuario_prof, profesor)
+        auth_admin(client)
+        opciones_payload = [
+            {"id": op["id"], "texto": op["texto"], "valor": "", "puntos": op["puntos"], "orden": op["orden"]}
+            for op in pd["opciones"]
+        ] + [{"texto": "Muy Alto", "valor": "", "puntos": 3, "orden": 4}]
+        filas_payload = [
+            {"id": f["id"], "texto": f["texto"], "orden": f["orden"]}
+            for f in pd["filas"]
+        ]
+        r = client.patch(
+            f"/api/v1/preguntas/{pd['id']}/",
+            {"tipo": "CUADRICULA", "texto": pd["texto"], "opciones": opciones_payload, "filas": filas_payload},
+            format="json",
+        )
+        assert r.status_code == 200, r.data
+        assert len(r.data["opciones"]) == 4
+
+    def test_quitar_opcion_referenciada_se_preserva(
+        self, client, admin, usuario_prof, profesor, periodo
+    ):
+        """
+        Opción 'Alto' (referenciada por RespuestaCelda) omitida del payload → preservada.
+        Opción 'Medio' (no referenciada) omitida → eliminada.
+        """
+        formulario, pd = self._setup(periodo, admin, usuario_prof, profesor)
+        auth_admin(client)
+        bajo_id = pd["opciones"][0]["id"]
+        alto_id = pd["opciones"][2]["id"]
+
+        # Solo mandamos 'Bajo' (con id); omitimos 'Medio' y 'Alto'
+        opciones_payload = [
+            {"id": bajo_id, "texto": "Bajo", "valor": "", "puntos": 0, "orden": 1}
+        ]
+        filas_payload = [
+            {"id": f["id"], "texto": f["texto"], "orden": f["orden"]}
+            for f in pd["filas"]
+        ]
+        r = client.patch(
+            f"/api/v1/preguntas/{pd['id']}/",
+            {"tipo": "CUADRICULA", "texto": pd["texto"], "opciones": opciones_payload, "filas": filas_payload},
+            format="json",
+        )
+        assert r.status_code == 200, r.data
+        opciones_ids = {op["id"] for op in r.data["opciones"]}
+        # 'Alto' se preservó (referenciada), 'Medio' se borró
+        assert alto_id in opciones_ids
+        assert bajo_id in opciones_ids
+        assert len(opciones_ids) == 2
+
+    def test_modificar_fila_cuadricula_con_respuestas(
+        self, client, admin, usuario_prof, profesor, periodo
+    ):
+        """PATCH cambiando texto de fila existente (con id) → 200, sin ProtectedError."""
+        formulario, pd = self._setup(periodo, admin, usuario_prof, profesor)
+        auth_admin(client)
+        filas_payload = [
+            {"id": f["id"], "texto": f"Fila modificada {f['orden']}", "orden": f["orden"]}
+            for f in pd["filas"]
+        ]
+        opciones_payload = [
+            {"id": op["id"], "texto": op["texto"], "valor": "", "puntos": op["puntos"], "orden": op["orden"]}
+            for op in pd["opciones"]
+        ]
+        r = client.patch(
+            f"/api/v1/preguntas/{pd['id']}/",
+            {"tipo": "CUADRICULA", "texto": pd["texto"], "filas": filas_payload, "opciones": opciones_payload},
+            format="json",
+        )
+        assert r.status_code == 200, r.data
+        assert r.data["filas"][0]["texto"] == "Fila modificada 1"
+
+
+# ---------------------------------------------------------------------------
+# Versionado al republicar con respuestas previas (PR8-B)
+# ---------------------------------------------------------------------------
+
+
+class TestVersionadoAlPublicarConRespuestas:
+    """publicar() incrementa versión si ya hay respuestas en esa versión."""
+
+    def _make_formulario_con_respuesta(self, periodo, admin, profesor, usuario_prof):
+        """Formulario v1 publicado con 1 respuesta enviada. Devuelve formulario."""
+        formulario = make_formulario(periodo, admin)
+        seccion = make_seccion(formulario, peso=100)
+        pregunta = make_pregunta(formulario, tipo=Pregunta.Tipo.TEXTO_CORTO, seccion=seccion)
+        formulario.publicar()
+
+        pc = APIClient()
+        auth_prof(pc)
+        cr = pc.post(
+            "/api/v1/respuestas/",
+            {"formulario": formulario.id, "items": [{"pregunta": pregunta.id, "valor_texto": "ok"}]},
+            format="json",
+        )
+        pc.post(f"/api/v1/respuestas/{cr.data['id']}/enviar/")
+
+        formulario.despublicar()
+        formulario.refresh_from_db()
+        return formulario
+
+    def test_publicar_incrementa_version_si_hay_respuestas_previas(
+        self, client, admin, usuario_prof, profesor, periodo
+    ):
+        formulario = self._make_formulario_con_respuesta(periodo, admin, profesor, usuario_prof)
+        assert formulario.version == 1
+        auth_admin(client)
+        r = client.post(f"/api/v1/formularios/{formulario.id}/publicar/")
+        assert r.status_code == 200, r.data
+        assert r.data["version"] == 2
+        formulario.refresh_from_db()
+        assert formulario.version == 2
+
+    def test_publicar_no_incrementa_sin_respuestas(
+        self, client, admin, periodo
+    ):
+        formulario = make_formulario(periodo, admin)
+        make_seccion(formulario, peso=100)
+        auth_admin(client)
+        # Primera publicación sin respuestas
+        r = client.post(f"/api/v1/formularios/{formulario.id}/publicar/")
+        assert r.status_code == 200
+        assert r.data["version"] == 1
+        # Despublica y republica sin que nadie haya respondido
+        formulario.refresh_from_db()
+        formulario.despublicar()
+        r2 = client.post(f"/api/v1/formularios/{formulario.id}/publicar/")
+        assert r2.status_code == 200
+        assert r2.data["version"] == 1
+
+    def test_profesor_ve_pendiente_tras_republicar_editado(
+        self, client, admin, usuario_prof, profesor, periodo
+    ):
+        """Tras el incremento de versión, el profesor ve ya_respondido=false."""
+        formulario = self._make_formulario_con_respuesta(periodo, admin, profesor, usuario_prof)
+        # Admin republica → sube a v2
+        auth_admin(client)
+        client.post(f"/api/v1/formularios/{formulario.id}/publicar/")
+
+        # Profesor consulta formularios disponibles
+        auth_prof(client)
+        r = client.get("/api/v1/formularios-disponibles/")
+        assert r.status_code == 200
+        resultados = r.data["results"]
+        form_data = next((f for f in resultados if f["id"] == formulario.id), None)
+        assert form_data is not None
+        assert form_data["version"] == 2
+        assert form_data["ya_respondido"] is False
+        assert form_data["respuesta_id"] is None

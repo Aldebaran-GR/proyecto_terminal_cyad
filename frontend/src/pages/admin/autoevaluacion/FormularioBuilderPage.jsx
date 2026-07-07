@@ -307,6 +307,7 @@ export default function FormularioBuilderPage() {
   const qc = useQueryClient()
   const [tab, setTab] = useState('preguntas')
   const [apiError, setApiError] = useState(null)
+  const [versionAlert, setVersionAlert] = useState(null)
 
   // Pregunta
   const [qModal, setQModal] = useState(false)
@@ -346,7 +347,12 @@ export default function FormularioBuilderPage() {
   /* ── Acciones de estado ── */
   const pubMut = useMutation({
     mutationFn: () => publicarFormulario(id),
-    onSuccess: invalidateAll,
+    onSuccess: (r) => {
+      invalidateAll()
+      if (r.data?.version != null && r.data.version > (formulario?.version ?? 1)) {
+        setVersionAlert(`Publicado como versión ${r.data.version}. Los profesores que respondieron la versión anterior verán este formulario como pendiente.`)
+      }
+    },
     onError: (e) => {
       const d = e.response?.data || {}
       setApiError(d.detail || d.non_field_errors?.[0] || 'Error al publicar.')
@@ -408,9 +414,11 @@ export default function FormularioBuilderPage() {
         orden: Number(q.orden) || 1, config: q.config || {},
         seccion: q.seccion || null,
         opciones: (q.opciones || []).map((op, i) => ({
+          ...(op.id != null ? { id: op.id } : {}),
           texto: op.texto, valor: op.valor || '', puntos: Number(op.puntos) || 0, orden: i + 1,
         })),
         filas: (q.filas || []).map((f, i) => ({
+          ...(f.id != null ? { id: f.id } : {}),
           texto: f.texto, orden: i + 1,
         })),
       }
@@ -517,6 +525,7 @@ export default function FormularioBuilderPage() {
       </div>
 
       {apiError && <Alert type="error" onClose={() => setApiError(null)}>{apiError}</Alert>}
+      {versionAlert && <Alert type="success" onClose={() => setVersionAlert(null)}>{versionAlert}</Alert>}
 
       {formulario?.descripcion && <p className="text-sm text-slate-500">{formulario.descripcion}</p>}
       <div className="flex gap-6 text-sm text-slate-500">

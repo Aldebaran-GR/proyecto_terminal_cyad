@@ -82,9 +82,13 @@ class Formulario(TimeStampedModel):
         if self.estado != self.Estado.BORRADOR:
             raise ValueError("Solo se puede publicar un formulario en estado BORRADOR.")
         self._validar_estructura_para_publicar()
+        fields = ["estado", "published_at"]
+        if self.respuestas.filter(version_formulario=self.version).exists():
+            self.version += 1
+            fields.append("version")
         self.estado = self.Estado.PUBLICADO
         self.published_at = timezone.now()
-        self.save(update_fields=["estado", "published_at"])
+        self.save(update_fields=fields)
 
     def cerrar(self):
         if self.estado != self.Estado.PUBLICADO:

@@ -471,7 +471,14 @@ class PreguntaViewSet(viewsets.ModelViewSet):
 
     def perform_update(self, serializer):
         self._check_formulario_editable(serializer.instance.formulario)
-        serializer.save()
+        try:
+            serializer.save()
+        except ProtectedError:
+            raise ValidationError({
+                "non_field_errors": [
+                    "No se pueden eliminar opciones o filas referenciadas por respuestas existentes."
+                ]
+            })
 
     def perform_destroy(self, instance):
         self._check_formulario_editable(instance.formulario)

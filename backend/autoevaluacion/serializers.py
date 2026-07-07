@@ -29,6 +29,7 @@ class OpcionPreguntaSerializer(serializers.ModelSerializer):
     class Meta:
         model = OpcionPregunta
         fields = ["id", "texto", "valor", "puntos", "orden"]
+        extra_kwargs = {"id": {"read_only": False, "required": False}}
 
 
 class OpcionPreguntaPublicSerializer(serializers.ModelSerializer):
@@ -43,6 +44,7 @@ class FilaCuadriculaSerializer(serializers.ModelSerializer):
     class Meta:
         model = FilaCuadricula
         fields = ["id", "texto", "orden"]
+        extra_kwargs = {"id": {"read_only": False, "required": False}}
 
 
 class PreguntaSerializer(serializers.ModelSerializer):
@@ -81,14 +83,42 @@ class PreguntaSerializer(serializers.ModelSerializer):
         return attrs
 
     def _save_opciones(self, pregunta, opciones_data):
-        pregunta.opciones.all().delete()
-        for op in opciones_data:
-            OpcionPregunta.objects.create(pregunta=pregunta, **op)
+        current = {op.id: op for op in pregunta.opciones.all()}
+        seen_ids = set()
+        for op_data in opciones_data:
+            op_id = op_data.pop("id", None)
+            if op_id and op_id in current:
+                op = current[op_id]
+                for attr, val in op_data.items():
+                    setattr(op, attr, val)
+                op.save()
+                seen_ids.add(op_id)
+            else:
+                new_op = OpcionPregunta.objects.create(pregunta=pregunta, **op_data)
+                seen_ids.add(new_op.id)
+        for op_id, op in current.items():
+            if op_id not in seen_ids:
+                if not RespuestaCelda.objects.filter(opcion=op).exists():
+                    op.delete()
 
     def _save_filas(self, pregunta, filas_data):
-        pregunta.filas.all().delete()
-        for fila in filas_data:
-            FilaCuadricula.objects.create(pregunta=pregunta, **fila)
+        current = {f.id: f for f in pregunta.filas.all()}
+        seen_ids = set()
+        for fila_data in filas_data:
+            fila_id = fila_data.pop("id", None)
+            if fila_id and fila_id in current:
+                fila = current[fila_id]
+                for attr, val in fila_data.items():
+                    setattr(fila, attr, val)
+                fila.save()
+                seen_ids.add(fila_id)
+            else:
+                new_fila = FilaCuadricula.objects.create(pregunta=pregunta, **fila_data)
+                seen_ids.add(new_fila.id)
+        for fila_id, fila in current.items():
+            if fila_id not in seen_ids:
+                if not RespuestaCelda.objects.filter(fila=fila).exists():
+                    fila.delete()
 
     def create(self, validated_data):
         opciones_data = validated_data.pop("opciones", [])
