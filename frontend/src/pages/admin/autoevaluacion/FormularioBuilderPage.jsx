@@ -253,15 +253,33 @@ function PreguntaRow({ p, idx, secciones, editable, onEdit, onDelete, onMover })
 /* ─── SeccionCard ─────────────────────────────────────────── */
 function SeccionCard({ s, editable, secciones, onEdit, onDelete, onAddPregunta, onEditPregunta, onDeletePregunta, onMoverPregunta, onUpdatePeso }) {
   const [localPeso, setLocalPeso] = useState(String(s.peso ?? '0'))
+  const [collapsed, setCollapsed] = useState(false)
   useEffect(() => { setLocalPeso(String(s.peso ?? '0')) }, [s.peso])
 
   return (
     <div className="rounded-xl border border-slate-200 bg-white">
       {/* Header de la sección */}
       <div className="flex items-center gap-3 p-4 border-b border-slate-100">
+        <button
+          type="button"
+          onClick={() => setCollapsed((v) => !v)}
+          className="shrink-0 text-slate-400 hover:text-slate-600 transition-transform"
+          title={collapsed ? 'Desplegar sección' : 'Colapsar sección'}
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            className={`h-4 w-4 transition-transform duration-200 ${collapsed ? '-rotate-90' : ''}`}
+            viewBox="0 0 20 20" fill="currentColor"
+          >
+            <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.17l3.71-3.94a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clipRule="evenodd" />
+          </svg>
+        </button>
         <div className="flex-1 min-w-0">
           <p className="font-semibold text-slate-800">{s.titulo}</p>
           {s.descripcion && <p className="text-xs text-slate-500 mt-0.5">{s.descripcion}</p>}
+          {collapsed && (
+            <p className="text-xs text-slate-400 mt-0.5">{s.preguntas.length} pregunta(s)</p>
+          )}
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <span className="text-xs text-slate-500">Peso:</span>
@@ -284,26 +302,28 @@ function SeccionCard({ s, editable, secciones, onEdit, onDelete, onAddPregunta, 
       </div>
 
       {/* Preguntas de la sección */}
-      <div className="p-4 space-y-2">
-        {s.preguntas.length === 0 && (
-          <p className="text-xs text-slate-400 italic">Sin preguntas en esta sección.</p>
-        )}
-        {s.preguntas.map((p, idx) => (
-          <PreguntaRow
-            key={p.id} p={p} idx={idx} secciones={secciones} editable={editable}
-            onEdit={onEditPregunta}
-            onDelete={onDeletePregunta}
-            onMover={onMoverPregunta}
-          />
-        ))}
-        {editable && (
-          <div className="pt-1">
-            <Button size="sm" variant="secondary" onClick={() => onAddPregunta(s.id)}>
-              + Añadir pregunta
-            </Button>
-          </div>
-        )}
-      </div>
+      {!collapsed && (
+        <div className="p-4 space-y-2">
+          {s.preguntas.length === 0 && (
+            <p className="text-xs text-slate-400 italic">Sin preguntas en esta sección.</p>
+          )}
+          {s.preguntas.map((p, idx) => (
+            <PreguntaRow
+              key={p.id} p={p} idx={idx} secciones={secciones} editable={editable}
+              onEdit={onEditPregunta}
+              onDelete={onDeletePregunta}
+              onMover={onMoverPregunta}
+            />
+          ))}
+          {editable && (
+            <div className="pt-1">
+              <Button size="sm" variant="secondary" onClick={() => onAddPregunta(s.id)}>
+                + Añadir pregunta
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }
