@@ -277,6 +277,24 @@ class FormularioSerializer(serializers.ModelSerializer):
             "updated_at",
         ]
 
+    def validate(self, attrs):
+        nuevo_periodo = attrs.get("periodo")
+        if (
+            self.instance is not None
+            and nuevo_periodo is not None
+            and nuevo_periodo != self.instance.periodo
+            and self.instance.respuestas.filter(
+                estado=Respuesta.Estado.ENVIADO
+            ).exists()
+        ):
+            raise serializers.ValidationError({
+                "periodo": [
+                    "No se puede cambiar el periodo de un formulario con respuestas "
+                    "enviadas. Usa 'Duplicar en otro periodo' para crear una copia."
+                ]
+            })
+        return attrs
+
     def get_total_respuestas(self, obj):
         return obj.respuestas.filter(
             estado=Respuesta.Estado.ENVIADO,

@@ -17,7 +17,18 @@ from core.permissions import IsAdmin, IsProfesor
 
 from django.db import transaction
 
-from .models import Formulario, NivelDesempeno, Pregunta, Respuesta, RespuestaSeccion, Seccion
+from catalogos.models import Periodo
+
+from .models import (
+    FilaCuadricula,
+    Formulario,
+    NivelDesempeno,
+    OpcionPregunta,
+    Pregunta,
+    Respuesta,
+    RespuestaSeccion,
+    Seccion,
+)
 from .serializers import (
     FormularioDisponibleSerializer,
     FormularioListSerializer,
@@ -284,6 +295,86 @@ class FormularioViewSet(viewsets.ModelViewSet):
             "estado": formulario.estado,
             "version": formulario.version,
         })
+
+    @action(detail=True, methods=["post"])
+    def duplicar(self, request, pk=None):
+        """Clona el formulario (estructura completa, sin respuestas) en otro periodo.
+
+        Copia secciones, preguntas (con opciones/filas/config) y niveles de
+        desempeño hacia un nuevo Formulario en estado BORRADOR y versión 1.
+        No copia respuestas — el original permanece intacto para preservar
+        el historial de profesores que ya respondieron.
+        """
+        original = self.get_object()
+        periodo_id = request.data.get("periodo")
+        titulo = (request.data.get("titulo") or "").strip()
+        if not titulo:
+            titulo = f"{original.titulo} (copia)"
+
+        try:
+            periodo = Periodo.objects.get(pk=periodo_id)
+        except (Periodo.DoesNotExist, ValueError, TypeError):
+            raise ValidationError({"periodo": ["Periodo no válido."]})
+        self._validar_periodo_habilitado(periodo)
+
+        with transaction.atomic():
+            nuevo = Formulario.objects.create(
+                titulo=titulo,
+                descripcion=original.descripcion,
+                periodo=periodo,
+                estado=Formulario.Estado.BORRADOR,
+                version=1,
+                una_respuesta_por_profesor=original.una_respuesta_por_profesor,
+                created_by=request.user,
+            )
+            for nivel in original.niveles.all():
+                NivelDesempeno.objects.create(
+                    formulario=nuevo,
+                    nombre=nivel.nombre,
+                    porcentaje_min=nivel.porcentaje_min,
+                    porcentaje_max=nivel.porcentaje_max,
+                    observacion=nivel.observacion,
+                    color=nivel.color,
+                    orden=nivel.orden,
+                )
+            seccion_map = {}
+            for seccion in original.secciones.order_by("orden"):
+                nueva_seccion = Seccion.objects.create(
+                    formulario=nuevo,
+                    titulo=seccion.titulo,
+                    descripcion=seccion.descripcion,
+                    orden=seccion.orden,
+                    peso=seccion.peso,
+                )
+                seccion_map[seccion.id] = nueva_seccion
+            for pregunta in original.preguntas.order_by("orden"):
+                nueva_pregunta = Pregunta.objects.create(
+                    formulario=nuevo,
+                    seccion=seccion_map.get(pregunta.seccion_id),
+                    tipo=pregunta.tipo,
+                    texto=pregunta.texto,
+                    ayuda=pregunta.ayuda,
+                    obligatoria=pregunta.obligatoria,
+                    orden=pregunta.orden,
+                    config=pregunta.config,
+                )
+                for opcion in pregunta.opciones.order_by("orden"):
+                    OpcionPregunta.objects.create(
+                        pregunta=nueva_pregunta,
+                        texto=opcion.texto,
+                        valor=opcion.valor,
+                        puntos=opcion.puntos,
+                        orden=opcion.orden,
+                    )
+                for fila in pregunta.filas.order_by("orden"):
+                    FilaCuadricula.objects.create(
+                        pregunta=nueva_pregunta,
+                        texto=fila.texto,
+                        orden=fila.orden,
+                    )
+
+        serializer = FormularioSerializer(nuevo, context={"request": request})
+        return Response(serializer.data, status=201)
 
     @action(detail=True, methods=["get"])
     def respuestas(self, request, pk=None):
