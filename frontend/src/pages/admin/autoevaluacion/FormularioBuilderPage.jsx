@@ -33,7 +33,13 @@ const TIPOS = [
   { value: 'TEXTO_LARGO',       label: 'Texto largo' },
 ]
 const TIPOS_CON_OPCIONES = ['OPCION_UNICA', 'CASILLAS', 'LISTA_DESPLEGABLE']
-const NIVEL_COLORES = ['green', 'blue', 'yellow', 'red', 'gray']
+const NIVEL_COLORES = [
+  { value: 'green', label: 'Verde' },
+  { value: 'blue', label: 'Azul' },
+  { value: 'yellow', label: 'Amarillo' },
+  { value: 'red', label: 'Rojo' },
+  { value: 'gray', label: 'Gris' },
+]
 
 const emptyPregunta = (orden = 1, seccion = null) => ({
   tipo: 'OPCION_UNICA', texto: '', ayuda: '', obligatoria: true, orden,
@@ -814,7 +820,7 @@ export default function FormularioBuilderPage() {
             </FormField>
             <FormField label="Color">
               <select value={nForm.color} onChange={(e) => setNForm((p) => ({ ...p, color: e.target.value }))} className={inputCls}>
-                {NIVEL_COLORES.map((c) => <option key={c} value={c}>{c}</option>)}
+                {NIVEL_COLORES.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
               </select>
             </FormField>
             <FormField label="% mínimo" required>
