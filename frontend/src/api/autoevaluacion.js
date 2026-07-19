@@ -33,6 +33,10 @@ export const reabrirFormulario = (id) =>
 export const publicarRevisionFormulario = (id) =>
   client.post(`/formularios/${id}/publicar-revision/`)
 
+// Clona el formulario (estructura completa, sin respuestas) en otro periodo.
+export const duplicarFormulario = (id, data) =>
+  client.post(`/formularios/${id}/duplicar/`, data)
+
 export const getFormularioRespuestas = (id) =>
   client.get(`/formularios/${id}/respuestas/`)
 

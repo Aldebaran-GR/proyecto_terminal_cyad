@@ -4,16 +4,17 @@
  * Tabs: Preguntas | Niveles | Estadísticas
  */
 import { useState, useEffect } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
-  getFormulario,
+  getFormulario, updateFormulario, duplicarFormulario,
   publicarFormulario, despublicarFormulario, reabrirFormulario,
   createPregunta, updatePregunta, patchPregunta, deletePregunta,
   createSeccion, updateSeccion, deleteSeccion,
   getNivelesDesempeno, createNivelDesempeno, updateNivelDesempeno, deleteNivelDesempeno,
   getFormularioEstadisticas,
 } from '../../../api/autoevaluacion'
+import { getPeriodos } from '../../../api/catalogos'
 import Button from '../../../components/ui/Button'
 import Badge from '../../../components/ui/Badge'
 import Alert from '../../../components/ui/Alert'
@@ -310,6 +311,7 @@ function SeccionCard({ s, editable, secciones, onEdit, onDelete, onAddPregunta, 
 /* ─── Página principal ─────────────────────────────────────── */
 export default function FormularioBuilderPage() {
   const { id } = useParams()
+  const navigate = useNavigate()
   const qc = useQueryClient()
   const [tab, setTab] = useState('preguntas')
   const [apiError, setApiError] = useState(null)
@@ -329,6 +331,14 @@ export default function FormularioBuilderPage() {
   const [editingN, setEditingN] = useState(null)
   const [nForm, setNForm] = useState(emptyNivel())
 
+  // Metadatos (título / descripción / periodo)
+  const [metaModal, setMetaModal] = useState(false)
+  const [metaForm, setMetaForm] = useState({ titulo: '', descripcion: '', periodo: '' })
+
+  // Duplicar en otro periodo
+  const [dupModal, setDupModal] = useState(false)
+  const [dupForm, setDupForm] = useState({ titulo: '', periodo: '' })
+
   /* ── Datos ── */
   const { data: formulario, isLoading } = useQuery({
     queryKey: ['formulario', id],
@@ -343,6 +353,13 @@ export default function FormularioBuilderPage() {
     queryFn: () => getFormularioEstadisticas(id).then((r) => r.data),
     enabled: tab === 'estadisticas',
   })
+  const { data: periodos = [] } = useQuery({
+    queryKey: ['periodos'],
+    queryFn: () => getPeriodos().then((r) => r.data?.results ?? r.data ?? []),
+  })
+  const periodosElegibles = periodos.filter(
+    (p) => p.activo_autoevaluacion && p.estado !== false,
+  )
 
   const invalidateFormulario = () => qc.invalidateQueries({ queryKey: ['formulario', id] })
   const invalidateAll = () => {
@@ -373,6 +390,41 @@ export default function FormularioBuilderPage() {
     mutationFn: () => reabrirFormulario(id),
     onSuccess: invalidateAll,
     onError: (e) => setApiError(e.response?.data?.detail || 'Error al reabrir.'),
+  })
+
+  /* ── Metadatos del formulario ── */
+  const updateMetaMut = useMutation({
+    mutationFn: (payload) => updateFormulario(id, payload),
+    onSuccess: () => { invalidateAll(); setMetaModal(false) },
+    onError: (e) => {
+      const d = e.response?.data || {}
+      setApiError(
+        d.periodo?.[0]
+        || d.titulo?.[0]
+        || d.detail
+        || d.non_field_errors?.[0]
+        || 'Error al guardar los datos del formulario.'
+      )
+    },
+  })
+
+  /* ── Duplicar en otro periodo ── */
+  const duplicarMut = useMutation({
+    mutationFn: (payload) => duplicarFormulario(id, payload),
+    onSuccess: (r) => {
+      invalidateAll()
+      setDupModal(false)
+      if (r?.data?.id) navigate(`/admin/autoevaluacion/${r.data.id}`)
+    },
+    onError: (e) => {
+      const d = e.response?.data || {}
+      setApiError(
+        d.periodo?.[0]
+        || d.detail
+        || d.non_field_errors?.[0]
+        || 'Error al duplicar el formulario.'
+      )
+    },
   })
 
   /* ── Secciones ── */
@@ -503,6 +555,31 @@ export default function FormularioBuilderPage() {
           <Link to={`/admin/autoevaluacion/${id}/preview`}>
             <Button variant="secondary">Vista previa</Button>
           </Link>
+          <Button
+            variant="secondary"
+            onClick={() => {
+              setMetaForm({
+                titulo: formulario?.titulo ?? '',
+                descripcion: formulario?.descripcion ?? '',
+                periodo: String(formulario?.periodo ?? ''),
+              })
+              setMetaModal(true)
+            }}
+          >
+            Editar datos
+          </Button>
+          <Button
+            variant="secondary"
+            onClick={() => {
+              setDupForm({
+                titulo: `${formulario?.titulo ?? ''} (copia)`,
+                periodo: '',
+              })
+              setDupModal(true)
+            }}
+          >
+            Duplicar en otro periodo
+          </Button>
           {isBorrador && (
             <Button onClick={() => pubMut.mutate()} loading={pubMut.isPending}
               title="Publicar para que sea visible y abierto a respuestas">
@@ -801,6 +878,112 @@ export default function FormularioBuilderPage() {
                 onChange={(e) => setSForm((p) => ({ ...p, peso: e.target.value }))} className={inputCls + ' w-32'} />
             </FormField>
           )}
+        </div>
+      </Modal>
+
+      {/* ── Modal Editar datos ── */}
+      <Modal open={metaModal} onClose={() => setMetaModal(false)}
+        title="Editar datos del formulario"
+        footer={<>
+          <Button variant="secondary" onClick={() => setMetaModal(false)}>Cancelar</Button>
+          <Button loading={updateMetaMut.isPending}
+            disabled={!metaForm.titulo?.trim() || !metaForm.periodo}
+            onClick={() => updateMetaMut.mutate({
+              titulo: metaForm.titulo.trim(),
+              descripcion: metaForm.descripcion ?? '',
+              periodo: Number(metaForm.periodo),
+            })}>
+            Guardar
+          </Button>
+        </>}>
+        {(() => {
+          const totalRespuestas = formulario?.total_respuestas ?? 0
+          const conRespuestas = totalRespuestas > 0
+          return (
+            <div className="space-y-4">
+              {conRespuestas && (
+                <Alert type="info">
+                  Este formulario tiene {totalRespuestas} respuesta(s) enviada(s).
+                  El periodo no se puede cambiar; usa "Duplicar en otro periodo"
+                  para crear una copia sin mover el historial.
+                </Alert>
+              )}
+              <FormField label="Título" required>
+                <input value={metaForm.titulo}
+                  onChange={(e) => setMetaForm((p) => ({ ...p, titulo: e.target.value }))}
+                  className={inputCls} placeholder="Título del formulario" />
+              </FormField>
+              <FormField label="Descripción">
+                <textarea value={metaForm.descripcion}
+                  onChange={(e) => setMetaForm((p) => ({ ...p, descripcion: e.target.value }))}
+                  rows={3} className={inputCls}
+                  placeholder="Descripción opcional que verá el profesor" />
+              </FormField>
+              <FormField label="Periodo" required
+                hint={conRespuestas
+                  ? "Bloqueado porque hay respuestas enviadas."
+                  : "Solo se listan los periodos habilitados para autoevaluación."}>
+                <select value={metaForm.periodo}
+                  onChange={(e) => setMetaForm((p) => ({ ...p, periodo: e.target.value }))}
+                  className={inputCls}
+                  disabled={conRespuestas}>
+                  <option value="">-- Selecciona --</option>
+                  {periodosElegibles.map((p) => (
+                    <option key={p.id} value={p.id}>{p.clave}</option>
+                  ))}
+                  {/* Incluir el periodo actual aunque no esté en elegibles, para mostrarlo */}
+                  {formulario?.periodo != null
+                    && !periodosElegibles.some((p) => p.id === formulario.periodo)
+                    && (
+                      <option value={formulario.periodo}>
+                        {formulario.periodo_clave} (actual)
+                      </option>
+                    )}
+                </select>
+              </FormField>
+            </div>
+          )
+        })()}
+      </Modal>
+
+      {/* ── Modal Duplicar en otro periodo ── */}
+      <Modal open={dupModal} onClose={() => setDupModal(false)}
+        title="Duplicar en otro periodo"
+        footer={<>
+          <Button variant="secondary" onClick={() => setDupModal(false)}>Cancelar</Button>
+          <Button loading={duplicarMut.isPending}
+            disabled={!dupForm.titulo?.trim() || !dupForm.periodo}
+            onClick={() => duplicarMut.mutate({
+              titulo: dupForm.titulo.trim(),
+              periodo: Number(dupForm.periodo),
+            })}>
+            Duplicar
+          </Button>
+        </>}>
+        <div className="space-y-4">
+          <p className="text-sm text-slate-600">
+            Se creará un nuevo formulario en <strong>BORRADOR</strong> con la
+            misma estructura (secciones, preguntas y niveles). Las respuestas
+            del formulario original no se copiarán.
+          </p>
+          <FormField label="Título del nuevo formulario" required>
+            <input value={dupForm.titulo}
+              onChange={(e) => setDupForm((p) => ({ ...p, titulo: e.target.value }))}
+              className={inputCls} placeholder="ej. Autoevaluación Docente 26-O" />
+          </FormField>
+          <FormField label="Periodo destino" required
+            hint="Solo se listan los periodos habilitados para autoevaluación.">
+            <select value={dupForm.periodo}
+              onChange={(e) => setDupForm((p) => ({ ...p, periodo: e.target.value }))}
+              className={inputCls}>
+              <option value="">-- Selecciona --</option>
+              {periodosElegibles
+                .filter((p) => p.id !== formulario?.periodo)
+                .map((p) => (
+                  <option key={p.id} value={p.id}>{p.clave}</option>
+                ))}
+            </select>
+          </FormField>
         </div>
       </Modal>
 

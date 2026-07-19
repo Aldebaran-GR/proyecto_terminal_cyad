@@ -14,6 +14,7 @@ import {
   createFormulario,
   deleteFormulario,
   despublicarFormulario,
+  duplicarFormulario,
 } from '../../../api/autoevaluacion'
 import { getPeriodos } from '../../../api/catalogos'
 import Button from '../../../components/ui/Button'
@@ -29,6 +30,8 @@ export default function AutoevaluacionAdminPage() {
   const [apiError, setApiError] = useState(null)
   const [createModal, setCreateModal] = useState(false)
   const [newForm, setNewForm] = useState({ titulo: '', descripcion: '', periodo: '' })
+  const [dupModal, setDupModal] = useState(null)
+  const [dupForm, setDupForm] = useState({ titulo: '', periodo: '' })
 
   // Polling cada 15 s para reflejar respuestas que profesores envían en vivo,
   // sin obligar al admin a recargar.
@@ -88,6 +91,29 @@ export default function AutoevaluacionAdminPage() {
     onError: (e) => setApiError(e.response?.data?.detail || 'No se pudo abrir el editor.'),
   })
 
+  const dupMut = useMutation({
+    mutationFn: ({ id, payload }) => duplicarFormulario(id, payload),
+    onSuccess: (r) => {
+      invalidate()
+      setDupModal(null)
+      if (r?.data?.id) navigate(`/admin/autoevaluacion/${r.data.id}`)
+    },
+    onError: (e) => {
+      const d = e.response?.data || {}
+      setApiError(
+        d.periodo?.[0]
+        || d.detail
+        || d.non_field_errors?.[0]
+        || 'Error al duplicar el formulario.'
+      )
+    },
+  })
+
+  const openDupModal = (row) => {
+    setDupModal(row)
+    setDupForm({ titulo: `${row.titulo} (copia)`, periodo: '' })
+  }
+
   const deleteMut = useMutation({
     mutationFn: async (row) => {
       if (needsDespublicar(row)) {
@@ -145,7 +171,7 @@ export default function AutoevaluacionAdminPage() {
     { key: 'total_preguntas', label: 'Preguntas', className: 'w-24 text-center' },
     { key: 'total_respuestas', label: 'Respuestas', className: 'w-24 text-center' },
     {
-      key: 'actions', label: '', className: 'w-64 text-right',
+      key: 'actions', label: '', className: 'w-80 text-right',
       render: (_, row) => (
         <div className="flex justify-end gap-2">
           <Link to={`/admin/autoevaluacion/${row.id}/preview`}>
@@ -158,6 +184,14 @@ export default function AutoevaluacionAdminPage() {
             onClick={() => onEditClick(row)}
           >
             Editar
+          </Button>
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={() => openDupModal(row)}
+            title="Crear una copia en otro periodo"
+          >
+            Duplicar
           </Button>
           <Button
             size="sm"
@@ -230,6 +264,49 @@ export default function AutoevaluacionAdminPage() {
           <p className="text-xs text-slate-400">
             Después de crearlo entrarás al editor de preguntas. Cuando esté listo, lo podrás publicar.
           </p>
+        </div>
+      </Modal>
+
+      <Modal open={!!dupModal} onClose={() => setDupModal(null)}
+        title={dupModal ? `Duplicar "${dupModal.titulo}" en otro periodo` : ''}
+        footer={<>
+          <Button variant="secondary" onClick={() => setDupModal(null)}>Cancelar</Button>
+          <Button
+            loading={dupMut.isPending}
+            disabled={!dupForm.titulo?.trim() || !dupForm.periodo}
+            onClick={() => dupMut.mutate({
+              id: dupModal.id,
+              payload: {
+                titulo: dupForm.titulo.trim(),
+                periodo: Number(dupForm.periodo),
+              },
+            })}
+          >
+            Duplicar
+          </Button>
+        </>}>
+        <div className="space-y-4">
+          <p className="text-sm text-slate-600">
+            Se creará un nuevo formulario en <strong>BORRADOR</strong> con la misma
+            estructura (secciones, preguntas y niveles). Las respuestas del
+            original no se copiarán.
+          </p>
+          <FormField label="Título del nuevo formulario" required>
+            <input value={dupForm.titulo}
+              onChange={(e) => setDupForm((p) => ({ ...p, titulo: e.target.value }))}
+              className={inputCls} placeholder="ej. Autoevaluación Docente 26-O" />
+          </FormField>
+          <FormField label="Periodo destino" required
+            hint="Solo se listan los periodos habilitados para autoevaluación.">
+            <select value={dupForm.periodo}
+              onChange={(e) => setDupForm((p) => ({ ...p, periodo: e.target.value }))}
+              className={inputCls}>
+              <option value="">-- Selecciona --</option>
+              {periodosElegibles
+                .filter((p) => p.id !== dupModal?.periodo)
+                .map((p) => <option key={p.id} value={p.id}>{p.clave}</option>)}
+            </select>
+          </FormField>
         </div>
       </Modal>
     </div>
