@@ -6,7 +6,7 @@ import Alert from '../../components/ui/Alert'
 import Badge from '../../components/ui/Badge'
 import { useAuth } from '../../auth/AuthContext'
 
-function StatCard({ label, value, sub, color = 'indigo' }) {
+function StatCard({ label, value, sub, color = 'indigo', periodo }) {
   const colors = {
     indigo: 'bg-indigo-50 text-indigo-700',
     emerald: 'bg-emerald-50 text-emerald-700',
@@ -16,7 +16,10 @@ function StatCard({ label, value, sub, color = 'indigo' }) {
   }
   return (
     <div className="rounded-xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
-      <p className="text-sm text-slate-500">{label}</p>
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-slate-500">{label}</p>
+        {periodo && <span className="text-xs font-medium text-indigo-600">{periodo.clave}</span>}
+      </div>
       <p className={`mt-1 text-3xl font-bold ${colors[color]}`}>{value}</p>
       {sub && <p className="mt-1 text-xs text-slate-400">{sub}</p>}
     </div>
@@ -46,11 +49,13 @@ function PctBar({ value = 0, color = 'emerald' }) {
   )
 }
 
-// Bloque de un documento (Cartas o Requisitos): conteos por estado + cumplimiento
-// por departamento. No se muestra porcentaje de cumplimiento — un profesor puede
-// tener varios documentos (uno por UEA), así que "profesores con doc / total" no
-// representa un cumplimiento real; solo se listan los conteos.
-function CumplimientoDocCard({ titulo, periodo, isLoading, data, cumplLoading, cumplData, campoConteo }) {
+// Bloque de un documento (Cartas o Requisitos): cumplimiento por departamento.
+// No se muestra porcentaje de cumplimiento — un profesor puede tener varios
+// documentos (uno por UEA), así que "profesores con doc / total" no
+// representa un cumplimiento real; solo se listan los conteos. Los conteos
+// generales (total/borrador/publicado) ya se muestran en las StatCards de
+// arriba, así que aquí no se repiten.
+function CumplimientoDocCard({ titulo, periodo, cumplLoading, cumplData, campoConteo }) {
   const porDepartamento = cumplData?.por_departamento ?? []
 
   return (
@@ -68,23 +73,8 @@ function CumplimientoDocCard({ titulo, periodo, isLoading, data, cumplLoading, c
         <p className="text-xs text-slate-400">
           No hay periodo activo para este recurso.
         </p>
-      ) : isLoading ? (
-        <Loading text="Cargando…" />
       ) : (
         <>
-          <div className="grid grid-cols-3 gap-3 text-center mb-5">
-            {[
-              { k: 'total', label: 'Total', cls: 'text-slate-700' },
-              { k: 'borrador', label: 'Borrador', cls: 'text-slate-500' },
-              { k: 'publicado', label: 'Publicado', cls: 'text-emerald-600' },
-            ].map(({ k, label, cls }) => (
-              <div key={k}>
-                <p className={`text-2xl font-bold ${cls}`}>{data?.[k] ?? 0}</p>
-                <p className="text-xs text-slate-400">{label}</p>
-              </div>
-            ))}
-          </div>
-
           <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
             Cumplimiento por departamento
           </h4>
@@ -198,17 +188,17 @@ export default function AdminDashboardPage() {
   const periodoRequisitos = activos?.requisitos ?? null
   const periodoAE = activos?.autoevaluacion ?? null
 
-  const { data: dashCartas, isLoading: loadCartas } = useQuery({
+  const { data: dashCartas } = useQuery({
     queryKey: ['dashboard', 'cartas', periodoCartas?.id],
     queryFn: () => getDashboard({ periodo: periodoCartas.id }).then((r) => r.data),
     enabled: !!periodoCartas,
   })
-  const { data: dashRequisitos, isLoading: loadRequisitos } = useQuery({
+  const { data: dashRequisitos } = useQuery({
     queryKey: ['dashboard', 'requisitos', periodoRequisitos?.id],
     queryFn: () => getDashboard({ periodo: periodoRequisitos.id }).then((r) => r.data),
     enabled: !!periodoRequisitos,
   })
-  const { data: dashAE, isLoading: loadAE } = useQuery({
+  const { data: dashAE } = useQuery({
     queryKey: ['dashboard', 'autoevaluacion', periodoAE?.id],
     queryFn: () => getDashboard({ periodo: periodoAE.id }).then((r) => r.data),
     enabled: !!periodoAE,
@@ -260,30 +250,32 @@ export default function AdminDashboardPage() {
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
         <StatCard label="Profesores activos" value={totalProfesores} color="indigo" />
         <StatCard
-          label="Respuestas enviadas"
-          value={dashAE?.autoevaluacion?.respuestas_enviadas ?? 0}
+          label="Cartas temáticas"
+          value={dashCartas?.cartas_tematicas?.publicado ?? 0}
+          sub="Publicadas"
+          color="slate"
+          periodo={periodoCartas}
+        />
+        <StatCard
+          label="Requisitos"
+          value={dashRequisitos?.requisitos_recuperacion?.publicado ?? 0}
+          sub="Publicados"
           color="emerald"
+          periodo={periodoRequisitos}
         />
         <StatCard
           label="Formularios publicados"
           value={dashAE?.autoevaluacion?.formularios?.publicado ?? 0}
           color="amber"
-        />
-        <StatCard
-          label="Cartas publicadas"
-          value={dashCartas?.cartas_tematicas?.publicado ?? 0}
-          color="slate"
-          sub={`de ${dashCartas?.cartas_tematicas?.total ?? 0} total`}
+          periodo={periodoAE}
         />
       </div>
 
-      {/* Cartas y Requisitos: conteos + cumplimiento por departamento */}
+      {/* Cartas y Requisitos: cumplimiento por departamento */}
       <div className="grid gap-4 lg:grid-cols-2">
         <CumplimientoDocCard
           titulo="Cartas Temáticas"
           periodo={periodoCartas}
-          isLoading={loadCartas}
-          data={dashCartas?.cartas_tematicas}
           cumplLoading={loadCumplCartas}
           cumplData={cumplCartas}
           campoConteo="con_carta_publicada"
@@ -291,8 +283,6 @@ export default function AdminDashboardPage() {
         <CumplimientoDocCard
           titulo="Requisitos de Recuperación"
           periodo={periodoRequisitos}
-          isLoading={loadRequisitos}
-          data={dashRequisitos?.requisitos_recuperacion}
           cumplLoading={loadCumplRequisitos}
           cumplData={cumplRequisitos}
           campoConteo="con_requisito_publicado"
