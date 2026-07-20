@@ -1,8 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
-import { getDashboard } from '../../api/reportes'
+import { getDashboard, getCumplimiento, getResumenAutoevaluacion } from '../../api/reportes'
 import { getPeriodosActivos } from '../../api/catalogos'
 import Loading from '../../components/ui/Loading'
 import Alert from '../../components/ui/Alert'
+import Badge from '../../components/ui/Badge'
 import { useAuth } from '../../auth/AuthContext'
 
 function StatCard({ label, value, sub, color = 'indigo' }) {
@@ -22,10 +23,36 @@ function StatCard({ label, value, sub, color = 'indigo' }) {
   )
 }
 
-// Bloque de métricas de un recurso (Cartas, Requisitos o Autoevaluación),
-// cada uno consultado con el periodo activo propio de ese recurso — pueden
-// ser 3 periodos distintos simultáneamente.
-function RecursoCard({ titulo, periodo, isLoading, data }) {
+function PctBar({ value = 0, color = 'emerald' }) {
+  const colors = {
+    indigo: 'bg-indigo-500',
+    emerald: 'bg-emerald-500',
+    amber: 'bg-amber-400',
+    rose: 'bg-rose-500',
+  }
+  const pct = Math.min(100, Math.max(0, value ?? 0))
+  return (
+    <div className="flex items-center gap-2">
+      <div className="flex-1 bg-slate-100 rounded-full h-2 overflow-hidden">
+        <div
+          className={`h-full rounded-full transition-all ${colors[color] ?? colors.emerald}`}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+      <span className="text-xs font-medium text-slate-600 w-10 text-right">
+        {pct.toFixed(0)}%
+      </span>
+    </div>
+  )
+}
+
+// Bloque de un documento (Cartas o Requisitos): conteos por estado + cumplimiento
+// por departamento. No se muestra porcentaje de cumplimiento — un profesor puede
+// tener varios documentos (uno por UEA), así que "profesores con doc / total" no
+// representa un cumplimiento real; solo se listan los conteos.
+function CumplimientoDocCard({ titulo, periodo, isLoading, data, cumplLoading, cumplData, campoConteo }) {
+  const porDepartamento = cumplData?.por_departamento ?? []
+
   return (
     <div className="rounded-xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
       <div className="mb-3 flex items-center justify-between">
@@ -36,6 +63,7 @@ function RecursoCard({ titulo, periodo, isLoading, data }) {
           <span className="text-xs text-slate-400">Sin periodo activo</span>
         )}
       </div>
+
       {!periodo ? (
         <p className="text-xs text-slate-400">
           No hay periodo activo para este recurso.
@@ -43,15 +71,112 @@ function RecursoCard({ titulo, periodo, isLoading, data }) {
       ) : isLoading ? (
         <Loading text="Cargando…" />
       ) : (
-        <div className="grid grid-cols-3 gap-3 text-center">
-          {[
-            { k: 'total', label: 'Total', cls: 'text-slate-700' },
-            { k: 'borrador', label: 'Borrador', cls: 'text-slate-500' },
-            { k: 'publicado', label: 'Publicado', cls: 'text-emerald-600' },
-          ].map(({ k, label, cls }) => (
-            <div key={k}>
-              <p className={`text-2xl font-bold ${cls}`}>{data?.[k] ?? 0}</p>
-              <p className="text-xs text-slate-400">{label}</p>
+        <>
+          <div className="grid grid-cols-3 gap-3 text-center mb-5">
+            {[
+              { k: 'total', label: 'Total', cls: 'text-slate-700' },
+              { k: 'borrador', label: 'Borrador', cls: 'text-slate-500' },
+              { k: 'publicado', label: 'Publicado', cls: 'text-emerald-600' },
+            ].map(({ k, label, cls }) => (
+              <div key={k}>
+                <p className={`text-2xl font-bold ${cls}`}>{data?.[k] ?? 0}</p>
+                <p className="text-xs text-slate-400">{label}</p>
+              </div>
+            ))}
+          </div>
+
+          <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+            Cumplimiento por departamento
+          </h4>
+          {cumplLoading ? (
+            <Loading text="Cargando…" />
+          ) : (
+            <div className="overflow-x-auto rounded-lg border border-slate-200">
+              <table className="w-full text-sm">
+                <thead className="bg-slate-50 text-xs font-semibold text-slate-500 uppercase">
+                  <tr>
+                    <th className="px-3 py-2 text-left">Departamento</th>
+                    <th className="px-3 py-2 text-right">Profesores</th>
+                    <th className="px-3 py-2 text-right">{titulo === 'Cartas Temáticas' ? 'Carta' : 'Requisito'}</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 bg-white">
+                  {porDepartamento.length === 0 && (
+                    <tr>
+                      <td colSpan={3} className="px-3 py-6 text-center text-slate-400 text-sm">
+                        Sin datos de cumplimiento para este periodo.
+                      </td>
+                    </tr>
+                  )}
+                  {porDepartamento.map((d) => (
+                    <tr key={d.departamento_id} className="hover:bg-slate-50">
+                      <td className="px-3 py-2 font-medium text-slate-800">
+                        <span className="text-xs text-slate-400 mr-1">{d.clave}</span>
+                        {d.nombre}
+                      </td>
+                      <td className="px-3 py-2 text-right text-slate-600">
+                        {d[campoConteo]}/{d.total_profesores}
+                      </td>
+                      <td className="px-3 py-2 text-right text-slate-600">{d[campoConteo]}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  )
+}
+
+// Bloque de Autoevaluación: una sub-tarjeta por formulario del periodo activo,
+// con respuestas enviadas / profesores activos / tasa de respuesta.
+function AutoevaluacionCard({ periodo, isLoading, formularios }) {
+  return (
+    <div className="rounded-xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
+      <div className="mb-3 flex items-center justify-between">
+        <h3 className="text-sm font-semibold text-slate-700">Autoevaluación</h3>
+        {periodo ? (
+          <span className="text-xs font-medium text-indigo-600">{periodo.clave}</span>
+        ) : (
+          <span className="text-xs text-slate-400">Sin periodo activo</span>
+        )}
+      </div>
+
+      {!periodo ? (
+        <p className="text-xs text-slate-400">
+          No hay periodo activo para este recurso.
+        </p>
+      ) : isLoading ? (
+        <Loading text="Cargando…" />
+      ) : !formularios?.length ? (
+        <p className="text-xs text-slate-400">Sin formularios en este periodo.</p>
+      ) : (
+        <div className="space-y-4">
+          {formularios.map((f) => (
+            <div key={f.formulario_id} className="rounded-lg border border-slate-200 p-4">
+              <div className="mb-3 flex items-center justify-between">
+                <p className="text-sm font-medium text-slate-800">{f.titulo}</p>
+                <Badge label={f.estado} variant={f.estado} />
+              </div>
+              <div className="grid grid-cols-3 gap-3 text-center">
+                <div>
+                  <p className="text-xl font-bold text-indigo-600">{f.respuestas_enviadas}</p>
+                  <p className="text-xs text-slate-400">Respuestas</p>
+                </div>
+                <div>
+                  <p className="text-xl font-bold text-slate-700">{f.total_profesores}</p>
+                  <p className="text-xs text-slate-400">Profesores activos</p>
+                </div>
+                <div>
+                  <p className="text-xl font-bold text-emerald-600">{f.tasa_respuesta ?? 0}%</p>
+                  <p className="text-xs text-slate-400">Tasa de respuesta</p>
+                </div>
+              </div>
+              <div className="mt-3">
+                <PctBar value={f.tasa_respuesta ?? 0} />
+              </div>
             </div>
           ))}
         </div>
@@ -86,6 +211,23 @@ export default function AdminDashboardPage() {
   const { data: dashAE, isLoading: loadAE } = useQuery({
     queryKey: ['dashboard', 'autoevaluacion', periodoAE?.id],
     queryFn: () => getDashboard({ periodo: periodoAE.id }).then((r) => r.data),
+    enabled: !!periodoAE,
+  })
+
+  const { data: cumplCartas, isLoading: loadCumplCartas } = useQuery({
+    queryKey: ['cumpl-depto', 'cartas', periodoCartas?.id],
+    queryFn: () => getCumplimiento({ periodo: periodoCartas.id }).then((r) => r.data),
+    enabled: !!periodoCartas,
+  })
+  const { data: cumplRequisitos, isLoading: loadCumplRequisitos } = useQuery({
+    queryKey: ['cumpl-depto', 'requisitos', periodoRequisitos?.id],
+    queryFn: () => getCumplimiento({ periodo: periodoRequisitos.id }).then((r) => r.data),
+    enabled: !!periodoRequisitos,
+  })
+
+  const { data: resumenAE, isLoading: loadResumenAE } = useQuery({
+    queryKey: ['resumen-ae', periodoAE?.id],
+    queryFn: () => getResumenAutoevaluacion({ periodo: periodoAE.id }).then((r) => r.data),
     enabled: !!periodoAE,
   })
 
@@ -135,27 +277,34 @@ export default function AdminDashboardPage() {
         />
       </div>
 
-      {/* Métricas por recurso, cada una con su propio periodo activo */}
-      <div className="grid gap-4 md:grid-cols-3">
-        <RecursoCard
+      {/* Cartas y Requisitos: conteos + cumplimiento por departamento */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <CumplimientoDocCard
           titulo="Cartas Temáticas"
           periodo={periodoCartas}
           isLoading={loadCartas}
           data={dashCartas?.cartas_tematicas}
+          cumplLoading={loadCumplCartas}
+          cumplData={cumplCartas}
+          campoConteo="con_carta_publicada"
         />
-        <RecursoCard
+        <CumplimientoDocCard
           titulo="Requisitos de Recuperación"
           periodo={periodoRequisitos}
           isLoading={loadRequisitos}
           data={dashRequisitos?.requisitos_recuperacion}
-        />
-        <RecursoCard
-          titulo="Autoevaluación"
-          periodo={periodoAE}
-          isLoading={loadAE}
-          data={dashAE?.autoevaluacion?.formularios}
+          cumplLoading={loadCumplRequisitos}
+          cumplData={cumplRequisitos}
+          campoConteo="con_requisito_publicado"
         />
       </div>
+
+      {/* Autoevaluación: respuestas / profesores / tasa por formulario */}
+      <AutoevaluacionCard
+        periodo={periodoAE}
+        isLoading={loadResumenAE}
+        formularios={resumenAE?.formularios}
+      />
     </div>
   )
 }
