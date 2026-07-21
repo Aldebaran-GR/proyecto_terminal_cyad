@@ -13,6 +13,7 @@ import Table from '../../../components/ui/Table'
 import Alert from '../../../components/ui/Alert'
 import FormField, { inputCls } from '../../../components/ui/FormField'
 import Badge from '../../../components/ui/Badge'
+import { parseApiError } from '../../../utils/apiError'
 
 const empty = () => ({ clave: '', nombre: '', departamento: '', estado: true })
 
@@ -46,12 +47,12 @@ export default function PosgradosPage() {
       return selected ? updatePosgrado(selected.id, payload) : createPosgrado(payload)
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['posgrados'] }); closeModal() },
-    onError: (e) => setApiError(e.response?.data?.clave?.[0] || e.response?.data?.detail || 'Error al guardar.'),
+    onError: (e) => setApiError(parseApiError(e.response?.data, 'Error al guardar.')),
   })
   const delMut = useMutation({
     mutationFn: (id) => deletePosgrado(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['posgrados'] }),
-    onError: (e) => setApiError(e.response?.data?.detail || 'No se puede eliminar (tiene UEAs asociadas).'),
+    onError: (e) => setApiError(parseApiError(e.response?.data, 'No se puede eliminar (tiene UEAs asociadas).')),
   })
 
   const columns = [

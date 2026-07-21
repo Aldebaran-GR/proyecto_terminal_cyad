@@ -22,6 +22,7 @@ import Badge from '../../../components/ui/Badge'
 import Button from '../../../components/ui/Button'
 import Loading from '../../../components/ui/Loading'
 import { inputCls } from '../../../components/ui/FormField'
+import { parseApiError } from '../../../utils/apiError'
 
 /* ─── Render de cada pregunta (sólo lectura) ──────────────────────────── */
 function QuestionPreview({ pregunta }) {
@@ -186,11 +187,7 @@ export default function FormularioPreviewPage() {
     qc.invalidateQueries({ queryKey: ['formulario', id] })
     qc.invalidateQueries({ queryKey: ['formularios'] })
   }
-  const onError = (e) => setApiError(
-    e.response?.data?.detail
-    || e.response?.data?.non_field_errors?.[0]
-    || 'Error.'
-  )
+  const onError = (e) => setApiError(parseApiError(e.response?.data, 'Error.'))
 
   const editMut = useMutation({
     mutationFn: async () => {

@@ -10,6 +10,7 @@ import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getRequisito, deleteRequisito, cambiarEstadoRequisito } from '../../../api/documentos'
+import { parseApiError } from '../../../utils/apiError'
 import Button from '../../../components/ui/Button'
 import Alert from '../../../components/ui/Alert'
 import Badge from '../../../components/ui/Badge'
@@ -33,12 +34,7 @@ export default function RequisitoPreviewPage() {
     qc.invalidateQueries({ queryKey: ['requisitos'] })
     qc.invalidateQueries({ queryKey: ['requisitos', 'dashboard'] })
   }
-  const onError = (e) =>
-    setApiError(
-      e.response?.data?.detail
-      || e.response?.data?.errors?.estado
-      || 'Error.'
-    )
+  const onError = (e) => setApiError(parseApiError(e.response?.data, 'Error.'))
 
   const editMut = useMutation({
     mutationFn: async () => {

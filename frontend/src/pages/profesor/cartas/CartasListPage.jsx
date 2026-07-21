@@ -15,6 +15,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getCartas, deleteCarta, cambiarEstadoCarta } from '../../../api/documentos'
 import { getPeriodosActivos } from '../../../api/catalogos'
+import { parseApiError } from '../../../utils/apiError'
 import Button from '../../../components/ui/Button'
 import Badge from '../../../components/ui/Badge'
 import Table from '../../../components/ui/Table'
@@ -57,7 +58,7 @@ export default function CartasListPage() {
       invalidate()
       navigate(`/profesor/cartas/${id}`)
     },
-    onError: (e) => setApiError(e.response?.data?.detail || 'No se pudo abrir el editor.'),
+    onError: (e) => setApiError(parseApiError(e.response?.data, 'No se pudo abrir el editor.')),
   })
 
   // Eliminar: despublica primero si hace falta y luego elimina.
@@ -69,11 +70,7 @@ export default function CartasListPage() {
       return deleteCarta(row.id)
     },
     onSuccess: invalidate,
-    onError: (e) => setApiError(
-      e.response?.data?.errors?.estado
-      || e.response?.data?.detail
-      || 'Error al eliminar la carta.'
-    ),
+    onError: (e) => setApiError(parseApiError(e.response?.data, 'Error al eliminar la carta.')),
   })
 
   const onEditClick = (row) => {

@@ -18,6 +18,7 @@ import Table from '../../../components/ui/Table'
 import Alert from '../../../components/ui/Alert'
 import FormField, { inputCls } from '../../../components/ui/FormField'
 import Badge from '../../../components/ui/Badge'
+import { parseApiError } from '../../../utils/apiError'
 
 const empty = () => ({
   clave: '', fecha_inicio: '', fecha_fin: '',
@@ -84,16 +85,7 @@ export default function PeriodosPage() {
       selected ? updatePeriodo(selected.id, d) : createPeriodo(d)
     ),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['periodos'] }); closeModal() },
-    onError: (e) => {
-      const data = e.response?.data
-      setApiError(
-        data?.clave?.[0]
-        || data?.fecha_fin?.[0]
-        || data?.non_field_errors?.[0]
-        || data?.detail
-        || 'Error al guardar.'
-      )
-    },
+    onError: (e) => setApiError(parseApiError(e.response?.data, 'Error al guardar.')),
   })
   const delMut = useMutation({
     mutationFn: (id) => deletePeriodo(id),
@@ -101,10 +93,7 @@ export default function PeriodosPage() {
       qc.invalidateQueries({ queryKey: ['periodos'] })
       setDelTarget(null); setDelPreview(null)
     },
-    onError: (e) => setApiError(
-      e.response?.data?.detail
-      || 'No se pudo eliminar este periodo.'
-    ),
+    onError: (e) => setApiError(parseApiError(e.response?.data, 'No se pudo eliminar este periodo.')),
   })
 
   // Pide al backend el conteo de dependencias antes de mostrar la confirmación.
@@ -117,7 +106,7 @@ export default function PeriodosPage() {
       const { data } = await previewEliminacionPeriodo(row.id)
       setDelPreview(data)
     } catch (e) {
-      setApiError(e.response?.data?.detail || 'Error al consultar dependencias.')
+      setApiError(parseApiError(e.response?.data, 'Error al consultar dependencias.'))
       setDelTarget(null)
     } finally {
       setDelLoading(false)
@@ -131,7 +120,7 @@ export default function PeriodosPage() {
   const toggleMut = useMutation({
     mutationFn: ({ id, field, value }) => updatePeriodo(id, { [field]: value }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['periodos'] }),
-    onError: (e) => setApiError(e.response?.data?.detail || 'Error al cambiar el estado del periodo.'),
+    onError: (e) => setApiError(parseApiError(e.response?.data, 'Error al cambiar el estado del periodo.')),
   })
   const toggleFlag = (row, field) => toggleMut.mutate({ id: row.id, field, value: !row[field] })
 

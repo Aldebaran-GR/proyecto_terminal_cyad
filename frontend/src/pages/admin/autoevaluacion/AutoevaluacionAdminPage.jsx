@@ -23,6 +23,7 @@ import Table from '../../../components/ui/Table'
 import Alert from '../../../components/ui/Alert'
 import Modal from '../../../components/ui/Modal'
 import FormField, { inputCls } from '../../../components/ui/FormField'
+import { parseApiError } from '../../../utils/apiError'
 
 export default function AutoevaluacionAdminPage() {
   const qc = useQueryClient()
@@ -62,14 +63,7 @@ export default function AutoevaluacionAdminPage() {
       // Llevar directo al builder para empezar a editar
       if (r?.data?.id) navigate(`/admin/autoevaluacion/${r.data.id}`)
     },
-    onError: (e) => {
-      const data = e.response?.data || {}
-      const errs = data.errors || data
-      const msg = errs.periodo?.[0]
-        || data.detail
-        || 'Error al crear el formulario.'
-      setApiError(msg)
-    },
+    onError: (e) => setApiError(parseApiError(e.response?.data, 'Error al crear el formulario.')),
   })
 
   // Considera tanto PUBLICADO como CERRADO como "no editable directo";
@@ -88,7 +82,7 @@ export default function AutoevaluacionAdminPage() {
       invalidate()
       navigate(`/admin/autoevaluacion/${id}`)
     },
-    onError: (e) => setApiError(e.response?.data?.detail || 'No se pudo abrir el editor.'),
+    onError: (e) => setApiError(parseApiError(e.response?.data, 'No se pudo abrir el editor.')),
   })
 
   const dupMut = useMutation({
@@ -98,15 +92,7 @@ export default function AutoevaluacionAdminPage() {
       setDupModal(null)
       if (r?.data?.id) navigate(`/admin/autoevaluacion/${r.data.id}`)
     },
-    onError: (e) => {
-      const d = e.response?.data || {}
-      setApiError(
-        d.periodo?.[0]
-        || d.detail
-        || d.non_field_errors?.[0]
-        || 'Error al duplicar el formulario.'
-      )
-    },
+    onError: (e) => setApiError(parseApiError(e.response?.data, 'Error al duplicar el formulario.')),
   })
 
   const openDupModal = (row) => {
@@ -122,11 +108,7 @@ export default function AutoevaluacionAdminPage() {
       return deleteFormulario(row.id)
     },
     onSuccess: invalidate,
-    onError: (e) => setApiError(
-      e.response?.data?.detail
-      || e.response?.data?.non_field_errors?.[0]
-      || 'No se pudo eliminar el formulario.'
-    ),
+    onError: (e) => setApiError(parseApiError(e.response?.data, 'No se pudo eliminar el formulario.')),
   })
 
   const onEditClick = (row) => {

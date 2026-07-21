@@ -23,27 +23,7 @@ import Alert from '../../../components/ui/Alert'
 import Button from '../../../components/ui/Button'
 import Loading from '../../../components/ui/Loading'
 import { inputCls } from '../../../components/ui/FormField'
-
-/**
- * El backend envuelve todos los errores en {success, status_code, errors},
- * donde `errors` es el detalle original de DRF: puede ser un dict
- * ({preguntas_faltantes, detail, non_field_errors, periodo, ...}) o una lista
- * (cuando se levanta ValidationError con un string plano, p.ej. "ya enviada").
- */
-function parseApiError(data) {
-  const errors = data?.errors ?? data
-  if (Array.isArray(errors)) return errors[0] || 'Error al enviar.'
-  if (errors && typeof errors === 'object') {
-    if (errors.preguntas_faltantes) return { preguntasFaltantes: errors.preguntas_faltantes }
-    return (
-      errors.detail
-      || errors.non_field_errors?.[0]
-      || errors.periodo?.[0]
-      || 'Error al enviar.'
-    )
-  }
-  return data?.detail || 'Error al enviar.'
-}
+import { parseApiError } from '../../../utils/apiError'
 
 /* ─── Colores de nivel ────────────────────────────────────── */
 const NIVEL_COLORS = {
@@ -425,7 +405,7 @@ export default function AutoevaluacionFormPage() {
       qc.invalidateQueries({ queryKey: ['formulario-disponible', formularioId] })
     },
     onError: (e) => {
-      const parsed = parseApiError(e.response?.data)
+      const parsed = parseApiError(e.response?.data, 'Error al guardar el borrador.')
       setApiError(typeof parsed === 'string' ? parsed : 'Error al guardar el borrador.')
     },
   })
@@ -451,7 +431,7 @@ export default function AutoevaluacionFormPage() {
       qc.invalidateQueries({ queryKey: ['formularios-disponibles'] })
     },
     onError: (e) => {
-      const parsed = parseApiError(e.response?.data)
+      const parsed = parseApiError(e.response?.data, 'Error al enviar.')
       if (typeof parsed === 'object' && parsed.preguntasFaltantes) {
         const ids = parsed.preguntasFaltantes.map(Number)
         setFaltantesIds(ids)

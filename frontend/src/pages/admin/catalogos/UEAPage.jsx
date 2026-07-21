@@ -12,6 +12,7 @@ import Table from '../../../components/ui/Table'
 import Alert from '../../../components/ui/Alert'
 import FormField, { inputCls } from '../../../components/ui/FormField'
 import Badge from '../../../components/ui/Badge'
+import { parseApiError } from '../../../utils/apiError'
 
 const TIPOS = [{ value: 'OBL', label: 'Obligatoria' }, { value: 'OPT', label: 'Optativa' }]
 
@@ -87,12 +88,12 @@ export default function UEAPage() {
       return selected ? updateUEA(selected.id, payload) : createUEA(payload)
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['uea'] }); closeModal() },
-    onError: (e) => setApiError(e.response?.data?.clave?.[0] || e.response?.data?.detail || 'Error al guardar.'),
+    onError: (e) => setApiError(parseApiError(e.response?.data, 'Error al guardar.')),
   })
   const delMut = useMutation({
     mutationFn: (id) => deleteUEA(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['uea'] }),
-    onError: () => setApiError('No se puede eliminar esta UEA (tiene documentos asociados).'),
+    onError: (e) => setApiError(parseApiError(e.response?.data, 'No se puede eliminar esta UEA (tiene documentos asociados).')),
   })
   const csvMut = useMutation({
     mutationFn: (file) => importarUEA(file),
@@ -100,7 +101,7 @@ export default function UEAPage() {
       qc.invalidateQueries({ queryKey: ['uea'] })
       setCsvResult(r.data)
     },
-    onError: (e) => setApiError(e.response?.data?.detail || 'Error en la importación CSV.'),
+    onError: (e) => setApiError(parseApiError(e.response?.data, 'Error en la importación CSV.')),
   })
 
   const f = (key) => (e) => setForm((p) => ({ ...p, [key]: e.target.value }))

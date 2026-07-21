@@ -13,6 +13,7 @@ import Table from '../../../components/ui/Table'
 import Alert from '../../../components/ui/Alert'
 import FormField, { inputCls } from '../../../components/ui/FormField'
 import Badge from '../../../components/ui/Badge'
+import { parseApiError } from '../../../utils/apiError'
 
 const empty = () => ({ clave: '', nombre: '', estado: true })
 
@@ -35,12 +36,12 @@ export default function DepartamentosPage() {
   const saveMut = useMutation({
     mutationFn: (d) => selected ? updateDepartamento(selected.id, d) : createDepartamento(d),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['departamentos'] }); closeModal() },
-    onError: (e) => setApiError(e.response?.data?.clave?.[0] || e.response?.data?.nombre?.[0] || e.response?.data?.detail || 'Error al guardar.'),
+    onError: (e) => setApiError(parseApiError(e.response?.data, 'Error al guardar.')),
   })
   const delMut = useMutation({
     mutationFn: (id) => deleteDepartamento(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['departamentos'] }),
-    onError: (e) => setApiError(e.response?.data?.detail || 'No se puede eliminar (tiene registros asociados).'),
+    onError: (e) => setApiError(parseApiError(e.response?.data, 'No se puede eliminar (tiene registros asociados).')),
   })
 
   const columns = [

@@ -16,6 +16,7 @@ import { getPeriodos, getDepartamentos } from '../../../api/catalogos'
 import Alert from '../../../components/ui/Alert'
 import Button from '../../../components/ui/Button'
 import { inputCls } from '../../../components/ui/FormField'
+import { parseApiError } from '../../../utils/apiError'
 
 const TIPOS = [
   { value: 'cartas', label: 'Cartas Temáticas' },
@@ -154,7 +155,7 @@ export default function ReportesPage() {
       const fecha = new Date().toISOString().slice(0, 10)
       XLSX.writeFile(wb, `${nombreTipo}_${clavePeriodo}_${fecha}.xlsx`)
     } catch (e) {
-      setDownloadError(e?.response?.data?.detail || e?.message || 'No se pudo generar el Excel.')
+      setDownloadError(parseApiError(e?.response?.data, e?.message || 'No se pudo generar el Excel.'))
     } finally {
       setDownloading(false)
     }

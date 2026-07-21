@@ -11,6 +11,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getRequisitos, deleteRequisito, cambiarEstadoRequisito } from '../../../api/documentos'
 import { getPeriodosActivos } from '../../../api/catalogos'
+import { parseApiError } from '../../../utils/apiError'
 import Button from '../../../components/ui/Button'
 import Badge from '../../../components/ui/Badge'
 import Table from '../../../components/ui/Table'
@@ -52,7 +53,7 @@ export default function RequisitosListPage() {
       invalidate()
       navigate(`/profesor/requisitos/${id}`)
     },
-    onError: (e) => setApiError(e.response?.data?.detail || 'No se pudo abrir el editor.'),
+    onError: (e) => setApiError(parseApiError(e.response?.data, 'No se pudo abrir el editor.')),
   })
 
   const deleteMut = useMutation({
@@ -63,11 +64,7 @@ export default function RequisitosListPage() {
       return deleteRequisito(row.id)
     },
     onSuccess: invalidate,
-    onError: (e) => setApiError(
-      e.response?.data?.errors?.estado
-      || e.response?.data?.detail
-      || 'Error al eliminar el requisito.'
-    ),
+    onError: (e) => setApiError(parseApiError(e.response?.data, 'Error al eliminar el requisito.')),
   })
 
   const onEditClick = (row) => {

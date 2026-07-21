@@ -14,6 +14,7 @@ import Table from '../../../components/ui/Table'
 import Alert from '../../../components/ui/Alert'
 import FormField, { inputCls } from '../../../components/ui/FormField'
 import Badge from '../../../components/ui/Badge'
+import { parseApiError } from '../../../utils/apiError'
 
 const empty = () => ({ nombre: '', descripcion: '', estado: true })
 
@@ -42,18 +43,12 @@ export default function AreasPage() {
   const saveMut = useMutation({
     mutationFn: (d) => selected ? updateArea(selected.id, d) : createArea(d),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['areas'] }); closeModal() },
-    onError: (e) =>
-      setApiError(
-        e.response?.data?.nombre?.[0]
-        || e.response?.data?.non_field_errors?.[0]
-        || e.response?.data?.detail
-        || 'Error al guardar.'
-      ),
+    onError: (e) => setApiError(parseApiError(e.response?.data, 'Error al guardar.')),
   })
   const delMut = useMutation({
     mutationFn: (id) => deleteArea(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['areas'] }),
-    onError: () => setApiError('No se puede eliminar esta área (tiene UEAs asociadas).'),
+    onError: (e) => setApiError(parseApiError(e.response?.data, 'No se puede eliminar esta área (tiene UEAs asociadas).')),
   })
 
   const columns = [

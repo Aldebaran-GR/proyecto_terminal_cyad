@@ -21,6 +21,7 @@ import Alert from '../../../components/ui/Alert'
 import Modal from '../../../components/ui/Modal'
 import Loading from '../../../components/ui/Loading'
 import FormField, { inputCls } from '../../../components/ui/FormField'
+import { parseApiError } from '../../../utils/apiError'
 
 /* ─── Constantes ──────────────────────────────────────────── */
 const TIPOS = [
@@ -396,36 +397,24 @@ export default function FormularioBuilderPage() {
         setVersionAlert(`Publicado como versión ${r.data.version}. Los profesores que respondieron la versión anterior verán este formulario como pendiente.`)
       }
     },
-    onError: (e) => {
-      const d = e.response?.data || {}
-      setApiError(d.detail || d.non_field_errors?.[0] || 'Error al publicar.')
-    },
+    onError: (e) => setApiError(parseApiError(e.response?.data, 'Error al publicar.')),
   })
   const desMut = useMutation({
     mutationFn: () => despublicarFormulario(id),
     onSuccess: invalidateAll,
-    onError: (e) => setApiError(e.response?.data?.detail || 'Error al cerrar el formulario.'),
+    onError: (e) => setApiError(parseApiError(e.response?.data, 'Error al cerrar el formulario.')),
   })
   const reaMut = useMutation({
     mutationFn: () => reabrirFormulario(id),
     onSuccess: invalidateAll,
-    onError: (e) => setApiError(e.response?.data?.detail || 'Error al reabrir.'),
+    onError: (e) => setApiError(parseApiError(e.response?.data, 'Error al reabrir.')),
   })
 
   /* ── Metadatos del formulario ── */
   const updateMetaMut = useMutation({
     mutationFn: (payload) => updateFormulario(id, payload),
     onSuccess: () => { invalidateAll(); setMetaModal(false) },
-    onError: (e) => {
-      const d = e.response?.data || {}
-      setApiError(
-        d.periodo?.[0]
-        || d.titulo?.[0]
-        || d.detail
-        || d.non_field_errors?.[0]
-        || 'Error al guardar los datos del formulario.'
-      )
-    },
+    onError: (e) => setApiError(parseApiError(e.response?.data, 'Error al guardar los datos del formulario.')),
   })
 
   /* ── Duplicar en otro periodo ── */
@@ -436,15 +425,7 @@ export default function FormularioBuilderPage() {
       setDupModal(false)
       if (r?.data?.id) navigate(`/admin/autoevaluacion/${r.data.id}`)
     },
-    onError: (e) => {
-      const d = e.response?.data || {}
-      setApiError(
-        d.periodo?.[0]
-        || d.detail
-        || d.non_field_errors?.[0]
-        || 'Error al duplicar el formulario.'
-      )
-    },
+    onError: (e) => setApiError(parseApiError(e.response?.data, 'Error al duplicar el formulario.')),
   })
 
   /* ── Secciones ── */
@@ -454,17 +435,17 @@ export default function FormularioBuilderPage() {
       return createSeccion({ formulario: Number(id), titulo: d.titulo, descripcion: d.descripcion || '', peso: Number(d.peso) || 0, orden: d.orden || 0 })
     },
     onSuccess: () => { invalidateFormulario(); setSModal(false) },
-    onError: (e) => setApiError(e.response?.data?.detail || 'Error al guardar sección.'),
+    onError: (e) => setApiError(parseApiError(e.response?.data, 'Error al guardar sección.')),
   })
   const updatePesoMut = useMutation({
     mutationFn: ({ sId, peso }) => updateSeccion(sId, { peso }),
     onSuccess: invalidateFormulario,
-    onError: () => setApiError('Error al guardar el peso.'),
+    onError: (e) => setApiError(parseApiError(e.response?.data, 'Error al guardar el peso.')),
   })
   const deleteSeccionMut = useMutation({
     mutationFn: (sid) => deleteSeccion(sid),
     onSuccess: invalidateFormulario,
-    onError: (e) => setApiError(e.response?.data?.detail || 'No se pudo eliminar la sección.'),
+    onError: (e) => setApiError(parseApiError(e.response?.data, 'No se pudo eliminar la sección.')),
   })
 
   const openNewSeccion = () => {
@@ -503,17 +484,17 @@ export default function FormularioBuilderPage() {
       return q.id ? updatePregunta(q.id, payload) : createPregunta(payload)
     },
     onSuccess: () => { invalidateFormulario(); setQModal(false) },
-    onError: (e) => setApiError(e.response?.data?.non_field_errors?.[0] || e.response?.data?.detail || 'Error al guardar pregunta.'),
+    onError: (e) => setApiError(parseApiError(e.response?.data, 'Error al guardar pregunta.')),
   })
   const moverPreguntaMut = useMutation({
     mutationFn: ({ preguntaId, seccionId }) => patchPregunta(preguntaId, { seccion: seccionId }),
     onSuccess: invalidateFormulario,
-    onError: () => setApiError('Error al mover la pregunta.'),
+    onError: (e) => setApiError(parseApiError(e.response?.data, 'Error al mover la pregunta.')),
   })
   const delPreguntaMut = useMutation({
     mutationFn: (pid) => deletePregunta(pid),
     onSuccess: invalidateFormulario,
-    onError: () => setApiError('Error al eliminar pregunta.'),
+    onError: (e) => setApiError(parseApiError(e.response?.data, 'Error al eliminar pregunta.')),
   })
 
   const openNewPregunta = (seccionId = null) => {
@@ -532,7 +513,7 @@ export default function FormularioBuilderPage() {
       return d.id ? updateNivelDesempeno(d.id, payload) : createNivelDesempeno(payload)
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['niveles', id] }); setNModal(false) },
-    onError: (e) => setApiError(e.response?.data?.detail || e.response?.data?.[0] || 'Error al guardar nivel.'),
+    onError: (e) => setApiError(parseApiError(e.response?.data, 'Error al guardar nivel.')),
   })
   const delNivelMut = useMutation({
     mutationFn: (nid) => deleteNivelDesempeno(nid),
