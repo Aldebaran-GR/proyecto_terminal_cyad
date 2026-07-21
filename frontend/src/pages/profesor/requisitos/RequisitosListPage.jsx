@@ -17,6 +17,8 @@ import Table from '../../../components/ui/Table'
 import EmptyState from '../../../components/ui/EmptyState'
 import Alert from '../../../components/ui/Alert'
 import Loading from '../../../components/ui/Loading'
+import CollapsiblePeriodoCard from '../../../components/ui/CollapsiblePeriodoCard'
+import { groupByPeriodo } from '../../../utils/groupByPeriodo'
 
 export default function RequisitosListPage() {
   const qc = useQueryClient()
@@ -198,7 +200,19 @@ export default function RequisitosListPage() {
           }
         />
       ) : (
-        <Table columns={columns} data={requisitos} emptyText="Sin requisitos" />
+        <div className="space-y-3">
+          {groupByPeriodo(requisitos, periodoRequisitosActivo?.clave ?? null).map((g) => (
+            <CollapsiblePeriodoCard
+              key={g.clave}
+              clave={g.clave}
+              fechaInicio={g.fechaInicio}
+              count={g.rows.length}
+              isActivo={g.isActivo}
+            >
+              <Table columns={columns} data={g.rows} emptyText="Sin requisitos" />
+            </CollapsiblePeriodoCard>
+          ))}
+        </div>
       )}
     </div>
   )

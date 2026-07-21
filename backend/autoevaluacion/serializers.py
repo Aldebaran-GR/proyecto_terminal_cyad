@@ -384,6 +384,9 @@ class FormularioDisponibleSerializer(serializers.ModelSerializer):
     """
 
     periodo_clave = serializers.CharField(source="periodo.clave", read_only=True)
+    periodo_fecha_inicio = serializers.DateField(
+        source="periodo.fecha_inicio", read_only=True, default=None,
+    )
     periodo_abierto = serializers.SerializerMethodField()
     ya_respondido = serializers.SerializerMethodField()
     respuesta_id = serializers.SerializerMethodField()
@@ -402,6 +405,7 @@ class FormularioDisponibleSerializer(serializers.ModelSerializer):
             "descripcion",
             "periodo",
             "periodo_clave",
+            "periodo_fecha_inicio",
             "periodo_abierto",
             "estado",
             "version",

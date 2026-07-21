@@ -21,6 +21,8 @@ import Table from '../../../components/ui/Table'
 import EmptyState from '../../../components/ui/EmptyState'
 import Alert from '../../../components/ui/Alert'
 import Loading from '../../../components/ui/Loading'
+import CollapsiblePeriodoCard from '../../../components/ui/CollapsiblePeriodoCard'
+import { groupByPeriodo } from '../../../utils/groupByPeriodo'
 
 export default function CartasListPage() {
   const qc = useQueryClient()
@@ -202,7 +204,19 @@ export default function CartasListPage() {
           }
         />
       ) : (
-        <Table columns={columns} data={cartas} emptyText="Sin cartas" />
+        <div className="space-y-3">
+          {groupByPeriodo(cartas, periodoCartasActivo?.clave ?? null).map((g) => (
+            <CollapsiblePeriodoCard
+              key={g.clave}
+              clave={g.clave}
+              fechaInicio={g.fechaInicio}
+              count={g.rows.length}
+              isActivo={g.isActivo}
+            >
+              <Table columns={columns} data={g.rows} emptyText="Sin cartas" />
+            </CollapsiblePeriodoCard>
+          ))}
+        </div>
       )}
     </div>
   )

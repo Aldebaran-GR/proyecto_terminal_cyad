@@ -4,10 +4,12 @@
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { getFormulariosDisponibles } from '../../../api/autoevaluacion'
+import { getPeriodosActivos } from '../../../api/catalogos'
 import Loading from '../../../components/ui/Loading'
 import EmptyState from '../../../components/ui/EmptyState'
-import Badge from '../../../components/ui/Badge'
 import Button from '../../../components/ui/Button'
+import CollapsiblePeriodoCard from '../../../components/ui/CollapsiblePeriodoCard'
+import { groupByPeriodo } from '../../../utils/groupByPeriodo'
 
 function EstadoRespuestaBadge({ yaRespondido, respuestaEstado, formularioEstado, periodoAbierto }) {
   if (!periodoAbierto && yaRespondido) {
@@ -68,16 +70,76 @@ export default function AutoevaluacionListPage() {
     refetchInterval: 15_000,
   })
 
+  const { data: activos } = useQuery({
+    queryKey: ['periodos-activos'],
+    queryFn: () => getPeriodosActivos().then((r) => r.data),
+  })
+  const periodoAutoevalActivo = activos?.autoevaluacion ?? null
+
   const formularios = data?.results ?? data ?? []
 
   if (isLoading) return <Loading text="Cargando formularios..." />
+
+  const renderFormulario = (f) => (
+    <div
+      key={f.id}
+      className="rounded-xl border border-slate-200 bg-white p-5 space-y-3"
+    >
+      <div className="flex items-start justify-between gap-2">
+        <h2 className="font-semibold text-slate-900">{f.titulo}</h2>
+        <EstadoRespuestaBadge
+          yaRespondido={f.ya_respondido}
+          respuestaEstado={f.respuesta_estado}
+          formularioEstado={f.estado}
+          periodoAbierto={f.periodo_abierto}
+        />
+      </div>
+
+      {f.descripcion && (
+        <p className="text-sm text-slate-500 line-clamp-2">{f.descripcion}</p>
+      )}
+
+      <div className="flex flex-wrap gap-3 text-xs text-slate-500">
+        <span>❓ {f.total_preguntas} preguntas</span>
+        {f.version > 1 && (
+          <span className="text-amber-600 font-medium">
+            ⚠ Versión {f.version} — actualizado
+          </span>
+        )}
+      </div>
+
+      <div className="pt-1">
+        {f.ya_respondido ? (
+          <Link to={`/profesor/autoevaluacion/${f.id}`}>
+            <Button variant="secondary" size="sm" className="w-full">
+              Ver resultado
+            </Button>
+          </Link>
+        ) : f.periodo_abierto === false ? (
+          <Button size="sm" disabled className="w-full">
+            Periodo cerrado
+          </Button>
+        ) : f.estado === 'CERRADO' ? (
+          <Button size="sm" disabled className="w-full">
+            Ya no acepta respuestas
+          </Button>
+        ) : (
+          <Link to={`/profesor/autoevaluacion/${f.id}`}>
+            <Button size="sm" className="w-full">
+              {f.respuesta_estado === 'BORRADOR' ? 'Continuar' : 'Responder'}
+            </Button>
+          </Link>
+        )}
+      </div>
+    </div>
+  )
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-xl font-bold text-slate-900">Autoevaluación</h1>
         <p className="mt-0.5 text-sm text-slate-500">
-          Formularios de autoevaluación docente disponibles para este periodo.
+          Formularios de autoevaluación docente agrupados por periodo.
         </p>
       </div>
 
@@ -87,64 +149,19 @@ export default function AutoevaluacionListPage() {
           description="El administrador aún no ha publicado formularios de autoevaluación."
         />
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2">
-          {formularios.map((f) => (
-            <div
-              key={f.id}
-              className="rounded-xl border border-slate-200 bg-white p-5 space-y-3"
+        <div className="space-y-3">
+          {groupByPeriodo(formularios, periodoAutoevalActivo?.clave ?? null).map((g) => (
+            <CollapsiblePeriodoCard
+              key={g.clave}
+              clave={g.clave}
+              fechaInicio={g.fechaInicio}
+              count={g.rows.length}
+              isActivo={g.isActivo}
             >
-              {/* Título + estado */}
-              <div className="flex items-start justify-between gap-2">
-                <h2 className="font-semibold text-slate-900">{f.titulo}</h2>
-                <EstadoRespuestaBadge
-                  yaRespondido={f.ya_respondido}
-                  respuestaEstado={f.respuesta_estado}
-                  formularioEstado={f.estado}
-                  periodoAbierto={f.periodo_abierto}
-                />
+              <div className="grid gap-4 sm:grid-cols-2">
+                {g.rows.map(renderFormulario)}
               </div>
-
-              {/* Descripción */}
-              {f.descripcion && (
-                <p className="text-sm text-slate-500 line-clamp-2">{f.descripcion}</p>
-              )}
-
-              {/* Meta */}
-              <div className="flex flex-wrap gap-3 text-xs text-slate-500">
-                <span>📅 Periodo: {f.periodo_clave}</span>
-                <span>❓ {f.total_preguntas} preguntas</span>
-                {f.version > 1 && (
-                  <span className="text-amber-600 font-medium">
-                    ⚠ Versión {f.version} — actualizado
-                  </span>
-                )}
-              </div>
-
-              {/* CTA */}
-              <div className="pt-1">
-                {f.ya_respondido ? (
-                  <Link to={`/profesor/autoevaluacion/${f.id}`}>
-                    <Button variant="secondary" size="sm" className="w-full">
-                      Ver resultado
-                    </Button>
-                  </Link>
-                ) : f.periodo_abierto === false ? (
-                  <Button size="sm" disabled className="w-full">
-                    Periodo cerrado
-                  </Button>
-                ) : f.estado === 'CERRADO' ? (
-                  <Button size="sm" disabled className="w-full">
-                    Ya no acepta respuestas
-                  </Button>
-                ) : (
-                  <Link to={`/profesor/autoevaluacion/${f.id}`}>
-                    <Button size="sm" className="w-full">
-                      {f.respuesta_estado === 'BORRADOR' ? 'Continuar' : 'Responder'}
-                    </Button>
-                  </Link>
-                )}
-              </div>
-            </div>
+            </CollapsiblePeriodoCard>
           ))}
         </div>
       )}

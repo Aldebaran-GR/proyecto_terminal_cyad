@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useAuth } from '../../auth/AuthContext'
 import { getCartas, getRequisitos } from '../../api/documentos'
 import { getFormulariosDisponibles } from '../../api/autoevaluacion'
+import { getPeriodosActivos } from '../../api/catalogos'
 import Loading from '../../components/ui/Loading'
 import Badge from '../../components/ui/Badge'
 import { Link } from 'react-router-dom'
@@ -18,7 +19,7 @@ const toArray = (data) =>
       ? data.results
       : []
 
-function SummaryCard({ title, to, items, emptyMsg, renderItem }) {
+function SummaryCard({ title, to, items, emptyMsg, renderItem, noPeriodo }) {
   const list = Array.isArray(items) ? items : []
   return (
     <div className="rounded-xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
@@ -26,7 +27,11 @@ function SummaryCard({ title, to, items, emptyMsg, renderItem }) {
         <h2 className="text-sm font-semibold text-slate-700">{title}</h2>
         <Link to={to} className="text-xs text-indigo-600 hover:underline">Ver todos →</Link>
       </div>
-      {list.length === 0 ? (
+      {noPeriodo ? (
+        <p className="text-sm text-slate-400 py-4 text-center">
+          Sin periodo activo para este recurso.
+        </p>
+      ) : list.length === 0 ? (
         <p className="text-sm text-slate-400 py-4 text-center">{emptyMsg}</p>
       ) : (
         <ul className="space-y-2">
@@ -41,25 +46,40 @@ export default function ProfesorDashboardPage() {
   const { user } = useAuth()
   const nombre = user?.perfil_profesor?.nombre_completo ?? user?.nombre
 
+  // Periodo activo por recurso (compartido en cache con las listas).
+  const { data: activos } = useQuery({
+    queryKey: ['periodos-activos'],
+    queryFn: () => getPeriodosActivos().then((r) => r.data),
+    refetchInterval: 30_000,
+  })
+  const periodoCartas = activos?.cartas ?? null
+  const periodoRequisitos = activos?.requisitos ?? null
+  const periodoAutoeval = activos?.autoevaluacion ?? null
+
   // queryKeys distintas de las listas (['cartas'], ['requisitos'], ['formularios-disponibles'])
   // para que la invalidación tras crear/responder un documento refresque sin colisionar.
-  // Dashboard del profesor: refresca solo (sin recargar) al focar la pestaña
-  // y cada 30 segundos por si el admin publicó algo en otra sesión.
+  // Dashboard del profesor: filtra por periodo activo del recurso y refresca cada 30s.
   const { data: cartasData, isLoading: cartasLoading } = useQuery({
-    queryKey: ['cartas', 'dashboard'],
-    queryFn: () => getCartas({ page_size: 5 }).then((r) => toArray(r.data)),
+    queryKey: ['cartas', 'dashboard', periodoCartas?.id ?? null],
+    queryFn: () =>
+      getCartas({ periodo: periodoCartas.id, page_size: 5 }).then((r) => toArray(r.data)),
+    enabled: !!periodoCartas,
     refetchInterval: 30_000,
   })
 
   const { data: requisitosData, isLoading: reqLoading } = useQuery({
-    queryKey: ['requisitos', 'dashboard'],
-    queryFn: () => getRequisitos({ page_size: 5 }).then((r) => toArray(r.data)),
+    queryKey: ['requisitos', 'dashboard', periodoRequisitos?.id ?? null],
+    queryFn: () =>
+      getRequisitos({ periodo: periodoRequisitos.id, page_size: 5 }).then((r) => toArray(r.data)),
+    enabled: !!periodoRequisitos,
     refetchInterval: 30_000,
   })
 
   const { data: formularios, isLoading: fLoading } = useQuery({
-    queryKey: ['formularios-disponibles', 'dashboard'],
-    queryFn: () => getFormulariosDisponibles().then((r) => toArray(r.data)),
+    queryKey: ['formularios-disponibles', 'dashboard', periodoAutoeval?.id ?? null],
+    queryFn: () =>
+      getFormulariosDisponibles({ periodo: periodoAutoeval.id }).then((r) => toArray(r.data)),
+    enabled: !!periodoAutoeval,
     refetchInterval: 30_000,
   })
 
@@ -77,30 +97,50 @@ export default function ProfesorDashboardPage() {
         </p>
       </div>
 
-      {/* Resumen numérico */}
+      {/* Resumen numérico — cuenta solo lo del periodo activo (o '—' si no hay). */}
       <div className="grid grid-cols-3 gap-4">
         {[
-          { label: 'Cartas Temáticas', value: cartas.length, to: '/profesor/cartas', color: 'text-indigo-600' },
-          { label: 'Requisitos de Rec.', value: requisitos.length, to: '/profesor/requisitos', color: 'text-teal-600' },
-          { label: 'Formularios pendientes', value: forms.filter(f => !f.ya_respondido).length, to: '/profesor/autoevaluacion', color: 'text-amber-600' },
+          {
+            label: 'Cartas Temáticas',
+            value: periodoCartas ? cartas.length : '—',
+            to: '/profesor/cartas',
+            color: 'text-indigo-600',
+            hint: periodoCartas ? periodoCartas.clave : 'Sin periodo',
+          },
+          {
+            label: 'Requisitos de Rec.',
+            value: periodoRequisitos ? requisitos.length : '—',
+            to: '/profesor/requisitos',
+            color: 'text-teal-600',
+            hint: periodoRequisitos ? periodoRequisitos.clave : 'Sin periodo',
+          },
+          {
+            label: 'Formularios pendientes',
+            value: periodoAutoeval ? forms.filter((f) => !f.ya_respondido).length : '—',
+            to: '/profesor/autoevaluacion',
+            color: 'text-amber-600',
+            hint: periodoAutoeval ? periodoAutoeval.clave : 'Sin periodo',
+          },
         ].map((s) => (
           <Link key={s.to} to={s.to} className="rounded-xl bg-white p-5 shadow-sm ring-1 ring-slate-200 hover:ring-indigo-300 transition-all block">
             <p className="text-sm text-slate-500">{s.label}</p>
             <p className={`mt-1 text-3xl font-bold ${s.color}`}>{s.value}</p>
+            <p className="mt-1 text-xs text-slate-400">Periodo: {s.hint}</p>
           </Link>
         ))}
       </div>
 
       {/* Listas */}
       <div className="grid gap-6 md:grid-cols-2">
-        {cartasLoading ? (
+        {periodoCartas && cartasLoading ? (
           <Loading />
         ) : (
           <SummaryCard
             title="Cartas Temáticas recientes"
             to="/profesor/cartas"
             items={cartas}
-            emptyMsg="Aún no tienes cartas temáticas."
+            noPeriodo={!periodoCartas}
+            emptyMsg="Aún no tienes cartas temáticas en este periodo."
             renderItem={(carta) => (
               <li key={carta.id} className="flex items-center justify-between text-sm">
                 <div>
@@ -113,14 +153,15 @@ export default function ProfesorDashboardPage() {
           />
         )}
 
-        {reqLoading ? (
+        {periodoRequisitos && reqLoading ? (
           <Loading />
         ) : (
           <SummaryCard
             title="Requisitos de Recuperación recientes"
             to="/profesor/requisitos"
             items={requisitos}
-            emptyMsg="Aún no tienes requisitos de recuperación."
+            noPeriodo={!periodoRequisitos}
+            emptyMsg="Aún no tienes requisitos de recuperación en este periodo."
             renderItem={(req) => (
               <li key={req.id} className="flex items-center justify-between text-sm">
                 <div>
@@ -140,10 +181,14 @@ export default function ProfesorDashboardPage() {
           <h2 className="text-sm font-semibold text-slate-700">Formularios de Autoevaluación</h2>
           <Link to="/profesor/autoevaluacion" className="text-xs text-indigo-600 hover:underline">Ver todos →</Link>
         </div>
-        {fLoading ? (
+        {!periodoAutoeval ? (
+          <p className="text-sm text-slate-400 py-4 text-center">
+            Sin periodo activo para autoevaluación.
+          </p>
+        ) : fLoading ? (
           <Loading />
         ) : forms.length === 0 ? (
-          <p className="text-sm text-slate-400 py-4 text-center">No hay formularios disponibles en este momento.</p>
+          <p className="text-sm text-slate-400 py-4 text-center">No hay formularios disponibles en este periodo.</p>
         ) : (
           <ul className="space-y-3">
             {forms.map((f) => (
