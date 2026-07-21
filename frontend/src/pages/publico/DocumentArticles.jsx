@@ -8,6 +8,38 @@
  */
 import { PublicField } from './PublicDocumentLayout'
 
+const URL_RE = /^https?:\/\/\S+$/i
+
+function EnlaceField({ value }) {
+  if (!value?.trim()) return null
+  const lines = value.split(/\r?\n/).map((l) => l.trim()).filter(Boolean)
+  return (
+    <div className="border-b border-slate-100 py-3 last:border-0">
+      <p className="text-xs uppercase tracking-wider text-slate-500 mb-1">
+        Enlace (clases en línea / asesorías)
+      </p>
+      <ul className="space-y-1 text-sm text-slate-800">
+        {lines.map((line, i) =>
+          URL_RE.test(line) ? (
+            <li key={i}>
+              <a
+                href={line}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-indigo-600 hover:underline break-all"
+              >
+                {line}
+              </a>
+            </li>
+          ) : (
+            <li key={i} className="whitespace-pre-wrap">{line}</li>
+          )
+        )}
+      </ul>
+    </div>
+  )
+}
+
 function formatDate(iso) {
   if (!iso) return '—'
   try {
@@ -78,6 +110,7 @@ export function CartaTematicaArticle({ carta, tituloOverride }) {
         <PublicField label="Modalidad de evaluación"         value={carta.modalidad_evaluacion} multiline />
         <PublicField label="Revisiones / Asesorías"          value={carta.revisiones_asesorias} multiline />
         <PublicField label="Bibliografía"                    value={carta.bibliografia} multiline />
+        <EnlaceField value={carta.enlace} />
         <PublicField label="Calendarización de actividades"  value={carta.calendarizacion_actividades} multiline />
       </section>
     </article>

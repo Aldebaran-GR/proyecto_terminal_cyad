@@ -41,6 +41,8 @@ const CONTENT_FIELDS = [
   { key: 'modalidad_evaluacion',        label: 'Modalidad de evaluación' },
   { key: 'revisiones_asesorias',        label: 'Revisiones / Asesorías' },
   { key: 'bibliografia',                label: 'Bibliografía' },
+  { key: 'enlace',                      label: 'Enlace (clases en línea / asesorías)',
+    hint: 'Pega una o varias ligas (Meet, Zoom, calendario, etc.). Una por línea.' },
   { key: 'calendarizacion_actividades', label: 'Calendarización de actividades' },
 ]
 

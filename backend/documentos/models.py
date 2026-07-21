@@ -103,6 +103,10 @@ class CartaTematica(DocumentoAcademicoBase):
     modalidad_evaluacion = models.TextField("Modalidad de evaluación", blank=True)
     revisiones_asesorias = models.TextField("Revisiones / asesorías", blank=True)
     bibliografia = models.TextField("Bibliografía", blank=True)
+    enlace = models.TextField(
+        "Enlace", blank=True,
+        help_text="Liga(s) para clases en línea o asesorías.",
+    )
     calendarizacion_actividades = models.TextField(
         "Calendarización de actividades", blank=True,
     )

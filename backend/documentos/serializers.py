@@ -56,6 +56,9 @@ class CartaTematicaSerializer(serializers.ModelSerializer):
         source="uea.posgrado.nombre", read_only=True, default=None,
     )
     periodo_clave = serializers.CharField(source="periodo.clave", read_only=True)
+    periodo_fecha_inicio = serializers.DateField(
+        source="periodo.fecha_inicio", read_only=True, default=None,
+    )
     puede_editar_ahora = serializers.SerializerMethodField()
 
     def get_profesor_nombre(self, obj):
@@ -77,13 +80,14 @@ class CartaTematicaSerializer(serializers.ModelSerializer):
             "profesor_economico", "departamento_nombre",
             "uea", "uea_nombre", "uea_clave", "uea_liga",
             "licenciatura_nombre", "posgrado_nombre",
-            "periodo", "periodo_clave",
+            "periodo", "periodo_clave", "periodo_fecha_inicio",
             "nombre_grupo", "id_grupo", "horario", "modalidad",
-            # Contenido (10 campos de texto libre)
+            # Contenido (11 campos de texto libre)
             "descripcion_uea", "objetivo_general", "objetivos_particulares",
             "contenido_sintetico", "objetivos_aprendizaje", "requerimientos",
             "conocimientos_previos", "modalidad_evaluacion",
-            "revisiones_asesorias", "bibliografia", "calendarizacion_actividades",
+            "revisiones_asesorias", "bibliografia", "enlace",
+            "calendarizacion_actividades",
             "estado", "puede_editar_ahora",
             "created_at", "updated_at",
         ]
@@ -128,6 +132,9 @@ class RequisitoRecuperacionSerializer(serializers.ModelSerializer):
         source="uea.posgrado.nombre", read_only=True, default=None,
     )
     periodo_clave = serializers.CharField(source="periodo.clave", read_only=True)
+    periodo_fecha_inicio = serializers.DateField(
+        source="periodo.fecha_inicio", read_only=True, default=None,
+    )
     puede_editar_ahora = serializers.SerializerMethodField()
 
     def get_profesor_nombre(self, obj):
@@ -146,7 +153,7 @@ class RequisitoRecuperacionSerializer(serializers.ModelSerializer):
             "profesor_economico", "departamento_nombre",
             "uea", "uea_nombre", "uea_clave",
             "licenciatura_nombre", "posgrado_nombre",
-            "periodo", "periodo_clave",
+            "periodo", "periodo_clave", "periodo_fecha_inicio",
             "nombre_grupo", "id_grupo", "horario", "modalidad",
             # Contenido propio del Requisito de Recuperación
             "lugar", "duracion_aprox", "fecha_hora",
@@ -222,7 +229,8 @@ class PublicCartaTematicaSerializer(serializers.ModelSerializer):
             "descripcion_uea", "objetivo_general", "objetivos_particulares",
             "contenido_sintetico", "objetivos_aprendizaje", "requerimientos",
             "conocimientos_previos", "modalidad_evaluacion",
-            "revisiones_asesorias", "bibliografia", "calendarizacion_actividades",
+            "revisiones_asesorias", "bibliografia", "enlace",
+            "calendarizacion_actividades",
         ]
         read_only_fields = fields
 
