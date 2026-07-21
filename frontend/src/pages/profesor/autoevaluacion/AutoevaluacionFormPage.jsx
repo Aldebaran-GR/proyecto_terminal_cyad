@@ -24,6 +24,27 @@ import Button from '../../../components/ui/Button'
 import Loading from '../../../components/ui/Loading'
 import { inputCls } from '../../../components/ui/FormField'
 
+/**
+ * El backend envuelve todos los errores en {success, status_code, errors},
+ * donde `errors` es el detalle original de DRF: puede ser un dict
+ * ({preguntas_faltantes, detail, non_field_errors, periodo, ...}) o una lista
+ * (cuando se levanta ValidationError con un string plano, p.ej. "ya enviada").
+ */
+function parseApiError(data) {
+  const errors = data?.errors ?? data
+  if (Array.isArray(errors)) return errors[0] || 'Error al enviar.'
+  if (errors && typeof errors === 'object') {
+    if (errors.preguntas_faltantes) return { preguntasFaltantes: errors.preguntas_faltantes }
+    return (
+      errors.detail
+      || errors.non_field_errors?.[0]
+      || errors.periodo?.[0]
+      || 'Error al enviar.'
+    )
+  }
+  return data?.detail || 'Error al enviar.'
+}
+
 /* ─── Colores de nivel ────────────────────────────────────── */
 const NIVEL_COLORS = {
   green: 'bg-emerald-50 border-emerald-200 text-emerald-800',
@@ -335,6 +356,7 @@ export default function AutoevaluacionFormPage() {
   const [enviada, setEnviada] = useState(false)
   const [resultadoFinal, setResultadoFinal] = useState(null)
   const [apiError, setApiError] = useState(null)
+  const [faltantesIds, setFaltantesIds] = useState([])
 
   /* ── Cargar formulario ── */
   const { data: formulario, isLoading: loadingForm } = useQuery({
@@ -402,8 +424,10 @@ export default function AutoevaluacionFormPage() {
       qc.invalidateQueries({ queryKey: ['formularios-disponibles'] })
       qc.invalidateQueries({ queryKey: ['formulario-disponible', formularioId] })
     },
-    onError: (e) =>
-      setApiError(e.response?.data?.detail || 'Error al guardar el borrador.'),
+    onError: (e) => {
+      const parsed = parseApiError(e.response?.data)
+      setApiError(typeof parsed === 'string' ? parsed : 'Error al guardar el borrador.')
+    },
   })
 
   /* ── Enviar ── */
@@ -421,18 +445,34 @@ export default function AutoevaluacionFormPage() {
       return enviarRespuesta(rId).then((r) => r.data)
     },
     onSuccess: (data) => {
+      setFaltantesIds([])
       setResultadoFinal(data)
       setEnviada(true)
       qc.invalidateQueries({ queryKey: ['formularios-disponibles'] })
     },
     onError: (e) => {
-      const data = e.response?.data
-      if (data?.preguntas_faltantes) {
+      const parsed = parseApiError(e.response?.data)
+      if (typeof parsed === 'object' && parsed.preguntasFaltantes) {
+        const ids = parsed.preguntasFaltantes.map(Number)
+        setFaltantesIds(ids)
+        const preguntas = (formulario?.preguntas ?? []).filter((p) => ids.includes(p.id))
+        const nombres = preguntas.slice(0, 3).map((p) => `"${p.texto}"`).join(', ')
+        const extra = preguntas.length > 3 ? ` y ${preguntas.length - 3} más` : ''
         setApiError(
-          `Faltan preguntas obligatorias por responder (IDs: ${data.preguntas_faltantes.join(', ')}).`
+          `Faltan ${preguntas.length || ids.length} pregunta(s) obligatoria(s) por responder`
+          + (nombres ? `: ${nombres}${extra}.` : '.')
         )
+        const primero = preguntas[0]
+        if (primero) {
+          requestAnimationFrame(() => {
+            document
+              .getElementById(`pregunta-${primero.id}`)
+              ?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+          })
+        }
       } else {
-        setApiError(data?.detail || data?.non_field_errors?.[0] || 'Error al enviar.')
+        setFaltantesIds([])
+        setApiError(parsed)
       }
     },
   })
@@ -536,6 +576,7 @@ export default function AutoevaluacionFormPage() {
               numero={idx + 1}
               value={answers[p.id]}
               onChange={(v) => updateAnswer(p.id, v)}
+              faltante={faltantesIds.includes(p.id)}
             />
           ))}
         </div>
@@ -564,6 +605,7 @@ export default function AutoevaluacionFormPage() {
                   numero={startIdx + idx + 1}
                   value={answers[p.id]}
                   onChange={(v) => updateAnswer(p.id, v)}
+                  faltante={faltantesIds.includes(p.id)}
                 />
               ))}
             </div>
@@ -592,9 +634,14 @@ export default function AutoevaluacionFormPage() {
 }
 
 /* ─── Tarjeta de una sola pregunta ───────────────────────── */
-function PreguntaCard({ pregunta, numero, value, onChange }) {
+function PreguntaCard({ pregunta, numero, value, onChange, faltante }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-5 space-y-3">
+    <div
+      id={`pregunta-${pregunta.id}`}
+      className={`rounded-xl border bg-white p-5 space-y-3 scroll-mt-4 ${
+        faltante ? 'border-rose-400 ring-1 ring-rose-200' : 'border-slate-200'
+      }`}
+    >
       <div className="flex items-start gap-2">
         <span className="mt-0.5 shrink-0 rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-semibold text-indigo-700">
           {numero}
@@ -608,6 +655,11 @@ function PreguntaCard({ pregunta, numero, value, onChange }) {
           </p>
           {pregunta.ayuda && (
             <p className="mt-0.5 text-xs text-slate-400">{pregunta.ayuda}</p>
+          )}
+          {faltante && (
+            <p className="mt-1 text-xs font-medium text-rose-600">
+              Esta pregunta obligatoria no fue respondida.
+            </p>
           )}
         </div>
       </div>
