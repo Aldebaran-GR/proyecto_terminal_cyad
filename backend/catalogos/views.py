@@ -179,7 +179,9 @@ class UEAViewSet(viewsets.ModelViewSet):
                 "estado": True,
             }
 
-            obj, was_created = UEA.objects.update_or_create(clave=clave, defaults=defaults)
+            obj, was_created = UEA.objects.update_or_create(
+                clave=clave, licenciatura=licenciatura, posgrado=posgrado, defaults=defaults
+            )
             if was_created:
                 created += 1
             else:

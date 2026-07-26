@@ -227,7 +227,8 @@ class Command(BaseCommand):
                     "estado": True,
                 }
                 _, was_created = UEA.objects.update_or_create(
-                    clave=clave, defaults=defaults
+                    clave=clave, licenciatura=licenciatura, posgrado=posgrado,
+                    defaults=defaults,
                 )
                 created += int(was_created)
                 updated += int(not was_created)

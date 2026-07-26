@@ -201,15 +201,6 @@ export default function UEAPage() {
         </>}>
         {apiError && <Alert type="error" onClose={() => setApiError(null)}>{apiError}</Alert>}
         <div className="grid grid-cols-2 gap-4">
-          <FormField label="Clave" required><input value={form.clave} onChange={f('clave')} className={inputCls} placeholder="1403004" /></FormField>
-          <FormField label="Tipo">
-            <select value={form.tipo} onChange={f('tipo')} className={inputCls}>
-              {TIPOS.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
-            </select>
-          </FormField>
-          <div className="col-span-2">
-            <FormField label="Nombre" required><input value={form.nombre} onChange={f('nombre')} className={inputCls} placeholder="Nombre de la UEA" /></FormField>
-          </div>
           <FormField label="Programa" required>
             <select value={form.programa} onChange={f('programa')} className={inputCls}>
               <option value="">-- Selecciona un programa --</option>
@@ -219,6 +210,17 @@ export default function UEAPage() {
               <optgroup label="Posgrados">
                 {pos.map((p) => <option key={`pos-${p.id}`} value={`pos-${p.id}`}>{p.nombre}</option>)}
               </optgroup>
+            </select>
+          </FormField>
+          <FormField label="Clave" required hint="Única dentro del programa seleccionado">
+            <input value={form.clave} onChange={f('clave')} className={inputCls} placeholder="1403004" />
+          </FormField>
+          <div className="col-span-2">
+            <FormField label="Nombre" required><input value={form.nombre} onChange={f('nombre')} className={inputCls} placeholder="Nombre de la UEA" /></FormField>
+          </div>
+          <FormField label="Tipo">
+            <select value={form.tipo} onChange={f('tipo')} className={inputCls}>
+              {TIPOS.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
             </select>
           </FormField>
           <FormField label="Trimestre" hint="Acepta entero (1–12) o rango romano (ej. VII-XII)">
@@ -286,7 +288,7 @@ export default function UEAPage() {
             <p className="text-xs text-slate-400">
               trimestre acepta entero (1–12) o rango romano (ej. VII-XII). tipo: OBL u OPT.
             </p>
-            <p className="text-slate-400">Rows existentes (por clave) se actualizan; nuevas se crean.</p>
+            <p className="text-slate-400">Rows existentes (por clave + programa) se actualizan; nuevas se crean.</p>
           </div>
         )}
       </Modal>

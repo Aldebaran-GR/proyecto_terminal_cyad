@@ -91,7 +91,7 @@ class UEA(TimeStampedModel, EstadoActivoModel):
         OPTATIVA = "OPT", "Optativa"
         OTRO = "OTRO", "Otro"
 
-    clave = models.CharField("Clave", max_length=20, unique=True)
+    clave = models.CharField("Clave", max_length=20)
     nombre = models.CharField("Nombre", max_length=300)
     licenciatura = models.ForeignKey(
         Licenciatura,
@@ -136,7 +136,22 @@ class UEA(TimeStampedModel, EstadoActivoModel):
                 ),
                 name="uea_xor_licenciatura_posgrado",
             ),
+            models.UniqueConstraint(
+                fields=["clave", "licenciatura"],
+                condition=Q(licenciatura__isnull=False),
+                name="uea_clave_unica_por_licenciatura",
+            ),
+            models.UniqueConstraint(
+                fields=["clave", "posgrado"],
+                condition=Q(posgrado__isnull=False),
+                name="uea_clave_unica_por_posgrado",
+            ),
         ]
+
+    def save(self, *args, **kwargs):
+        if self.clave:
+            self.clave = self.clave.strip().upper()
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.clave} — {self.nombre}"

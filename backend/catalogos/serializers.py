@@ -51,6 +51,18 @@ class AreaSerializer(serializers.ModelSerializer):
 
 
 class UEASerializer(serializers.ModelSerializer):
+    # Declarados explícitamente (en vez de dejar que ModelSerializer los
+    # autogenere) porque las UniqueConstraint condicionales sobre
+    # (clave, licenciatura) y (clave, posgrado) hacen que DRF fuerce
+    # required=True en ambos campos por defecto — rompiendo el patrón XOR
+    # donde solo uno de los dos se envía. La validación de unicidad real
+    # ya la hace UEASerializer.validate().
+    licenciatura = serializers.PrimaryKeyRelatedField(
+        queryset=Licenciatura.objects.all(), required=False, allow_null=True
+    )
+    posgrado = serializers.PrimaryKeyRelatedField(
+        queryset=Posgrado.objects.all(), required=False, allow_null=True
+    )
     licenciatura_nombre = serializers.CharField(
         source="licenciatura.nombre", read_only=True, default=None
     )
@@ -75,6 +87,13 @@ class UEASerializer(serializers.ModelSerializer):
             "created_at", "updated_at",
         ]
         read_only_fields = ["id", "created_at", "updated_at"]
+        # DRF autogenera un UniqueTogetherValidator a partir de las
+        # UniqueConstraint (clave, licenciatura) y (clave, posgrado) del
+        # modelo, el cual exige que AMBOS campos estén presentes en el
+        # payload (independientemente de required=False), rompiendo el
+        # patrón XOR. Se desactiva porque validate() ya implementa el
+        # chequeo real (case-insensitive, por rama del programa).
+        validators = []
 
     def validate(self, attrs):
         licenciatura = attrs.get("licenciatura", getattr(self.instance, "licenciatura", None))
@@ -83,6 +102,17 @@ class UEASerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 "Una UEA debe pertenecer a una Licenciatura o a un Posgrado (no ambos ni ninguno)."
             )
+
+        clave = attrs.get("clave", getattr(self.instance, "clave", None))
+        if clave:
+            qs = UEA.objects.filter(clave__iexact=clave.strip())
+            qs = qs.filter(licenciatura=licenciatura) if licenciatura else qs.filter(posgrado=posgrado)
+            if self.instance is not None:
+                qs = qs.exclude(pk=self.instance.pk)
+            if qs.exists():
+                raise serializers.ValidationError(
+                    {"clave": "Ya existe una UEA con esta clave en el programa seleccionado."}
+                )
         return attrs
 
 
