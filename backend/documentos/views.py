@@ -152,7 +152,11 @@ class DocumentoMixin:
                 status=status.HTTP_400_BAD_REQUEST,
             )
         obj.estado = nuevo
-        obj.save(update_fields=["estado"])
+        # Incluimos `updated_at` porque `save(update_fields=…)` no dispara
+        # `auto_now=True` a menos que el campo esté en la lista. Con esto,
+        # `updated_at` refleja la última publicación/despublicación y la
+        # vista pública puede usarlo como "fecha de publicación".
+        obj.save(update_fields=["estado", "updated_at"])
         return Response({"success": True, "estado": obj.estado})
 
 
@@ -259,9 +263,15 @@ class _PublicListBase(generics.ListAPIView):
         )
         params = self.request.query_params
         licenciatura = params.get("licenciatura")
+        posgrado = params.get("posgrado")
+        periodo = params.get("periodo")
         uea = params.get("uea")
         if licenciatura:
             qs = qs.filter(uea__licenciatura_id=licenciatura)
+        if posgrado:
+            qs = qs.filter(uea__posgrado_id=posgrado)
+        if periodo:
+            qs = qs.filter(periodo_id=periodo)
         if uea:
             qs = qs.filter(uea_id=uea)
         return qs

@@ -196,6 +196,9 @@ class PublicDocumentoListSerializer(serializers.Serializer):
     horario = serializers.CharField(read_only=True)
     modalidad = serializers.CharField(read_only=True)
     created_at = serializers.DateTimeField(read_only=True)
+    # `updated_at` refleja la última publicación (cambiar_estado ahora lo
+    # actualiza), por eso la vista pública lo usa como "fecha de publicación".
+    updated_at = serializers.DateTimeField(read_only=True)
 
     def get_profesor_nombre(self, obj):
         return _profesor_nombre(obj)

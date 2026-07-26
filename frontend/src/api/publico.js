@@ -18,6 +18,14 @@ export const publicClient = axios.create({
 export const getPublicLicenciaturas = () =>
   publicClient.get('/publico/licenciaturas/')
 
+export const getPublicPosgrados = () =>
+  publicClient.get('/publico/posgrados/')
+
+// tipo debe ser 'carta' o 'requisito' — el backend devuelve solo periodos
+// que tienen ≥1 documento publicado de ese tipo.
+export const getPublicPeriodos = (tipo) =>
+  publicClient.get('/publico/periodos/', { params: { tipo } })
+
 export const getPublicUEA = (params) =>
   publicClient.get('/publico/uea/', { params })
 

@@ -48,6 +48,7 @@ import AutoevaluacionListPage from './pages/profesor/autoevaluacion/Autoevaluaci
 import AutoevaluacionFormPage from './pages/profesor/autoevaluacion/AutoevaluacionFormPage'
 
 // Vistas públicas (sin auth)
+import ExplorarPage from './pages/publico/ExplorarPage'
 import PublicCartaPage from './pages/publico/PublicCartaPage'
 import PublicRequisitoPage from './pages/publico/PublicRequisitoPage'
 
@@ -76,6 +77,7 @@ export default function App() {
       <Route path="/login" element={<LoginPage />} />
 
       {/* Vistas públicas de documentos publicados (sin login) */}
+      <Route path="/publico/explorar/:tipo" element={<ExplorarPage />} />
       <Route path="/publico/cartas/:id" element={<PublicCartaPage />} />
       <Route path="/publico/requisitos/:id" element={<PublicRequisitoPage />} />
 

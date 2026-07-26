@@ -216,7 +216,12 @@ class PublicLicenciaturaListView(generics.ListAPIView):
 class PublicUEAListView(generics.ListAPIView):
     """GET /api/v1/publico/uea/?licenciatura=ID — Sin auth.
 
-    Lista UEAs activas, opcionalmente filtradas por licenciatura.
+    Lista UEAs activas, opcionalmente filtradas por licenciatura o posgrado.
+
+    Además, si se pasan `?con_documentos_de=carta|requisito` y `?periodo=ID`,
+    solo devuelve UEAs que tienen al menos un documento publicado del tipo
+    y periodo indicados. Lo usa la página pública de exploración para no
+    mostrar UEAs vacías.
     """
     serializer_class = UEASerializer
     permission_classes = [AllowAny]
@@ -235,7 +240,77 @@ class PublicUEAListView(generics.ListAPIView):
         pos = self.request.query_params.get("posgrado")
         if pos:
             qs = qs.filter(posgrado_id=pos)
+
+        con_docs = self.request.query_params.get("con_documentos_de")
+        periodo = self.request.query_params.get("periodo")
+        if con_docs and periodo:
+            # Import local para evitar ciclos entre apps.
+            from documentos.models import CartaTematica, RequisitoRecuperacion
+
+            modelo = None
+            if con_docs == "carta":
+                modelo = CartaTematica
+            elif con_docs == "requisito":
+                modelo = RequisitoRecuperacion
+            if modelo is not None:
+                uea_ids = (
+                    modelo.objects
+                    .filter(estado=modelo.Estado.PUBLICADO, periodo_id=periodo)
+                    .values_list("uea_id", flat=True)
+                    .distinct()
+                )
+                qs = qs.filter(id__in=uea_ids)
         return qs
+
+
+class PublicPosgradoListView(generics.ListAPIView):
+    """GET /api/v1/publico/posgrados/ — Sin auth.
+
+    Lista posgrados activos para el selector de la vista pública.
+    """
+    serializer_class = PosgradoSerializer
+    permission_classes = [AllowAny]
+    authentication_classes = []
+    pagination_class = None
+
+    def get_queryset(self):
+        return (
+            Posgrado.objects.filter(estado=True)
+            .select_related("departamento")
+            .order_by("nombre")
+        )
+
+
+class PublicPeriodoListView(generics.ListAPIView):
+    """GET /api/v1/publico/periodos/?tipo=carta|requisito — Sin auth.
+
+    Devuelve los periodos que tienen al menos un documento PUBLICADO del
+    tipo solicitado. Sin `tipo`, devuelve lista vacía (evita exponer
+    periodos que no aportan valor al visitante).
+    """
+    serializer_class = PeriodoSerializer
+    permission_classes = [AllowAny]
+    authentication_classes = []
+    pagination_class = None
+
+    def get_queryset(self):
+        # Import local para evitar ciclos entre apps.
+        from documentos.models import CartaTematica, RequisitoRecuperacion
+
+        tipo = self.request.query_params.get("tipo")
+        if tipo == "carta":
+            modelo = CartaTematica
+        elif tipo == "requisito":
+            modelo = RequisitoRecuperacion
+        else:
+            return Periodo.objects.none()
+        ids = (
+            modelo.objects
+            .filter(estado=modelo.Estado.PUBLICADO)
+            .values_list("periodo_id", flat=True)
+            .distinct()
+        )
+        return Periodo.objects.filter(id__in=ids).order_by("-fecha_inicio")
 
 
 class PeriodoViewSet(viewsets.ModelViewSet):

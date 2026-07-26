@@ -8,6 +8,8 @@ from .views import (
     PeriodoViewSet,
     PosgradoViewSet,
     PublicLicenciaturaListView,
+    PublicPeriodoListView,
+    PublicPosgradoListView,
     PublicUEAListView,
     UEAViewSet,
 )
@@ -25,5 +27,7 @@ urlpatterns = [
     # Vistas públicas (sin auth) — usadas por la home pública para los
     # selectores en cascada (Licenciatura → UEA).
     path("publico/licenciaturas/", PublicLicenciaturaListView.as_view(), name="public-licenciaturas"),
+    path("publico/posgrados/", PublicPosgradoListView.as_view(), name="public-posgrados"),
+    path("publico/periodos/", PublicPeriodoListView.as_view(), name="public-periodos"),
     path("publico/uea/", PublicUEAListView.as_view(), name="public-uea"),
 ]
