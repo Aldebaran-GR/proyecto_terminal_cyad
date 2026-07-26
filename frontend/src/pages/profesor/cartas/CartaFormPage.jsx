@@ -66,7 +66,9 @@ export default function CartaFormPage() {
   /* ── Catálogos ── */
   const { data: ueas = [] } = useQuery({
     queryKey: ['uea-list'],
-    queryFn: () => getUEA({ estado: true }).then((r) => r.data?.results ?? r.data ?? []),
+    // page_size=200 (máximo permitido por la API) para traer el catálogo
+    // completo en una sola página; el buscador filtra en cliente.
+    queryFn: () => getUEA({ estado: true, page_size: 200 }).then((r) => r.data?.results ?? r.data ?? []),
   })
   // Periodo activo para Cartas Temáticas (no editable por el profesor).
   const { data: activos } = useQuery({
