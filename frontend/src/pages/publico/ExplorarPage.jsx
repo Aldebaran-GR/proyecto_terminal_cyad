@@ -118,6 +118,8 @@ function DocumentoCard({ doc, tipo }) {
   return (
     <Link
       to={tipo.detalleRuta(doc.id)}
+      target="_blank"
+      rel="noopener noreferrer"
       className="block rounded-lg border border-slate-200 bg-white p-4 hover:border-indigo-300 hover:shadow-sm transition-all"
     >
       <div className="flex items-start justify-between gap-3">
@@ -165,7 +167,7 @@ function UEARow({ uea, tipo, periodo, programa, expanded, onToggle }) {
       <button
         type="button"
         onClick={onToggle}
-        className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left hover:bg-slate-50"
+        className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left transition-all hover:bg-indigo-50 hover:shadow-md hover:-translate-y-0.5 hover:relative hover:z-10"
       >
         <div className="min-w-0">
           <p className="text-sm font-mono text-slate-500">{uea.clave}</p>
@@ -200,9 +202,9 @@ function UEARow({ uea, tipo, periodo, programa, expanded, onToggle }) {
 function UEAGroupCard({ titulo, ueas, tipo, periodo, programa, expandedId, setExpandedId }) {
   return (
     <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
-      <header className="px-4 py-3 bg-slate-100 border-b border-slate-200">
-        <h3 className="text-sm font-semibold text-slate-800">{titulo}</h3>
-        <p className="text-xs text-slate-500 mt-0.5">
+      <header className="px-4 py-3 bg-indigo-600 border-b border-indigo-700">
+        <h3 className="text-sm font-semibold text-white">{titulo}</h3>
+        <p className="text-xs text-indigo-100 mt-0.5">
           {ueas.length} UEA{ueas.length === 1 ? '' : 's'} con documento publicado
         </p>
       </header>
