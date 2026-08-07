@@ -29,6 +29,7 @@ class LoginView(TokenObtainPairView):
     """POST /api/v1/auth/login/ — Devuelve access+refresh+datos del usuario."""
 
     serializer_class = CustomTokenObtainPairSerializer
+    throttle_scope = "login"
 
 
 class RefreshView(TokenRefreshView):
