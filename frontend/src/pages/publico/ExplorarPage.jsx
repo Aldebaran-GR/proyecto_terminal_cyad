@@ -380,21 +380,19 @@ export default function ExplorarPage() {
           )}
         </section>
 
-        {/* Paso 2 — Programa */}
+        {/* Paso 2 + 3 — Programa (sidebar) y resultados (contenido) */}
         {periodo && (
-          <section>
-            <p className="text-xs uppercase tracking-wider text-slate-500 mb-2">Paso 2</p>
-            <h2 className="text-lg font-semibold text-slate-800 mb-3">
-              Selecciona la licenciatura o posgrado
-            </h2>
-
-            <div className="grid gap-6 md:grid-cols-2">
+          <section className="grid gap-6 items-start md:grid-cols-[16rem_1fr]">
+            {/* Sidebar de programas, estilo layout de profesor */}
+            <aside className="rounded-xl bg-indigo-800 p-4 space-y-5 md:sticky md:top-6">
               <div>
-                <h3 className="text-sm font-semibold text-slate-700 mb-2">Licenciaturas</h3>
+                <p className="text-xs uppercase tracking-wider text-indigo-300 mb-2 px-1">
+                  Paso 2 · Licenciaturas
+                </p>
                 {licenciaturas.length === 0 ? (
-                  <p className="text-xs text-slate-400">Sin licenciaturas registradas.</p>
+                  <p className="px-1 text-xs text-indigo-300">Sin licenciaturas registradas.</p>
                 ) : (
-                  <div className="space-y-2">
+                  <div className="space-y-1">
                     {licenciaturas.map((l) => {
                       const activo = programa?.tipo === 'licenciatura' && programa.id === l.id
                       return (
@@ -405,14 +403,16 @@ export default function ExplorarPage() {
                             setPrograma({ tipo: 'licenciatura', id: l.id, label: l.nombre })
                             setExpandedUEA(null)
                           }}
-                          className={`w-full rounded-lg border px-4 py-3 text-left text-sm transition-all ${
+                          className={`w-full rounded-lg px-3 py-2 text-left text-sm transition-colors ${
                             activo
-                              ? 'border-indigo-500 ring-2 ring-indigo-200 bg-indigo-50'
-                              : 'border-slate-200 bg-white hover:border-indigo-300'
+                              ? 'bg-indigo-700 text-white font-medium'
+                              : 'text-indigo-200 hover:bg-indigo-700 hover:text-white'
                           }`}
                         >
-                          <p className="font-semibold text-slate-900">{l.nombre}</p>
-                          <p className="text-xs text-slate-500 mt-0.5 font-mono">{l.clave}</p>
+                          <p className="truncate">{l.nombre}</p>
+                          <p className={`text-xs font-mono ${activo ? 'text-indigo-200' : 'text-indigo-400'}`}>
+                            {l.clave}
+                          </p>
                         </button>
                       )
                     })}
@@ -420,12 +420,14 @@ export default function ExplorarPage() {
                 )}
               </div>
 
-              <div>
-                <h3 className="text-sm font-semibold text-slate-700 mb-2">Posgrados</h3>
+              <div className="border-t border-indigo-700 pt-4">
+                <p className="text-xs uppercase tracking-wider text-indigo-300 mb-2 px-1">
+                  Posgrados
+                </p>
                 {posgrados.length === 0 ? (
-                  <p className="text-xs text-slate-400">Sin posgrados registrados.</p>
+                  <p className="px-1 text-xs text-indigo-300">Sin posgrados registrados.</p>
                 ) : (
-                  <div className="space-y-2">
+                  <div className="space-y-1">
                     {posgrados.map((p) => {
                       const activo = programa?.tipo === 'posgrado' && programa.id === p.id
                       return (
@@ -436,66 +438,79 @@ export default function ExplorarPage() {
                             setPrograma({ tipo: 'posgrado', id: p.id, label: p.nombre })
                             setExpandedUEA(null)
                           }}
-                          className={`w-full rounded-lg border px-4 py-3 text-left text-sm transition-all ${
+                          className={`w-full rounded-lg px-3 py-2 text-left text-sm transition-colors ${
                             activo
-                              ? 'border-teal-500 ring-2 ring-teal-200 bg-teal-50'
-                              : 'border-slate-200 bg-white hover:border-teal-300'
+                              ? 'bg-indigo-700 text-white font-medium'
+                              : 'text-indigo-200 hover:bg-indigo-700 hover:text-white'
                           }`}
                         >
-                          <p className="font-semibold text-slate-900">{p.nombre}</p>
-                          <p className="text-xs text-slate-500 mt-0.5 font-mono">{p.clave}</p>
+                          <p className="truncate">{p.nombre}</p>
+                          <p className={`text-xs font-mono ${activo ? 'text-indigo-200' : 'text-indigo-400'}`}>
+                            {p.clave}
+                          </p>
                         </button>
                       )
                     })}
                   </div>
                 )}
               </div>
+            </aside>
+
+            {/* Resultados */}
+            <div className="min-w-0 space-y-4">
+              {!programa ? (
+                <div className="rounded-xl border border-dashed border-slate-300 bg-white p-8 text-center">
+                  <p className="text-sm font-medium text-slate-700">
+                    Selecciona una licenciatura o posgrado
+                  </p>
+                  <p className="mt-1 text-xs text-slate-500">
+                    Elige un programa de la lista para ver sus UEA con {tipo.label.toLowerCase()} publicada.
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <p className="text-xs uppercase tracking-wider text-slate-500">Paso 3</p>
+                  <h2 className="text-lg font-semibold text-slate-800">
+                    UEA con {tipo.label.toLowerCase()} publicada
+                  </h2>
+
+                  <Alert type="warning">
+                    Solo se muestran UEA con al menos un documento publicado. Si una UEA
+                    no aparece es porque ningún profesor ha publicado su documento para
+                    este periodo.
+                  </Alert>
+
+                  {cargandoUeas && ueas.length === 0 ? (
+                    <p className="text-sm text-slate-400">Cargando UEA…</p>
+                  ) : grupos.length === 0 ? (
+                    <div className="rounded-xl border border-dashed border-slate-300 bg-white p-8 text-center">
+                      <p className="text-sm font-medium text-slate-700">
+                        Sin UEA con documentos publicados.
+                      </p>
+                      <p className="mt-1 text-xs text-slate-500">
+                        Ningún profesor de este programa ha publicado {tipo.label.toLowerCase()}
+                        {' '}para el periodo {periodo.clave}.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {grupos.map((g) => (
+                        <UEAGroupCard
+                          key={g.key}
+                          titulo={g.titulo}
+                          ueas={g.ueas}
+                          tipo={tipo}
+                          periodo={periodo}
+                          programa={programa}
+                          expandedId={expandedUEA}
+                          setExpandedId={setExpandedUEA}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
             </div>
-          </section>
-        )}
-
-        {/* Paso 3 — UEAs con documento (agrupadas) */}
-        {periodo && programa && (
-          <section className="space-y-4">
-            <p className="text-xs uppercase tracking-wider text-slate-500">Paso 3</p>
-            <h2 className="text-lg font-semibold text-slate-800">
-              UEA con {tipo.label.toLowerCase()} publicada
-            </h2>
-
-            <Alert type="warning">
-              Solo se muestran UEA con al menos un documento publicado. Si una UEA
-              no aparece es porque ningún profesor ha publicado su documento para
-              este periodo.
-            </Alert>
-
-            {cargandoUeas && ueas.length === 0 ? (
-              <p className="text-sm text-slate-400">Cargando UEA…</p>
-            ) : grupos.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-slate-300 bg-white p-8 text-center">
-                <p className="text-sm font-medium text-slate-700">
-                  Sin UEA con documentos publicados.
-                </p>
-                <p className="mt-1 text-xs text-slate-500">
-                  Ningún profesor de este programa ha publicado {tipo.label.toLowerCase()}
-                  {' '}para el periodo {periodo.clave}.
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {grupos.map((g) => (
-                  <UEAGroupCard
-                    key={g.key}
-                    titulo={g.titulo}
-                    ueas={g.ueas}
-                    tipo={tipo}
-                    periodo={periodo}
-                    programa={programa}
-                    expandedId={expandedUEA}
-                    setExpandedId={setExpandedUEA}
-                  />
-                ))}
-              </div>
-            )}
           </section>
         )}
       </main>
