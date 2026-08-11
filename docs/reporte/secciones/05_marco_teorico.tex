@@ -1,0 +1,184 @@
+\section{Marco teórico}\label{sec:marco}
+\justifying
+
+Esta sección define los conceptos, patrones arquitectónicos, protocolos y herramientas de software que sustentan el desarrollo del sistema. Cada concepto se acompaña de la justificación de por qué se seleccionó, cuál fue su papel dentro del proyecto y qué alternativas existían.
+
+\subsection{Aplicación web y arquitectura cliente--servidor}
+
+Una \emph{aplicación web} es un programa cuya interfaz se ejecuta dentro de un navegador y cuya lógica principal reside en un servidor remoto. A diferencia de una aplicación de escritorio, no requiere instalación: basta con una URL. La arquitectura habitual es \emph{cliente--servidor}, en la que dos programas independientes se comunican a través de una red: el \emph{cliente} solicita datos u operaciones y el \emph{servidor} las procesa y responde.
+
+El sistema desarrollado adopta esta arquitectura con una separación estricta: el \emph{frontend} (cliente) se ejecuta en el navegador del usuario y se distribuye como una \emph{Single Page Application} (SPA); el \emph{backend} (servidor) expone una API HTTP con la que el frontend se comunica mediante peticiones asíncronas. Esta separación permite desplegar y evolucionar cada capa de forma independiente, y facilita construir clientes adicionales (por ejemplo móviles) sobre la misma API.
+
+\subsection{Patrón Modelo--Vista--Controlador (MVC)}
+
+El \emph{Modelo--Vista--Controlador} es un patrón arquitectónico introducido por Krasner y Pope para Smalltalk-80~\cite{krasner1988}. Divide una aplicación con interfaz gráfica en tres responsabilidades:
+
+\begin{itemize}
+    \item \textbf{Modelo}: representa los datos y las reglas de negocio. Es independiente de cómo se muestran o se manipulan.
+    \item \textbf{Vista}: presenta el estado del modelo al usuario. Puede haber varias vistas de un mismo modelo.
+    \item \textbf{Controlador}: recibe las entradas del usuario, decide qué operación realizar sobre el modelo y actualiza la vista.
+\end{itemize}
+
+En el proyecto la implementación es una particularización moderna: el \emph{Modelo} corresponde a las clases de Django que se persisten en PostgreSQL; la \emph{Vista} está formada por los componentes de React que se renderizan en el navegador; el \emph{Controlador} se distribuye entre las \emph{views} y \emph{serializers} del backend (que traducen entre HTTP y el modelo) y los \emph{hooks} y el \emph{routing} del frontend (que reaccionan a los eventos del usuario).
+
+\subsection{REST y APIs sobre HTTP}
+
+\emph{REST} (\emph{Representational State Transfer}) es un estilo arquitectónico definido por Roy Fielding en su tesis doctoral~\cite{fielding2000}. Establece un conjunto de restricciones para diseñar servicios distribuidos escalables sobre HTTP:
+
+\begin{itemize}
+    \item Cada recurso se identifica por una URI única (por ejemplo, \texttt{/api/v1/cartas-tematicas/42/}).
+    \item Las operaciones se expresan con los verbos HTTP estándar: \texttt{GET} (leer), \texttt{POST} (crear), \texttt{PUT}/\texttt{PATCH} (actualizar), \texttt{DELETE} (eliminar).
+    \item Las respuestas usan una representación acordada (habitualmente JSON) y son \emph{sin estado}: cada petición contiene toda la información necesaria para procesarla.
+    \item Los códigos de estado HTTP (200, 201, 400, 401, 403, 404, etc.) comunican de manera estándar el resultado.
+\end{itemize}
+
+En el proyecto, todas las operaciones de negocio (crear una carta temática, publicar un requisito, enviar una autoevaluación, consultar un reporte) se exponen como recursos REST versionados bajo \texttt{/api/v1/}.
+
+\subsection{Python y Django}
+
+\emph{Python} es un lenguaje de programación de alto nivel, interpretado y de tipado dinámico, ampliamente utilizado en desarrollo web, análisis de datos y automatización. Se seleccionó por su legibilidad, la madurez de su ecosistema y la disponibilidad de Django.
+
+\emph{Django}~\cite{django2024} es un \emph{framework} web escrito en Python que sigue el principio ``\emph{baterías incluidas}'': provee, listos para usar, los componentes que la mayoría de las aplicaciones web necesitan. Los más relevantes para este proyecto son:
+
+\begin{itemize}
+    \item \textbf{ORM (\emph{Object-Relational Mapper})}: permite definir el esquema de la base de datos como clases de Python (los modelos) y consultarla con métodos en lugar de SQL. Reduce errores de sintaxis, previene inyección SQL y hace portable el código entre motores de base de datos.
+    \item \textbf{Sistema de migraciones}: cada cambio al modelo se traduce automáticamente en un archivo de migración versionable en git. Permite evolucionar la base de datos de forma reproducible entre entornos.
+    \item \textbf{Sistema de autenticación}: usuarios, grupos, permisos y \emph{hashing} de contraseñas ya vienen implementados; el proyecto extiende el modelo de usuario para agregar rol.
+    \item \textbf{Panel de administración}: interfaz autogenerada para operar la base de datos, útil como respaldo del administrador.
+    \item \textbf{Sistema de validación y formularios}: encapsula las reglas de negocio en el servidor.
+\end{itemize}
+
+\subsection{Django REST Framework (DRF)}
+
+\emph{Django REST Framework}~\cite{drf2024} es una capa sobre Django que facilita construir APIs REST. Sus componentes principales son:
+
+\begin{itemize}
+    \item \textbf{\emph{Serializers}}: traducen entre objetos de Python (instancias de modelos) y representaciones serializables (JSON). Validan la entrada y controlan qué campos se exponen hacia afuera.
+    \item \textbf{\emph{ViewSets} y \emph{routers}}: agrupan las operaciones CRUD sobre un recurso y las publican bajo URLs consistentes con las convenciones REST.
+    \item \textbf{Permisos}: clases reutilizables que declaran quién puede acceder a cada acción (por ejemplo, ``sólo el dueño del recurso puede modificarlo'').
+    \item \textbf{\emph{Throttling}}: limita el número de peticiones que un cliente puede hacer en un lapso, útil para mitigar ataques de fuerza bruta.
+    \item \textbf{\emph{drf-spectacular}}: complemento que analiza el código y genera automáticamente una descripción \emph{OpenAPI} de la API, junto con un explorador \emph{Swagger UI} interactivo.
+\end{itemize}
+
+En el proyecto DRF permite mantener la definición del contrato de la API cercana al modelo, con \emph{serializers} explícitos que documentan qué campos son públicos y qué reglas de validación aplican.
+
+\subsection{PostgreSQL}
+
+\emph{PostgreSQL}~\cite{postgres2024} es un sistema de gestión de bases de datos relacional (\emph{RDBMS}), libre y de código abierto, con más de 30 años de desarrollo. Se seleccionó la versión 16 por varias razones:
+
+\begin{itemize}
+    \item \textbf{Cumplimiento estricto del estándar SQL} y soporte de \emph{transacciones ACID}, lo que garantiza consistencia de los datos incluso ante fallos.
+    \item \textbf{\emph{Constraints} declarativos avanzados}: \texttt{CHECK}, \texttt{UNIQUE}, \texttt{EXCLUDE}. En este proyecto se usan para forzar reglas como ``una UEA pertenece a una licenciatura \emph{o} a un posgrado, nunca a ambos'' o ``no puede haber dos UEA con la misma clave dentro del mismo programa''.
+    \item \textbf{Tipos avanzados}: \texttt{JSONB} (JSON binario indexable), arreglos, tipos temporales precisos.
+    \item \textbf{Compatibilidad con el ORM de Django}: no requiere adaptadores adicionales y aprovecha las funcionalidades específicas del motor.
+\end{itemize}
+
+\subsection{React}
+
+\emph{React}~\cite{reactdocs} es una biblioteca de JavaScript, desarrollada originalmente por Facebook (hoy Meta), para construir interfaces de usuario a partir de \emph{componentes} reutilizables. El proyecto utiliza la versión 19.
+
+Los conceptos centrales de React que se aprovechan son:
+
+\begin{itemize}
+    \item \textbf{Componente}: función que recibe \emph{props} (parámetros) y devuelve una descripción declarativa de la interfaz. Los componentes se componen entre sí formando árboles.
+    \item \textbf{Estado (\emph{state})}: datos internos de un componente que, al cambiar, disparan un nuevo renderizado.
+    \item \textbf{\emph{Hooks}}: funciones especiales (\texttt{useState}, \texttt{useEffect}, \texttt{useContext}, etc.) que permiten manejar estado y efectos secundarios en componentes funcionales.
+    \item \textbf{Renderizado declarativo}: el programador describe cómo se ve la interfaz en función del estado; React se encarga de calcular y aplicar los cambios mínimos al DOM.
+\end{itemize}
+
+\subsection{Vite}
+
+\emph{Vite}~\cite{vite2024} es una herramienta de \emph{build} y servidor de desarrollo para aplicaciones frontend modernas. Sustituye a herramientas más antiguas como \emph{webpack} y aprovecha los módulos nativos de JavaScript (\emph{ES modules}) del navegador para arrancar el servidor en milisegundos, incluso en proyectos grandes.
+
+Sus aportes en este proyecto son:
+
+\begin{itemize}
+    \item \textbf{Servidor de desarrollo con \emph{Hot Module Replacement}}: los cambios en el código se reflejan en el navegador sin recargar la página completa, preservando el estado.
+    \item \textbf{\emph{Build} optimizado para producción}: compila, minifica y divide el código en \emph{chunks} para producir un paquete estático servible por cualquier servidor HTTP.
+    \item \textbf{Configuración mínima} y ecosistema de \emph{plugins}.
+\end{itemize}
+
+\subsection{Tailwind CSS}
+
+\emph{Tailwind CSS}~\cite{tailwind2024} es un \emph{framework} de estilos basado en \emph{utility classes}: en lugar de escribir hojas de estilo (CSS) tradicionales, la apariencia se compone directamente en el marcado mediante clases atómicas (por ejemplo, \texttt{p-4}, \texttt{text-lg}, \texttt{bg-indigo-600}, \texttt{rounded-lg}).
+
+Ventajas aprovechadas:
+
+\begin{itemize}
+    \item Elimina la necesidad de nombrar clases semánticas cuando no aportan valor.
+    \item El paso de \emph{build} descarta las clases no utilizadas, produciendo hojas de estilo compactas.
+    \item Aporta un sistema de diseño (espaciados, tipografía, paleta) coherente por defecto.
+    \item Fomenta una interfaz responsiva mediante \emph{breakpoint prefixes} (\texttt{sm:}, \texttt{md:}, \texttt{lg:}).
+\end{itemize}
+
+\subsection{Bibliotecas complementarias del frontend}
+
+Alrededor de React se utilizan bibliotecas específicas para tareas concretas:
+
+\begin{description}
+    \item[TanStack Query] Gestor de estado de servidor. Se encarga de solicitar, cachear, revalidar e invalidar los datos que llegan del backend. Aporta reintento automático ante fallos transitorios, \emph{polling} declarativo y sincronización entre pestañas.
+    \item[React Hook Form] Biblioteca de manejo de formularios que evita renderizados innecesarios y ofrece una API basada en \emph{hooks}, ligera comparada con alternativas como \emph{Formik}.
+    \item[Zod] Biblioteca de validación de esquemas con inferencia de tipos. Se combina con React Hook Form para validar en el cliente antes de enviar al servidor.
+    \item[React Router] Manejo del enrutamiento del lado del cliente. Permite construir SPAs con navegación sin recarga y \emph{guards} de ruta según el rol.
+    \item[axios] Cliente HTTP con soporte de \emph{interceptors}, utilizado para adjuntar automáticamente el \emph{access token} JWT y refrescarlo cuando expira.
+    \item[SheetJS (xlsx)] Genera archivos \emph{.xlsx} en el navegador para la descarga de reportes.
+\end{description}
+
+\subsection{Autenticación con JSON Web Tokens (JWT)}
+
+Un \emph{JSON Web Token} (JWT)~\cite{jwt2015} es un formato compacto y firmado criptográficamente para transmitir información entre partes. Se define en el estándar \emph{RFC 7519} y consta de tres partes codificadas en Base64 y separadas por puntos: encabezado, \emph{payload} (información del usuario y expiración) y firma (para verificar integridad).
+
+En el proyecto la autenticación con JWT se implementa mediante \emph{djangorestframework-simplejwt} y sigue este flujo:
+
+\begin{enumerate}
+    \item El usuario envía credenciales al endpoint \texttt{/api/v1/auth/login/}.
+    \item El servidor valida las credenciales y responde con dos tokens: uno de \emph{acceso} (corta vida, típicamente 60 minutos) y uno de \emph{refresco} (vida más larga, siete días).
+    \item El frontend envía el \emph{access token} en el encabezado \texttt{Authorization: Bearer <token>} de cada petición posterior.
+    \item Cuando el \emph{access token} expira, un \emph{interceptor} del cliente HTTP solicita uno nuevo al endpoint \texttt{/api/v1/auth/refresh/} usando el \emph{refresh token}.
+    \item Los \emph{refresh tokens} rotan: cada renovación invalida el anterior~\cite{sanchez2019auth}.
+\end{enumerate}
+
+Se prefirió JWT sobre el esquema tradicional de sesiones con \emph{cookies} porque encaja mejor con APIs REST sin estado consumidas por un frontend desacoplado.
+
+\subsection{Control de acceso basado en roles (RBAC)}
+
+\emph{Role-Based Access Control} (RBAC) es un modelo de autorización en el que los permisos no se asignan a usuarios individualmente sino a \emph{roles}, y cada usuario recibe uno o varios roles. El proyecto define dos roles:
+
+\begin{itemize}
+    \item \textbf{ADMIN}: gestiona catálogos, profesores, formularios de autoevaluación y consulta reportes globales.
+    \item \textbf{PROFESOR}: gestiona sus propias cartas temáticas, requisitos y autoevaluaciones.
+\end{itemize}
+
+Los permisos se aplican en dos capas:
+
+\begin{itemize}
+    \item En el \textbf{backend} mediante clases \emph{DRF permission} (por ejemplo, \texttt{IsOwnerProfesorOrAdminReadOnly}) que verifican rol y propiedad del recurso.
+    \item En el \textbf{frontend} mediante \emph{guards} de ruta que redirigen si el rol no coincide, y renderizado condicional que oculta acciones no autorizadas.
+\end{itemize}
+
+La verificación en ambos lados es defensa en profundidad: el backend es la fuente de verdad; el frontend evita mostrar interfaces inútiles.
+
+\subsection{Seguridad web y OWASP Top 10}
+
+El \emph{OWASP Top 10}~\cite{owasp2021} es un documento consensuado por la \emph{Open Web Application Security Project} que enumera las diez categorías de riesgo de seguridad más críticas en aplicaciones web. Sirve como \emph{checklist} de referencia para desarrolladores. Las categorías atendidas explícitamente en este proyecto son:
+
+\begin{itemize}
+    \item \textbf{A01 --- \emph{Broken Access Control}}: se mitiga con las verificaciones de rol y propiedad en el backend.
+    \item \textbf{A02 --- \emph{Cryptographic Failures}}: contraseñas hasheadas con PBKDF2 (algoritmo por defecto de Django) y tokens firmados con HMAC-SHA256.
+    \item \textbf{A03 --- \emph{Injection}}: prevenida por el ORM (consultas parametrizadas) y por la validación de entrada en \emph{serializers}.
+    \item \textbf{A05 --- \emph{Security Misconfiguration}}: en producción se establece \texttt{DEBUG=False} y una \emph{whitelist} explícita de \emph{hosts} y de orígenes CORS.
+    \item \textbf{A07 --- \emph{Identification and Authentication Failures}}: se aplica \emph{throttling} en el \emph{login} (5 intentos por minuto), rotación de \emph{refresh tokens} y política de contraseñas fuerte.
+\end{itemize}
+
+\subsection{Pruebas automatizadas}
+
+Las pruebas automatizadas del proyecto se ejecutan con \emph{pytest} y \emph{pytest-django}. Los conceptos utilizados son:
+
+\begin{itemize}
+    \item \textbf{Prueba unitaria}: verifica una función o unidad aislada.
+    \item \textbf{Prueba de integración}: verifica la interacción de varios componentes (por ejemplo, una petición HTTP que atraviesa \emph{view}, \emph{serializer}, ORM y base de datos).
+    \item \textbf{\emph{Factory}}: patrón para construir instancias de prueba consistentes; se emplea la biblioteca \emph{factory-boy}.
+    \item \textbf{Cobertura de código}: porcentaje del código ejecutado por las pruebas. Se mide con \emph{coverage.py} a través del complemento \emph{pytest-cov}.
+\end{itemize}
+
+Se privilegian las pruebas de integración sobre las unitarias porque atrapan errores en las fronteras (URL, permisos, serialización) que son las más frecuentes en una API REST.

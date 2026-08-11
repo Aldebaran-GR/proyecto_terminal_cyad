@@ -1,0 +1,68 @@
+%Diagrama de casos de uso.
+%Se incluye vía \input{casos_uso} desde secciones/06_desarrollo.tex.
+\begin{tikzpicture}[
+    every node/.style={font=\small},
+    actor/.style={
+        draw, thick, minimum height=1cm, minimum width=1cm,
+        align=center, font=\scriptsize
+    },
+    caso/.style={
+        ellipse, draw, thick, align=center, font=\scriptsize,
+        minimum height=0.75cm, minimum width=2.6cm, fill=black!3
+    },
+    conn/.style={-, thick},
+    sistema/.style={
+        draw, thick, dashed, rounded corners=6pt, inner sep=12pt
+    }
+]
+
+%Actores
+\node[actor] (docente) at (-6.5, 0)
+    {\begin{tabular}{c}$\dagger$\\ Docente\end{tabular}};
+\node[actor] (admin) at (-6.5, -5)
+    {\begin{tabular}{c}$\dagger$\\ Administrador\end{tabular}};
+\node[actor] (publico) at (-6.5, -9.5)
+    {\begin{tabular}{c}$\dagger$\\ Público\end{tabular}};
+
+%Casos de uso del docente
+\node[caso] (login1) at (0, 2)      {Iniciar sesión};
+\node[caso] (uc1)    at (0, 1)      {Gestionar cartas\\temáticas};
+\node[caso] (uc2)    at (0, 0)      {Gestionar requisitos\\de recuperación};
+\node[caso] (uc3)    at (0, -1)     {Responder\\autoevaluación};
+\node[caso] (uc4)    at (0, -2)     {Consultar propio\\perfil e historial};
+
+%Casos de uso del administrador
+\node[caso] (uc5)   at (0, -3.5)  {Gestionar usuarios\\y profesores};
+\node[caso] (uc6)   at (0, -4.5)  {Administrar\\catálogos};
+\node[caso] (uc7)   at (0, -5.5)  {Diseñar formularios\\de autoevaluación};
+\node[caso] (uc8)   at (0, -6.5)  {Consultar cartas y\\requisitos de todos};
+\node[caso] (uc9)   at (0, -7.5)  {Generar reportes\\de cumplimiento};
+
+%Casos de uso del público
+\node[caso] (uc10)  at (0, -9)    {Explorar UEA por\\periodo y programa};
+\node[caso] (uc11)  at (0, -10)   {Ver carta o requisito\\publicado};
+
+%Sistema
+\begin{scope}[on background layer]
+\node[sistema, fit=(login1)(uc1)(uc2)(uc3)(uc4)(uc5)(uc6)(uc7)(uc8)(uc9)(uc10)(uc11)] (sys) {};
+\end{scope}
+\node at (0, 2.9) {\textbf{Sistema CyAD}};
+
+%Conexiones
+\draw[conn] (docente) -- (login1);
+\draw[conn] (docente) -- (uc1);
+\draw[conn] (docente) -- (uc2);
+\draw[conn] (docente) -- (uc3);
+\draw[conn] (docente) -- (uc4);
+
+\draw[conn] (admin) -- (login1);
+\draw[conn] (admin) -- (uc5);
+\draw[conn] (admin) -- (uc6);
+\draw[conn] (admin) -- (uc7);
+\draw[conn] (admin) -- (uc8);
+\draw[conn] (admin) -- (uc9);
+
+\draw[conn] (publico) -- (uc10);
+\draw[conn] (publico) -- (uc11);
+
+\end{tikzpicture}

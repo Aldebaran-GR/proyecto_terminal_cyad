@@ -1,0 +1,32 @@
+%Cuerpo del reporte. Cada sección vive en su propio archivo dentro de secciones/.
+\setcounter{page}{1}
+\pagestyle{fancy}
+
+%Resumen (antes del índice, sin numeración)
+\input{secciones/00_resumen}
+
+%Índices automáticos
+\renewcommand{\contentsname}{Índice}
+\tableofcontents
+\newpage
+\listoffigures
+\newpage
+\listoftables
+\newpage
+
+%Secciones numeradas
+\input{secciones/01_introduccion}
+\input{secciones/02_antecedentes}
+\input{secciones/03_justificacion}
+\input{secciones/04_objetivos}
+\input{secciones/05_marco_teorico}
+\input{secciones/06_desarrollo}
+\input{secciones/07_resultados}
+\input{secciones/08_analisis}
+\input{secciones/09_conclusiones}
+
+%Anexos
+\appendix
+\renewcommand{\thesection}{\Alph{section}}
+\input{secciones/A_codigo_fuente}
+\input{secciones/B_entregables}

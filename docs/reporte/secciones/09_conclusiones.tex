@@ -1,0 +1,43 @@
+\section{Conclusiones}\label{sec:conclusiones}
+\justifying
+
+El proyecto cumplió con el objetivo general planteado en la propuesta: se desarrolló e implementó un sistema web funcional que permite a los profesores de la División de Ciencias y Artes para el Diseño (CyAD) de la UAM-A gestionar cartas temáticas, requisitos de recuperación y responder autoevaluaciones, con acceso diferenciado por rol y reportes de cumplimiento para el personal administrativo. Los cuatro objetivos específicos se cumplieron sustancialmente, con matices que se detallan en la Sección~\ref{sec:analisis} y que sintetizamos aquí.
+
+\subsection{Cumplimiento por objetivo}
+
+\begin{enumerate}
+    \item \textbf{Autenticación con roles}: cumplido. El sistema autentica mediante \emph{JWT}, diferencia dos roles y aplica \emph{throttling} sobre el \emph{login}. El único matiz es que la identidad primaria del usuario es el \texttt{email} y no el \texttt{número económico}, decisión de diseño explicada en la Sección~\ref{sec:analisis}.
+    \item \textbf{CRUD de cartas y requisitos}: cumplido en cuanto a las operaciones y al ciclo Borrador/Publicado. La exportación a PDF y a DOCX ---prometida en la propuesta--- se sustituyó por la impresión nativa del navegador (\texttt{window.print()}) en la vista pública, sin generación de archivos binarios estructurados en el backend.
+    \item \textbf{Autoevaluación docente}: cumplido y ampliado. El sistema entregado va más allá de un formulario fijo: incorpora un \emph{form-builder} configurable por el administrador, ocho tipos de pregunta, \emph{scoring} ponderado por sección, niveles de desempeño automáticos y versionado de formularios que preserva la integridad histórica.
+    \item \textbf{Reportes de cumplimiento}: cumplido en cuanto a los indicadores. La exportación se implementó en formato \emph{XLSX} en el cliente en lugar de \emph{PDF} en el servidor.
+\end{enumerate}
+
+\subsection{Aprendizajes técnicos}
+
+Los principales aprendizajes derivados del desarrollo se enuncian a continuación.
+
+\begin{itemize}
+    \item \textbf{Modelar antes de codificar}. El rediseño de junio de 2026 que aplanó los documentos (eliminación de los submodelos \texttt{Tema}, \texttt{Subtema}, \texttt{Bibliografia}, \texttt{CriterioEvaluacion}) enseñó la importancia de contar con la plantilla oficial \emph{antes} de estructurar el esquema. Ante la ausencia de plantilla normativa, un contenido textual libre resultó más flexible y evitó imponer una estructura que la División no había validado.
+    \item \textbf{Separar dominio en apps}. Django facilita la separación de dominios en apps independientes con sus propios modelos, vistas, urls y migraciones. Esta disciplina probó ser útil para acotar el impacto de los cambios y para orientar el sistema de pruebas.
+    \item \textbf{JWT con \emph{refresh} rotativo}. La combinación \emph{access} corto + \emph{refresh} rotativo mitiga bien el riesgo de filtración de tokens; el precio es que el cliente debe implementar la lógica de \emph{refresh} transparente, lo cual se resolvió con un \emph{interceptor} de \emph{axios}.
+    \item \textbf{Testing como red de seguridad}. Las cerca de 4\,200 líneas de tests en el backend permitieron refactorizar sin miedo el módulo de autoevaluación en nueve incrementos sucesivos (PR1--PR9), incluyendo cambios profundos como el paso a \emph{scoring} ponderado y el versionado de formularios.
+    \item \textbf{Estado del servidor con \emph{TanStack Query}}. Usar una biblioteca dedicada al estado del servidor eliminó una capa entera de código de \emph{fetching} manual y regaló funcionalidades no triviales: \emph{cache}, revalidación, \emph{polling} y \emph{stale-while-revalidate}.
+\end{itemize}
+
+\subsection{Trabajo futuro}
+
+El sistema entregado es funcional y suficiente para arrancar la operación real de la División, pero se identifican las siguientes líneas de trabajo futuro:
+
+\begin{enumerate}
+    \item \textbf{Exportación nativa a PDF}. Incorporar \emph{WeasyPrint} o \emph{ReportLab} en el backend para generar PDFs firmables de cartas temáticas, requisitos de recuperación y resultados de autoevaluación. Esta funcionalidad se prometió en la propuesta y quedó pendiente.
+    \item \textbf{Reset de contraseña autoservicio}. Añadir un flujo de \emph{forgot password} con envío de token único al correo institucional, evitando que el administrador sea el único capaz de restablecer contraseñas.
+    \item \textbf{Integración con directorio institucional}. Si la División cuenta con un LDAP o SSO institucional, integrarlo evitaría mantener contraseñas independientes.
+    \item \textbf{Cobertura de pruebas del frontend}. El frontend actualmente carece de suite de pruebas; añadir Vitest con \emph{React Testing Library} para cubrir al menos los flujos críticos (\emph{login}, \emph{guards} de rol, envío de autoevaluación) elevaría la confianza para futuros cambios.
+    \item \textbf{Estructuración opcional del contenido de cartas}. Si en el futuro la Coordinación de CyAD define una plantilla oficial de carta temática con submodelos (temario por unidad, bibliografía por tipo, criterios de evaluación tabulados), es posible reintroducir la jerarquía sin afectar los documentos existentes mediante una migración adicional.
+    \item \textbf{Notificaciones}. Enviar recordatorios automáticos por correo a profesores que no han publicado cartas o respondido su autoevaluación cerca del cierre del periodo.
+    \item \textbf{Despliegue en el servidor institucional \texttt{cyad.azc.uam.mx}}. La puesta en producción está prevista para el trimestre siguiente al reporte, con \emph{Gunicorn} + \emph{Nginx} y respaldos periódicos de PostgreSQL.
+\end{enumerate}
+
+En conjunto, el sistema desarrollado sienta una base sólida para la modernización de la administración académica de la División de CyAD y demuestra que un equipo pequeño puede sustituir un flujo manual con \emph{Google Forms} por una solución propia, mantenible y con espacio de crecimiento.
+
+\newpage

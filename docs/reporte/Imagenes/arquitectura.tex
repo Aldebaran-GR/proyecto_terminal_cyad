@@ -1,0 +1,50 @@
+%Diagrama de arquitectura de tres capas.
+%Se incluye vía \input{arquitectura} desde secciones/06_desarrollo.tex.
+\begin{tikzpicture}[
+    node distance=0.9cm and 1.4cm,
+    every node/.style={font=\small},
+    capa/.style={
+        rectangle, rounded corners=4pt, draw=black!60, thick,
+        minimum width=13.5cm, minimum height=1.7cm,
+        fill=black!5, align=center
+    },
+    componente/.style={
+        rectangle, rounded corners=2pt, draw=black!50,
+        minimum width=2.6cm, minimum height=0.9cm,
+        fill=white, align=center, font=\footnotesize
+    },
+    flecha/.style={-{Latex[length=2.2mm]}, thick}
+]
+
+\node[capa] (frontend) {\textbf{Capa de presentación --- Frontend (navegador)}\\[2pt]
+    \begin{tikzpicture}[baseline]
+        \node[componente] (react) {React 19\\+ Vite};
+        \node[componente, right=0.4cm of react] (tw) {Tailwind\\CSS};
+        \node[componente, right=0.4cm of tw] (tq) {TanStack\\Query};
+        \node[componente, right=0.4cm of tq] (rhf) {React Hook\\Form + Zod};
+        \node[componente, right=0.4cm of rhf] (router) {React\\Router};
+    \end{tikzpicture}
+};
+
+\node[capa, below=of frontend] (backend) {\textbf{Capa de aplicación --- Backend Django (servidor)}\\[2pt]
+    \begin{tikzpicture}[baseline]
+        \node[componente] (django) {Django 5};
+        \node[componente, right=0.4cm of django] (drf) {DRF\\+ SimpleJWT};
+        \node[componente, right=0.4cm of drf] (spec) {drf-\\spectacular};
+        \node[componente, right=0.4cm of spec] (cors) {CORS +\\Throttling};
+        \node[componente, right=0.4cm of cors] (apps) {6 apps de\\dominio};
+    \end{tikzpicture}
+};
+
+\node[capa, below=of backend] (db) {\textbf{Capa de persistencia}\\[2pt]
+    \begin{tikzpicture}[baseline]
+        \node[componente, minimum width=4.5cm] {PostgreSQL 16 --- 21 migraciones};
+        \node[componente, right=0.5cm, minimum width=4.5cm] {Fixtures JSON + CSV};
+    \end{tikzpicture}
+};
+
+\draw[flecha] ($(frontend.south)+(-2,0)$) -- node[right, font=\scriptsize] {HTTPS / JSON} ($(backend.north)+(-2,0)$);
+\draw[flecha] ($(backend.north)+(2,0)$) -- node[right, font=\scriptsize] {JWT Bearer} ($(frontend.south)+(2,0)$);
+\draw[flecha] ($(backend.south)+(0,0)$) -- node[right, font=\scriptsize] {ORM / SQL} ($(db.north)+(0,0)$);
+
+\end{tikzpicture}

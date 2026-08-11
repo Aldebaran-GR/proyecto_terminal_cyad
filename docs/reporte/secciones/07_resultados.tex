@@ -1,0 +1,176 @@
+\section{Resultados}\label{sec:resultados}
+\justifying
+
+Esta sección presenta los resultados obtenidos con evidencia cuantitativa (métricas del código, tests, cobertura y endpoints) y evidencia cualitativa (capturas de pantalla del sistema en operación con datos de \emph{seed}).
+
+\subsection{Métricas del código y de la base de datos}
+
+La Tabla~\ref{tab:metricasCodigo} resume el volumen del sistema entregado.
+
+\begin{longtable}{p{0.35\textwidth} p{0.20\textwidth} p{0.37\textwidth}}
+    \caption{Métricas del código entregado.}
+    \label{tab:metricasCodigo}\\
+    \toprule
+    \textbf{Componente} & \textbf{Cantidad} & \textbf{Notas} \\
+    \midrule
+    \endfirsthead
+
+    \toprule
+    \textbf{Componente} & \textbf{Cantidad} & \textbf{Notas} \\
+    \midrule
+    \endhead
+
+    Apps Django & 6 & \texttt{core, accounts, catalogos, documentos, autoevaluacion, reportes} \\
+    \midrule
+    Migraciones aplicadas & 21 & Distribuidas entre las apps de dominio \\
+    \midrule
+    Endpoints REST de la API v1 & $\sim$45 & Documentados automáticamente vía OpenAPI en \texttt{/api/docs/} \\
+    \midrule
+    Modelos concretos & 14 & Sin contar clases abstractas \texttt{TimeStampedModel} y \texttt{DocumentoAcademicoBase} \\
+    \midrule
+    Dependencias Python & 11 & Ver \texttt{backend/requirements.txt} \\
+    \midrule
+    Dependencias JavaScript (prod) & 11 & Ver \texttt{frontend/package.json} \\
+    \midrule
+    Tipos de pregunta soportados & 8 & TEXTO\_CORTO, TEXTO\_LARGO, OPCION\_UNICA, CASILLAS, SI\_NO, ESCALA\_LINEAL, LISTA\_DESPLEGABLE, CUADRICULA \\
+    \midrule
+    Componentes UI reutilizables & 10+ & Button, Alert, Badge, Table, Modal, FormField, Loading, EmptyState, CollapsiblePeriodoCard, entre otros \\
+    \midrule
+    Fixtures precargados & 5 & Departamentos, licenciaturas, posgrados, áreas, periodos (\texttt{catalogos/fixtures/}) \\
+    \bottomrule
+\end{longtable}
+
+\subsection{Métricas de pruebas}
+
+La Tabla~\ref{tab:metricasTests} muestra el volumen de la suite de pruebas del backend.
+
+\begin{longtable}{p{0.45\textwidth} p{0.20\textwidth} p{0.25\textwidth}}
+    \caption{Volumen de pruebas por módulo.}
+    \label{tab:metricasTests}\\
+    \toprule
+    \textbf{Archivo de pruebas} & \textbf{Líneas} & \textbf{Cobertura módulo} \\
+    \midrule
+    \endfirsthead
+
+    \toprule
+    \textbf{Archivo de pruebas} & \textbf{Líneas} & \textbf{Cobertura módulo} \\
+    \midrule
+    \endhead
+
+    \texttt{tests/test\_auth.py} & 491 & Autenticación y usuarios \\
+    \midrule
+    \texttt{tests/test\_autoevaluacion.py} & 2\,044 & Autoevaluación (form-builder + scoring) \\
+    \midrule
+    \texttt{tests/test\_catalogos.py} & 563 & Catálogos institucionales \\
+    \midrule
+    \texttt{tests/test\_documentos.py} & 698 & Cartas y requisitos \\
+    \midrule
+    \texttt{tests/test\_reportes.py} & 390 & Reportes de cumplimiento \\
+    \midrule
+    \textbf{Total backend} & $\approx$4\,186 & \\
+    \bottomrule
+\end{longtable}
+
+La ejecución completa de la \emph{suite} arroja \textbf{192 pruebas exitosas de 196} (98\,\%) y una \textbf{cobertura de código del 93\,\%} medida con \texttt{coverage.py} (comando \texttt{pytest --cov=. --cov-report=html}). Las cuatro pruebas restantes corresponden a casos avanzados del módulo de reportes de autoevaluación (cálculo de tasa de respuesta y estructura de \emph{payload}) que quedan documentadas como trabajo futuro en la Sección~\ref{sec:analisis}. El reporte HTML detallado se incluye en la carpeta de entregables bajo \texttt{cobertura/}.
+
+\subsection{Evidencia visual del sistema en operación}
+
+Las siguientes capturas se tomaron con el sistema ejecutándose localmente contra la base de datos de \emph{seed} (\texttt{python scripts/seed\_demo.py}). Las credenciales usadas son las del entorno de desarrollo (\texttt{admin@cyad.uam.mx} / \texttt{Admin1234!} para el administrador; un profesor de prueba también sembrado).
+
+\subsubsection{Autenticación}
+
+\begin{figure}[!ht]
+    \centering
+    \captura[0.75\textwidth]{screenshots/login}
+    \caption{Pantalla de inicio de sesión.}
+    \label{fig:login}
+\end{figure}
+
+\subsubsection{Vista Docente}
+
+\begin{figure}[!ht]
+    \centering
+    \captura[0.9\textwidth]{screenshots/docente_dashboard}
+    \caption{\emph{Dashboard} del profesor: tarjetas de resumen y listas agrupadas por periodo.}
+    \label{fig:docente_dashboard}
+\end{figure}
+
+\begin{figure}[!ht]
+    \centering
+    \captura[0.9\textwidth]{screenshots/docente_cartas_lista}
+    \caption{Lista de cartas temáticas del profesor.}
+    \label{fig:docente_cartas_lista}
+\end{figure}
+
+\begin{figure}[!ht]
+    \centering
+    \captura[0.9\textwidth]{screenshots/docente_carta_form}
+    \caption{Formulario de creación/edición de carta temática.}
+    \label{fig:docente_carta_form}
+\end{figure}
+
+\begin{figure}[!ht]
+    \centering
+    \captura[0.9\textwidth]{screenshots/docente_requisito_form}
+    \caption{Formulario de requisitos de recuperación.}
+    \label{fig:docente_requisito_form}
+\end{figure}
+
+\begin{figure}[!ht]
+    \centering
+    \captura[0.9\textwidth]{screenshots/docente_autoevaluacion}
+    \caption{Formulario de autoevaluación con renderizado dinámico de preguntas.}
+    \label{fig:docente_autoevaluacion}
+\end{figure}
+
+\subsubsection{Vista Administrador}
+
+\begin{figure}[!ht]
+    \centering
+    \captura[0.9\textwidth]{screenshots/admin_dashboard}
+    \caption{\emph{Dashboard} del administrador: KPIs globales y cumplimiento por departamento.}
+    \label{fig:admin_dashboard}
+\end{figure}
+
+\begin{figure}[!ht]
+    \centering
+    \captura[0.9\textwidth]{screenshots/admin_profesores}
+    \caption{Gestión de profesores: crear, editar, restablecer contraseña.}
+    \label{fig:admin_profesores}
+\end{figure}
+
+\begin{figure}[!ht]
+    \centering
+    \captura[0.9\textwidth]{screenshots/admin_formulario_builder}
+    \caption{Constructor de formularios de autoevaluación (\emph{form-builder}).}
+    \label{fig:admin_formulario_builder}
+\end{figure}
+
+\begin{figure}[!ht]
+    \centering
+    \captura[0.9\textwidth]{screenshots/admin_reportes}
+    \caption{Panel de reportes con descarga en XLSX.}
+    \label{fig:admin_reportes}
+\end{figure}
+
+\subsubsection{Vista pública}
+
+\begin{figure}[!ht]
+    \centering
+    \captura[0.9\textwidth]{screenshots/publico_explorar}
+    \caption{Vista pública \emph{Explorar}: cascada periodo→programa→UEA con acordeón de documentos.}
+    \label{fig:publico_explorar}
+\end{figure}
+
+\begin{figure}[!ht]
+    \centering
+    \captura[0.85\textwidth]{screenshots/publico_carta}
+    \caption{Vista pública de una carta temática publicada, con formato imprimible.}
+    \label{fig:publico_carta}
+\end{figure}
+
+\subsection{Documentación de la API}
+
+La API queda documentada automáticamente vía \emph{drf-spectacular}. En \texttt{/api/docs/} se accede a la interfaz \emph{Swagger UI} interactiva, y en \texttt{/api/schema/} al esquema OpenAPI en YAML descargable.
+
+\newpage

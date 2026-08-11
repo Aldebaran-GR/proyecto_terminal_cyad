@@ -1,0 +1,15 @@
+\section*{Resumen}
+\addcontentsline{toc}{section}{Resumen}
+\justifying
+\setlength{\parindent}{1.5em}
+
+
+En la División de Ciencias y Artes para el Diseño (CyAD) de la Universidad Autónoma Metropolitana Unidad Azcapotzalco, los profesores entregan cada trimestre tres tipos de documentos: las \emph{cartas temáticas} que describen el contenido de cada curso, los \emph{requisitos de recuperación} para estudiantes en situación irregular y una \emph{autoevaluación} única por trimestre de su propia labor docente. Hasta ahora este proceso se realizaba con formularios de Google y hojas de cálculo, lo que implicaba trabajo repetitivo, dificultades para dar seguimiento y una alta probabilidad de errores, pues muchos de los datos eran ingresados manualmente.
+
+Para atender esta necesidad se desarrolló una aplicación web dividida en dos partes que se comunican entre sí: una parte visible en el navegador (frontend), con la que interactúan las personas usuarias, y una parte oculta que administra la información en una base de datos (backend). La aplicación se organiza alrededor de cinco funciones principales: acceso seguro con diferentes tipos de usuario (profesor, administrador y público general); captura y publicación de cartas temáticas; captura y publicación de requisitos de recuperación; llenado de autoevaluaciones con cálculo automático del nivel de desempeño; y generación de reportes de cumplimiento para la División.
+
+Además de lo anterior se agregaron dos elementos que enriquecen la propuesta original: una vista pública que permite consultar los documentos sin necesidad de iniciar sesión, filtrando por trimestre, programa y unidad de enseñanza-aprendizaje, y si no hay documentos disponibles, se muestra el siguiente mensaje: "Solo se muestran UEA con al menos un documento publicado. Si una UEA no aparece es porque ningún profesor ha publicado su documento para este periodo"; y un panel de catálogos donde el personal administrativo mantiene actualizados los departamentos, licenciaturas, posgrados, áreas y unidades de enseñanza-aprendizaje (UEAs), esta última con posibilidad de importar información desde archivos CSV con la estructura adecuada.
+
+En este reporte se describe el proceso de desarrollo, los resultados obtenidos, las diferencias entre lo comprometido y lo entregado --- en particular la decisión de generar reportes en formato Excel en lugar de PDF --- y las mejoras propuestas para versiones futuras del sistema.
+
+\newpage

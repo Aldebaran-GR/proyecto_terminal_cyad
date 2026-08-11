@@ -1,0 +1,86 @@
+%Diagrama Entidad-Relación resumido (agrupado por app Django).
+%Se incluye vía \input{er} desde secciones/06_desarrollo.tex.
+\begin{tikzpicture}[
+    every node/.style={font=\scriptsize},
+    entidad/.style={
+        rectangle, draw, thick, rounded corners=2pt,
+        minimum height=0.75cm, minimum width=2.2cm, fill=white
+    },
+    grupo/.style={
+        rounded corners=6pt, draw=black!40, dashed, inner sep=8pt
+    },
+    rel/.style={-, thick, black!70}
+]
+
+%----- accounts -----
+\node[entidad] (usuario) at (-6.5, 5)  {Usuario};
+\node[entidad] (profesor) at (-6.5, 3.7)  {Profesor};
+\draw[rel] (usuario) -- node[right, font=\tiny] {1..1} (profesor);
+\begin{scope}[on background layer]
+\node[grupo, fit=(usuario)(profesor), label=above:{\textbf{accounts}}] {};
+\end{scope}
+
+%----- catalogos -----
+\node[entidad] (depto) at (-2, 5.5)      {Departamento};
+\node[entidad] (lic) at (-2, 4.5)        {Licenciatura};
+\node[entidad] (pos) at (-2, 3.5)        {Posgrado};
+\node[entidad] (area) at (-2, 2.5)       {Área};
+\node[entidad] (uea) at (-2, 1.5)        {UEA};
+\node[entidad] (periodo) at (-2, 0.5)    {Periodo};
+
+\draw[rel] (depto) -- (lic);
+\draw[rel] (depto) -- (pos);
+\draw[rel] (lic) -- (uea);
+\draw[rel] (pos) -- (uea);
+\draw[rel] (area) -- (uea);
+\begin{scope}[on background layer]
+\node[grupo, fit=(depto)(lic)(pos)(area)(uea)(periodo), label=above:{\textbf{catalogos}}] {};
+\end{scope}
+
+%----- documentos -----
+\node[entidad] (carta) at (2.5, 4)       {CartaTematica};
+\node[entidad] (requisito) at (2.5, 2.5) {RequisitoRecup.};
+\begin{scope}[on background layer]
+\node[grupo, fit=(carta)(requisito), label=above:{\textbf{documentos}}] {};
+\end{scope}
+
+\draw[rel] (profesor.east) to[out=0, in=180] (carta.west);
+\draw[rel] (profesor.east) to[out=0, in=180] (requisito.west);
+\draw[rel] (uea.east) -- (carta.west);
+\draw[rel] (uea.east) -- (requisito.west);
+\draw[rel] (periodo.east) to[out=0, in=180] (requisito.west);
+\draw[rel] (periodo.east) to[out=0, in=180] (carta.west);
+
+%----- autoevaluacion -----
+\node[entidad] (formulario) at (6.5, 5)     {Formulario};
+\node[entidad] (seccion) at (6.5, 4)        {Sección};
+\node[entidad] (pregunta) at (6.5, 3)       {Pregunta};
+\node[entidad] (opcion) at (6.5, 2)         {OpciónPregunta};
+\node[entidad] (nivel) at (6.5, 1)          {NivelDesempeño};
+\node[entidad] (respuesta) at (6.5, 0)      {Respuesta};
+\node[entidad] (respreg) at (6.5, -1)       {RespuestaPregunta};
+\node[entidad] (fila) at (9.5, 3)           {FilaCuadríc.};
+\node[entidad] (respsec) at (9.5, 0)        {Resp.Sección};
+\node[entidad] (respcelda) at (9.5, -1)     {RespuestaCelda};
+
+\draw[rel] (formulario) -- (seccion);
+\draw[rel] (seccion) -- (pregunta);
+\draw[rel] (pregunta) -- (opcion);
+\draw[rel] (formulario) -- (respuesta);
+\draw[rel] (respuesta) -- (respreg);
+\draw[rel] (respreg) -- (pregunta);
+\draw[rel] (respuesta) -- (nivel);
+\draw[rel] (pregunta.east) -- (fila.west);
+\draw[rel] (respuesta.east) -- (respsec.west);
+\draw[rel] (seccion.east) to[out=0, in=90] (respsec.north);
+\draw[rel] (respreg.east) -- (respcelda.west);
+\draw[rel] (fila.south) to[out=-90, in=90] (respcelda.north);
+\draw[rel] (opcion.east) to[out=0, in=90] (respcelda.north);
+\begin{scope}[on background layer]
+\node[grupo, fit=(formulario)(seccion)(pregunta)(opcion)(nivel)(respuesta)(respreg)(fila)(respsec)(respcelda), label=above:{\textbf{autoevaluacion}}] {};
+\end{scope}
+
+\draw[rel] (profesor.south) to[out=-90, in=180] (respuesta.west);
+\draw[rel] (periodo.east) to[out=0, in=180] (formulario.west);
+
+\end{tikzpicture}

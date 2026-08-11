@@ -1,0 +1,287 @@
+\section{Código fuente}\label{apx:codigo}
+\justifying
+
+Este apéndice presenta \emph{fragmentos curados} del código fuente que ilustran las decisiones de diseño más importantes. El código fuente completo (backend, frontend, tests, scripts y fixtures) se entrega en el archivo \texttt{codigo\_fuente.zip} de la carpeta de entrega, generado con \texttt{git archive HEAD}.
+
+\subsection{Estructura del repositorio}
+
+\begin{Verbatim}[fontsize=\small, frame=single]
+proyecto_terminal_cyad/
+|-- backend/
+|   |-- config/                # settings, urls, wsgi
+|   |-- core/                  # utilidades: pagination, exceptions
+|   |-- accounts/              # Usuario, Profesor, JWT
+|   |-- catalogos/             # Departamento, Licenciatura, UEA, Periodo
+|   |-- documentos/            # CartaTematica, RequisitoRecuperacion
+|   |-- autoevaluacion/        # Formulario, Pregunta, Respuesta, Nivel
+|   |-- reportes/              # Dashboards y cumplimiento
+|   |-- scripts/               # seed_users, seed_demo, create_db
+|   |-- tests/                 # ~4200 lineas de tests con pytest
+|   |-- manage.py
+|   `-- requirements.txt
+|-- frontend/
+|   |-- src/
+|   |   |-- api/               # clientes HTTP (auth, documentos, ...)
+|   |   |-- auth/              # AuthContext, ProtectedRoute, RoleRoute
+|   |   |-- components/ui/     # Button, Alert, Badge, Table, Modal
+|   |   |-- layouts/           # AdminLayout, ProfesorLayout
+|   |   |-- pages/
+|   |   |   |-- admin/         # dashboards y CRUD por catalogo
+|   |   |   |-- profesor/      # cartas, requisitos, autoevaluacion
+|   |   |   `-- publico/       # vista Explorar y documentos publicados
+|   |   |-- App.jsx            # rutas + guards
+|   |   `-- main.jsx           # bootstrap React + TanStack Query
+|   |-- index.html
+|   |-- package.json
+|   `-- vite.config.js
+|-- docs/
+|   |-- reporte/               # este documento
+|   `-- manuales/              # instalacion y usuario
+`-- README.md
+\end{Verbatim}
+
+\subsection{Backend --- Modelo de Usuario con roles}
+
+Fragmento de \texttt{backend/accounts/models.py}: modelo de usuario personalizado con dos roles.
+
+\begin{Verbatim}[fontsize=\small, frame=single]
+class Usuario(AbstractBaseUser, PermissionsMixin):
+    class Rol(models.TextChoices):
+        ADMIN    = "ADMIN",    "Administrador"
+        PROFESOR = "PROFESOR", "Profesor"
+
+    email     = models.EmailField(unique=True)
+    nombre    = models.CharField(max_length=150)
+    rol       = models.CharField(max_length=10, choices=Rol.choices)
+    is_active = models.BooleanField(default=True)
+    is_staff  = models.BooleanField(default=False)
+
+    USERNAME_FIELD = "email"
+    REQUIRED_FIELDS = ["nombre"]
+
+    objects = UsuarioManager()
+\end{Verbatim}
+
+\subsection{Backend --- JWT y throttling}
+
+Fragmento de \texttt{backend/config/settings.py}.
+
+\begin{Verbatim}[fontsize=\small, frame=single]
+REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": (
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
+    ),
+    "DEFAULT_PERMISSION_CLASSES": (
+        "rest_framework.permissions.IsAuthenticated",
+    ),
+    "DEFAULT_THROTTLE_CLASSES": (
+        "rest_framework.throttling.ScopedRateThrottle",
+    ),
+    "DEFAULT_THROTTLE_RATES": {
+        "login": "5/min",
+    },
+    "PAGE_SIZE": 20,
+}
+
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME":  timedelta(minutes=60),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
+    "ROTATE_REFRESH_TOKENS":  True,
+    "AUTH_HEADER_TYPES":      ("Bearer",),
+}
+\end{Verbatim}
+
+\subsection{Backend --- Documento academico base}
+
+Fragmento de \texttt{backend/documentos/models.py}. Clase abstracta con campos comunes y \emph{snapshot} de identidad del profesor.
+
+\begin{Verbatim}[fontsize=\small, frame=single]
+class DocumentoAcademicoBase(TimeStampedModel):
+    class Estado(models.TextChoices):
+        BORRADOR   = "BORRADOR",   "Borrador"
+        PUBLICADO  = "PUBLICADO",  "Publicado"
+
+    profesor         = models.ForeignKey(
+        Profesor, on_delete=models.SET_NULL, null=True, blank=True
+    )
+    profesor_nombre  = models.CharField(max_length=200, blank=True)
+    profesor_correo  = models.EmailField(blank=True)
+
+    uea       = models.ForeignKey(UEA,     on_delete=models.PROTECT)
+    periodo   = models.ForeignKey(Periodo, on_delete=models.PROTECT)
+    nombre_grupo = models.CharField(max_length=50)
+    id_grupo     = models.CharField(max_length=50)
+    horario      = models.CharField(max_length=200, blank=True)
+    modalidad    = models.CharField(
+        max_length=15,
+        choices=[("PRESENCIAL","Presencial"),("REMOTO","Remoto"),("MIXTO","Mixto")],
+    )
+    estado    = models.CharField(
+        max_length=15,
+        choices=Estado.choices,
+        default=Estado.BORRADOR,
+    )
+
+    class Meta:
+        abstract = True
+\end{Verbatim}
+
+\subsection{Backend --- Scoring ponderado de autoevaluacion}
+
+Fragmento simplificado de \texttt{backend/autoevaluacion/views.py}: calculo del puntaje ponderado por seccion y asignacion del nivel de desempeno.
+
+\begin{Verbatim}[fontsize=\small, frame=single]
+def _calcular_puntaje(respuesta):
+    total_pct = Decimal("0")
+    for seccion in respuesta.formulario.secciones.all():
+        peso = seccion.peso  # decimal, suma 100 entre secciones
+        obt, maxp = 0, 0
+        for pregunta in seccion.preguntas.all():
+            resp = respuesta.respuestas_pregunta.filter(pregunta=pregunta).first()
+            if resp:
+                obt  += sum(o.puntos for o in resp.opciones.all())
+                maxp += max((o.puntos for o in pregunta.opciones.all()), default=0)
+        if maxp:
+            total_pct += peso * Decimal(obt) / Decimal(maxp)
+        RespuestaSeccion.objects.update_or_create(
+            respuesta=respuesta, seccion=seccion,
+            defaults={"puntaje": obt, "puntaje_maximo": maxp},
+        )
+    respuesta.porcentaje = total_pct
+    respuesta.save()
+
+def _asignar_nivel(respuesta):
+    nivel = NivelDesempeno.objects.filter(
+        formulario=respuesta.formulario,
+        porcentaje_min__lte=respuesta.porcentaje,
+        porcentaje_max__gte=respuesta.porcentaje,
+    ).first()
+    respuesta.nivel_desempeno = nivel
+    respuesta.save()
+\end{Verbatim}
+
+\subsection{Backend --- Permisos por rol}
+
+Fragmento del sistema de permisos que garantiza que cada profesor solo edite sus documentos.
+
+\begin{Verbatim}[fontsize=\small, frame=single]
+class IsOwnerProfesorOrAdminReadOnly(permissions.BasePermission):
+    def has_permission(self, request, view):
+        return request.user.is_authenticated
+
+    def has_object_permission(self, request, view, obj):
+        if request.user.rol == Usuario.Rol.ADMIN:
+            return request.method in permissions.SAFE_METHODS
+        return obj.profesor and obj.profesor.usuario_id == request.user.id
+\end{Verbatim}
+
+\subsection{Frontend --- Cliente HTTP con refresh automatico de JWT}
+
+Fragmento de \texttt{frontend/src/api/client.js}.
+
+\begin{Verbatim}[fontsize=\small, frame=single]
+const client = axios.create({
+  baseURL: import.meta.env.VITE_API_URL,
+});
+
+client.interceptors.request.use((config) => {
+  const token = sessionStore.getAccessToken();
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});
+
+let refreshing = null;
+
+client.interceptors.response.use(
+  (r) => r,
+  async (error) => {
+    const { config, response } = error;
+    if (response?.status === 401 && !config.__retried) {
+      config.__retried = true;
+      refreshing = refreshing ?? refreshAccessToken();
+      const newToken = await refreshing.finally(() => (refreshing = null));
+      if (newToken) {
+        config.headers.Authorization = `Bearer ${newToken}`;
+        return client(config);
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+\end{Verbatim}
+
+\subsection{Frontend --- Guard de rutas por rol}
+
+Fragmento de \texttt{frontend/src/auth/RoleRoute.jsx}.
+
+\begin{Verbatim}[fontsize=\small, frame=single]
+export function RoleRoute({ role, children }) {
+  const { user, isLoading } = useAuth();
+  if (isLoading) return <Loading />;
+  if (!user) return <Navigate to="/login" replace />;
+  if (user.rol !== role) return <Navigate to="/" replace />;
+  return children;
+}
+
+export const AdminRoute    = ({ children }) =>
+  <RoleRoute role="ADMIN"    >{children}</RoleRoute>;
+export const ProfesorRoute = ({ children }) =>
+  <RoleRoute role="PROFESOR" >{children}</RoleRoute>;
+\end{Verbatim}
+
+\subsection{Frontend --- Renderizador dinamico de preguntas}
+
+Fragmento de \texttt{frontend/src/pages/profesor/autoevaluacion/AutoevaluacionFormPage.jsx} que despacha por tipo de pregunta.
+
+\begin{Verbatim}[fontsize=\small, frame=single]
+function PreguntaRenderer({ pregunta, value, onChange }) {
+  switch (pregunta.tipo) {
+    case "TEXTO_CORTO":       return <TextInput  {...{value, onChange}} />;
+    case "TEXTO_LARGO":       return <TextArea   {...{value, onChange}} />;
+    case "OPCION_UNICA":      return <RadioGroup opciones={pregunta.opciones} {...{value, onChange}} />;
+    case "CASILLAS":          return <CheckGroup opciones={pregunta.opciones} {...{value, onChange}} />;
+    case "SI_NO":             return <YesNo      {...{value, onChange}} />;
+    case "ESCALA_LINEAL":     return <LinearScale config={pregunta.config} {...{value, onChange}} />;
+    case "LISTA_DESPLEGABLE": return <Select     opciones={pregunta.opciones} {...{value, onChange}} />;
+    case "CUADRICULA":        return <Grid       config={pregunta.config} filas={pregunta.filas} {...{value, onChange}} />;
+    default:                  return <UnknownType tipo={pregunta.tipo} />;
+  }
+}
+\end{Verbatim}
+
+\subsection{Backend --- Comando de importacion CSV para UEA}
+
+Comando de gestion \texttt{python manage.py cargar\_catalogos\_csv} para carga masiva idempotente. Fragmento simplificado.
+
+\begin{Verbatim}[fontsize=\small, frame=single]
+class Command(BaseCommand):
+    help = "Carga catalogos (Areas, Licenciaturas, Posgrados, UEAs) desde CSV"
+
+    def add_arguments(self, parser):
+        parser.add_argument("--ueas", type=str, help="Path al CSV de UEAs")
+
+    def handle(self, *args, **opts):
+        ruta = opts["ueas"]
+        with open(ruta, newline="", encoding="utf-8") as fh:
+            for fila in csv.DictReader(fh):
+                UEA.objects.update_or_create(
+                    clave=fila["clave"],
+                    licenciatura=Licenciatura.objects.get(clave=fila["licenciatura"]),
+                    defaults={
+                        "nombre":    fila["nombre"],
+                        "trimestre": int(fila["trimestre"]),
+                        "creditos":  int(fila["creditos"]),
+                        "tipo":      fila["tipo"],
+                    },
+                )
+\end{Verbatim}
+
+\subsection{Nota sobre el listado completo}
+
+Los archivos aquí incluidos son una selección representativa de los fragmentos más ilustrativos. El código fuente completo (backend, frontend, \emph{tests}, scripts y fixtures) se entrega en el archivo \texttt{codigo\_fuente.zip}. Para regenerarlo desde el repositorio se ejecuta desde la raíz del proyecto:
+
+\begin{quote}
+\ttfamily git archive HEAD -o docs/reporte/entregables/codigo\_fuente.zip
+\end{quote}
+
+Adicionalmente, la documentación viva de la API se genera automáticamente vía \emph{drf-spectacular} y se sirve en \texttt{/api/docs/} (interfaz Swagger UI) y \texttt{/api/schema/} (esquema OpenAPI en YAML).

@@ -1,0 +1,101 @@
+\section{Análisis y discusión de resultados}\label{sec:analisis}
+\justifying
+
+Esta sección compara lo entregado con lo comprometido en la propuesta, discute las decisiones de diseño que se apartaron de aquélla y examina las limitaciones del sistema actual.
+
+\subsection{Comparación entregado vs. propuesta}
+
+La Tabla~\ref{tab:cumplimiento} sintetiza el grado de cumplimiento de cada componente del sistema respecto de lo que se prometió en la propuesta.
+
+\begin{longtable}{p{0.28\textwidth} p{0.16\textwidth} p{0.48\textwidth}}
+    \caption{Grado de cumplimiento por componente respecto a la propuesta.}
+    \label{tab:cumplimiento}\\
+    \toprule
+    \textbf{Componente} & \textbf{Cumplimiento} & \textbf{Observaciones} \\
+    \midrule
+    \endfirsthead
+
+    \toprule
+    \textbf{Componente} & \textbf{Cumplimiento} & \textbf{Observaciones} \\
+    \midrule
+    \endhead
+
+    Módulo de autenticación & Completo con matices & Identidad por email en lugar de número económico; \emph{rate limiting} sí; \emph{reset} autoservicio no. \\
+    \midrule
+    Cartas temáticas (CRUD) & Completo & Ciclo Borrador/Publicado, unicidad, permisos, snapshots de identidad. \\
+    \midrule
+    Cartas temáticas (contenido estructurado) & Reemplazado & Los submodelos Tema/Subtema/Bibliografia/CriterioEvaluacion se reemplazaron por texto libre tras el rediseño de junio 2026. \\
+    \midrule
+    Requisitos de recuperación (CRUD) & Completo & Mismo patrón que cartas. \\
+    \midrule
+    Requisitos de recuperación (\texttt{RequisitoItem}) & Reemplazado & También aplanado en el rediseño. \\
+    \midrule
+    Exportación a PDF/DOCX & No entregado & Se implementó exportación a XLSX en el cliente para reportes; documentos usan \texttt{window.print()} del navegador. \\
+    \midrule
+    Autoevaluación docente (formulario) & Ampliado & Se entregó un \emph{form-builder} configurable con ocho tipos de pregunta y ocho iteraciones (PR1--PR9). \\
+    \midrule
+    Autoevaluación (scoring y observaciones) & Completo & \emph{Scoring} ponderado por sección con niveles de desempeño automáticos. \\
+    \midrule
+    Autoevaluación (PDF descargable por el docente) & No entregado & El resultado se muestra en pantalla; no hay descarga en PDF. \\
+    \midrule
+    Autoevaluación (privacidad admin) & Ajustado & El admin ve porcentajes agregados y quién respondió; el detalle cualitativo queda para el propio profesor. \\
+    \midrule
+    Reportes de cumplimiento & Completo & Dashboards por departamento y por licenciatura; export XLSX. \\
+    \midrule
+    Reportes en PDF & No entregado & Ver observación de exportación. \\
+    \midrule
+    Base de datos PostgreSQL & Completo & 21 migraciones, \emph{constraints} declarativos, fixtures y CSV para catálogos. \\
+    \midrule
+    Autenticación JWT + validación de contraseñas + CORS whitelist & Completo & Ver Sección~\ref{sec:seguridad}. \\
+    \midrule
+    Manual de usuario y de instalación & Entregados & En \texttt{docs/manuales/} (documentos separados). \\
+    \midrule
+    Vista pública de exploración & Extra (no comprometido) & Cascada periodo→programa→UEA. \\
+    \midrule
+    Catálogos administrables completos & Extra (no comprometido) & Departamentos, licenciaturas, posgrados, áreas, UEA (con CSV) y periodos. \\
+    \bottomrule
+\end{longtable}
+
+\subsection{Discusión de las brechas frente a la propuesta}
+
+\subsubsection{Identidad por email en lugar de número económico}
+
+La propuesta indicaba autenticación con \texttt{número económico + contraseña}. En el sistema entregado, el \texttt{USERNAME\_FIELD} es \texttt{email} y el número económico existe como campo opcional del perfil \texttt{Profesor}. La decisión se sostuvo por tres razones: (a)~el email institucional es único, garantizado y conocido por todo el personal; (b)~el número económico no siempre está disponible en el momento del alta y varía menos entre trámites; y (c)~el email facilita la comunicación (envío de correos institucionales, futuras notificaciones, reset de contraseña). El impacto para el usuario es mínimo: en la práctica ingresa su email institucional en lugar de su número.
+
+\subsubsection{Ausencia de exportación a PDF/DOCX en backend}
+
+Ésta es la brecha de mayor visibilidad. La propuesta prometía generación de PDFs y DOCXs para cartas, requisitos, resultados de autoevaluación y reportes. En el sistema entregado, la única forma de \emph{generar un PDF} de una carta o requisito es abrir la vista pública e imprimir a PDF desde el navegador (\texttt{window.print()}); la única exportación estructurada es la descarga a XLSX de los reportes, generada en el cliente con \emph{SheetJS}. Las razones prácticas fueron: (a)~evitar la dependencia de librerías pesadas (\emph{WeasyPrint} requiere GTK; \emph{ReportLab} requiere maquetación manual); (b)~priorizar el flujo de operación diaria (captura, publicación, reportes en línea) sobre entregables descargables; y (c)~concentrar el esfuerzo en el módulo de autoevaluación, técnicamente más complejo. En la Sección~\ref{sec:conclusiones} se marca la generación nativa de PDFs como trabajo futuro prioritario.
+
+\subsubsection{Cartas y requisitos aplanados}
+
+Los submodelos \texttt{Tema}, \texttt{Subtema}, \texttt{Bibliografia} y \texttt{CriterioEvaluacion} propuestos originalmente para estructurar el contenido de la carta temática se eliminaron mediante la migración \texttt{documentos/0002\_rediseno\_documentos} y se sustituyeron por campos \texttt{TextField} libres. La motivación fue la ausencia de una plantilla oficial de CyAD que estableciera con carácter normativo qué campos debían existir y con qué cardinalidad. Con contenido libre, cada profesor organiza su carta como considere conveniente, y la Coordinación puede definir posteriormente un formato estándar sin necesidad de migrar datos.
+
+\subsubsection{Sin reset de contraseña autoservicio}
+
+Sólo el administrador puede restablecer la contraseña de un profesor. Un flujo de \emph{forgot password} con token por correo se documenta como línea de trabajo futuro pero no se entregó porque el envío de correos requiere infraestructura adicional (SMTP institucional configurado) que no estuvo disponible en el trimestre de desarrollo.
+
+\subsection{Elementos entregados que no estaban en la propuesta}
+
+Estos componentes se incorporaron a solicitud durante el desarrollo y elevan el valor del sistema:
+
+\begin{itemize}
+    \item \textbf{Vista pública \emph{Explorar}}: cascada periodo→programa→UEA para consulta de cartas y requisitos publicados. Beneficia a estudiantes y personal externo.
+    \item \textbf{Form-builder de autoevaluación}: en lugar de un formulario fijo, el administrador diseña formularios con ocho tipos de pregunta, secciones ponderadas y versionado.
+    \item \textbf{Catálogos administrables completos} con importación CSV.
+    \item \textbf{Snapshots de identidad del profesor} en los documentos, para preservar autoría aunque el registro sea desactivado.
+    \item \textbf{Suite de pruebas de \(\sim\)4\,200 líneas} en el backend.
+\end{itemize}
+
+\subsection{Limitaciones del sistema actual}
+
+\begin{itemize}
+    \item \textbf{Sin pruebas en el frontend}: no hay \emph{Vitest}, \emph{Jest} ni \emph{React Testing Library} configurados. Los flujos críticos se validan sólo por inspección manual y por los tests de la API que consumen.
+    \item \textbf{Sin CI/CD}: no hay pipeline configurado; las pruebas y \emph{lints} se ejecutan manualmente antes de cada \emph{commit}.
+    \item \textbf{Sin backups automáticos configurados}: la política de respaldo dependerá de la infraestructura de despliegue.
+    \item \textbf{Sin métricas de uso}: no se registra actividad de usuarios para análisis posterior (no hay dashboard de \emph{engagement} ni logs estructurados).
+    \item \textbf{Sin accesibilidad medida}: aunque \emph{Tailwind} y los componentes reutilizables favorecen la accesibilidad, no se realizó una auditoría formal con \emph{Lighthouse} o \emph{axe-core}.
+\end{itemize}
+
+Estas limitaciones no impiden la operación del sistema pero delimitan expectativas y sugieren prioridades para iteraciones futuras.
+
+\newpage

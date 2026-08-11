@@ -1,0 +1,62 @@
+\section{Entregables del plan de trabajo}\label{apx:entregables}
+\justifying
+
+La Tabla~\ref{tab:entregablesReales} replica el calendario de actividades comprometido en la propuesta (198~horas en total para el Trimestre 2026-Primavera) con el estado real de cada entregable al cierre del proyecto.
+
+\begin{longtable}{p{0.04\textwidth} p{0.34\textwidth} p{0.06\textwidth} p{0.44\textwidth}}
+    \caption{Entregables prometidos en la propuesta y su estado real.}
+    \label{tab:entregablesReales}\\
+    \toprule
+    \textbf{No.} & \textbf{Actividad} & \textbf{Hrs.} & \textbf{Estado y evidencia} \\
+    \midrule
+    \endfirsthead
+
+    \toprule
+    \textbf{No.} & \textbf{Actividad} & \textbf{Hrs.} & \textbf{Estado y evidencia} \\
+    \midrule
+    \endhead
+
+    1 & Diseño e implementación de la base de datos & 20 & \textbf{Completo}. 21 migraciones, seis apps, PostgreSQL 16. Diagrama ER en Figura~\ref{fig:er}. \\
+    \midrule
+    2 & Diseño de las interfaces por módulo & 10 & \textbf{Completo}. UI implementada en React 19 + Tailwind, con componentes reutilizables (\texttt{Button}, \texttt{Alert}, \texttt{Badge}, \texttt{Table}, \texttt{Modal}, \texttt{FormField}, \emph{etc}). Capturas en Sección~\ref{sec:resultados}. \\
+    \midrule
+    3 & Desarrollo del módulo de autenticación & 25 & \textbf{Completo}. \texttt{accounts/} + 491 líneas de tests (\texttt{tests/test\_auth.py}). Login JWT con \emph{throttling}. \\
+    \midrule
+    4 & Desarrollo del módulo de cartas temáticas & 25 & \textbf{Completo}. \texttt{documentos/} (parte \texttt{CartaTematica}) + tests en \texttt{tests/test\_documentos.py}. Sin exportación PDF/DOCX (véase Sección~\ref{sec:analisis}). \\
+    \midrule
+    5 & Desarrollo del módulo de requisitos de recuperación & 25 & \textbf{Completo}. \texttt{documentos/} (parte \texttt{RequisitoRecuperacion}). Mismo alcance/limitaciones que cartas. \\
+    \midrule
+    6 & Desarrollo del módulo de autoevaluación docente & 25 & \textbf{Ampliado}. \texttt{autoevaluacion/} con \emph{form-builder}, 8 tipos de pregunta, \emph{scoring} ponderado y versionado (9 incrementos PR1--PR9). 2\,044 líneas de tests. \\
+    \midrule
+    7 & Desarrollo del módulo de generación de reportes & 25 & \textbf{Completo}. \texttt{reportes/} + 390 líneas de tests. Export XLSX en cliente (no PDF). \\
+    \midrule
+    8 & Integración del sistema con la base de datos & 10 & \textbf{Completo}. ORM operativo, \emph{fixtures}, comando \texttt{cargar\_catalogos\_csv} y \emph{scripts} \texttt{seed\_users} / \texttt{seed\_demo}. \\
+    \midrule
+    9 & Prueba y corrección de errores & 8 & \textbf{Completo}. $\approx$4\,186 líneas de tests + \emph{smoke test} end-to-end. Historial git con \emph{fixes} rastreables (por ejemplo \emph{fix(seguridad)}, \emph{fix(autoevaluacion)}, \emph{fix(catalogos)}). \\
+    \midrule
+    10 & Documentación para usuarios & 10 & \textbf{Completo}. \texttt{docs/manuales/usuario.tex} y \texttt{docs/manuales/instalacion.tex}. \\
+    \midrule
+    11 & Redacción del reporte final del proyecto & 15 & \textbf{Completo}. Este documento (\texttt{docs/reporte/main.pdf}) con nueve secciones, dos anexos, índices y bibliografía. \\
+    \midrule
+    \multicolumn{4}{l}{\emph{Entregables adicionales no contemplados originalmente:}} \\
+    \midrule
+    E1 & Vista pública de exploración (cascada periodo→programa→UEA) & --- & \textbf{Entregado} (extra). Beneficia a estudiantes al elegir carga. \\
+    \midrule
+    E2 & Catálogos administrables completos + importación CSV & --- & \textbf{Entregado} (extra). Departamentos, licenciaturas, posgrados, áreas, UEA, periodos. \\
+    \midrule
+    E3 & Suite de pruebas de $\sim$4\,200 líneas en backend & --- & \textbf{Entregado} (extra). Ver \texttt{backend/tests/}. \\
+    \midrule
+    E4 & Documentación OpenAPI/Swagger auto-generada & --- & \textbf{Entregado} (extra). Vía \emph{drf-spectacular} en \texttt{/api/schema/} y \texttt{/api/docs/}. \\
+    \bottomrule
+\end{longtable}
+
+Adicionalmente, la carpeta digital de entrega a la Coordinación de Estudios contiene:
+
+\begin{itemize}
+    \item \texttt{reporte\_final.pdf} --- compilación de este documento, sin restricciones.
+    \item \texttt{codigo\_fuente.zip} --- generado con \texttt{git archive HEAD}, descomprimible sin contraseña.
+    \item \texttt{manual\_usuario.pdf} y \texttt{manual\_instalacion.pdf}.
+    \item \texttt{cobertura/} --- reporte HTML de cobertura de tests generado con \texttt{pytest --cov}.
+\end{itemize}
+
+\newpage
