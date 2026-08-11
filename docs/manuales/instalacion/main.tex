@@ -1,0 +1,214 @@
+\documentclass{computacion}
+\titulo{Manual de Instalación --- Sistema CyAD}
+\tipo{Proyecto Tecnológico}
+\version{Manual de Instalación}
+\trimestre{2026-Primavera}
+\alumno{[TU NOMBRE]}
+\matricula{[MATRÍCULA]}
+
+\asesor{[Grado. Nombres Apellidos del Asesor]}
+\categoria{[Profesor Titular/Asociado/Asistente]}
+\departamento{[Departamento de Sistemas]}
+\correo{[correo@azc.uam.mx]}
+
+\coasesor{}
+\categoriacoasesor{}
+\departamentocoasesor{}
+\correocoasesor{}
+
+\begin{document}
+\portada
+\setcounter{page}{1}
+\pagestyle{fancy}
+
+\section{Introducción}
+Este manual describe cómo instalar y ejecutar el \emph{Sistema para la gestión de formularios sobre los cursos y autoevaluaciones docentes} de la División de Ciencias y Artes para el Diseño (CyAD) en un entorno de desarrollo local. La instalación en producción sigue los mismos pasos, cambiando únicamente el archivo \texttt{.env} y el modo de servido (\emph{gunicorn} + \emph{Nginx}).
+
+\section{Prerrequisitos}
+
+\begin{longtable}{p{0.35\textwidth} p{0.20\textwidth} p{0.37\textwidth}}
+    \toprule
+    \textbf{Software} & \textbf{Versión mínima} & \textbf{Uso} \\
+    \midrule
+    \endhead
+    Python & 3.13 & Ejecución del backend Django. \\
+    \midrule
+    Node.js & 22 LTS & Ejecución del frontend Vite + React. \\
+    \midrule
+    PostgreSQL & 16 & Base de datos relacional. \\
+    \midrule
+    Git & 2.40+ & Clonado del repositorio. \\
+    \midrule
+    \emph{npm} (incluido con Node) & 10+ & Gestor de paquetes JS. \\
+    \bottomrule
+\end{longtable}
+
+En Windows se recomienda utilizar \emph{Git Bash} o \emph{PowerShell}. En Linux/macOS los comandos son idénticos, cambiando la ruta del entorno virtual (\texttt{bin/} en lugar de \texttt{Scripts/}).
+
+\section{Clonado del repositorio}
+
+\begin{quote}
+\ttfamily
+git clone \textless URL\_del\_repositorio\textgreater\ proyecto\_terminal\_cyad \\
+cd proyecto\_terminal\_cyad
+\end{quote}
+
+\section{Configuración del backend}
+
+\subsection{Entorno virtual}
+
+\begin{quote}
+\ttfamily
+cd backend \\
+python -m venv .venv \\
+.venv\textbackslash Scripts\textbackslash activate\ \ \# Windows \\
+source .venv/bin/activate\ \ \# Linux/macOS \\
+pip install -r requirements.txt
+\end{quote}
+
+\subsection{Base de datos}
+
+Crear la base de datos con el usuario que se usará desde Django. Un ejemplo con \texttt{psql}:
+
+\begin{quote}
+\ttfamily
+psql -U postgres \\
+CREATE DATABASE cyad\_db; \\
+CREATE USER cyad\_user WITH PASSWORD 'cyad\_pass'; \\
+GRANT ALL PRIVILEGES ON DATABASE cyad\_db TO cyad\_user;
+\end{quote}
+
+Alternativamente, ejecute el script auxiliar:
+
+\begin{quote}
+\ttfamily
+python scripts/create\_db.py
+\end{quote}
+
+\subsection{Archivo \texttt{.env}}
+
+Cree \texttt{backend/.env} con el siguiente contenido (ajuste según su entorno):
+
+\begin{Verbatim}[fontsize=\small, frame=single]
+DEBUG=True
+SECRET_KEY=cambia-esto-por-una-clave-segura-de-50-caracteres
+ALLOWED_HOSTS=localhost,127.0.0.1
+DB_NAME=cyad_db
+DB_USER=cyad_user
+DB_PASSWORD=cyad_pass
+DB_HOST=localhost
+DB_PORT=5432
+CORS_ALLOWED_ORIGINS=http://localhost:5173
+\end{Verbatim}
+
+Para producción se debe establecer \texttt{DEBUG=False}, definir \texttt{ALLOWED\_HOSTS} con el dominio real y generar una \texttt{SECRET\_KEY} con \texttt{python -c "from django.core.management.utils import get\_random\_secret\_key; print(get\_random\_secret\_key())"}.
+
+\subsection{Migraciones}
+
+\begin{quote}
+\ttfamily
+python manage.py migrate
+\end{quote}
+
+\subsection{Datos iniciales}
+
+Cargue los catálogos institucionales (departamentos, licenciaturas, posgrados, áreas, periodos):
+
+\begin{quote}
+\ttfamily
+python manage.py loaddata catalogos/fixtures/departamentos.json \\
+python manage.py loaddata catalogos/fixtures/licenciaturas.json \\
+python manage.py loaddata catalogos/fixtures/posgrados.json \\
+python manage.py loaddata catalogos/fixtures/areas.json \\
+python manage.py loaddata catalogos/fixtures/periodos.json
+\end{quote}
+
+Cree los usuarios de prueba y los datos demo (formulario de autoevaluación, UEAs, perfiles):
+
+\begin{quote}
+\ttfamily
+python scripts/seed\_users.py \\
+python scripts/seed\_demo.py
+\end{quote}
+
+Al finalizar, existirán las siguientes cuentas:
+
+\begin{longtable}{p{0.30\textwidth} p{0.35\textwidth} p{0.30\textwidth}}
+    \toprule
+    \textbf{Rol} & \textbf{Correo} & \textbf{Contraseña} \\
+    \midrule
+    \endhead
+    Administrador & admin@cyad.uam.mx & Admin1234! \\
+    \midrule
+    Profesor & profesor@cyad.uam.mx & Profesor1234! \\
+    \bottomrule
+\end{longtable}
+
+Estas contraseñas deben cambiarse antes del despliegue a producción.
+
+\subsection{Servidor de desarrollo del backend}
+
+\begin{quote}
+\ttfamily
+python manage.py runserver 8000
+\end{quote}
+
+El backend queda disponible en \texttt{http://localhost:8000}. La documentación interactiva de la API está en \texttt{http://localhost:8000/api/docs/}.
+
+\section{Configuración del frontend}
+
+En una terminal aparte:
+
+\begin{quote}
+\ttfamily
+cd frontend \\
+npm install \\
+npm run dev
+\end{quote}
+
+El frontend queda disponible en \texttt{http://localhost:5173}. Vite realiza \emph{hot reload} automático al editar archivos fuente.
+
+Si el backend no está en \texttt{localhost:8000}, cree \texttt{frontend/.env.local} con:
+
+\begin{Verbatim}[fontsize=\small, frame=single]
+VITE_API_BASE_URL=http://tu-servidor:8000/api/v1
+\end{Verbatim}
+
+\section{Verificación}
+
+\begin{enumerate}
+    \item Abra \texttt{http://localhost:5173/} — debe mostrarse la vista pública ``Explorar''.
+    \item Inicie sesión con \texttt{admin@cyad.uam.mx}. Debe redirigir al \emph{dashboard} de administrador.
+    \item Cierre sesión, inicie con \texttt{profesor@cyad.uam.mx}. Debe redirigir al \emph{dashboard} de profesor.
+    \item Ejecute la suite de pruebas: \texttt{pytest} desde \texttt{backend/}. Todas deben pasar.
+\end{enumerate}
+
+\section{Comandos administrativos útiles}
+
+\begin{longtable}{p{0.50\textwidth} p{0.42\textwidth}}
+    \toprule
+    \textbf{Comando} & \textbf{Uso} \\
+    \midrule
+    \endhead
+    \texttt{python manage.py cargar\_catalogos\_csv <archivo>} & Importar catálogos desde CSV. \\
+    \midrule
+    \texttt{python manage.py createsuperuser} & Crear cuenta administradora adicional. \\
+    \midrule
+    \texttt{python manage.py dumpdata <app>} & Exportar datos a JSON. \\
+    \midrule
+    \texttt{pytest --cov=. --cov-report=html} & Ejecutar pruebas con cobertura. \\
+    \midrule
+    \texttt{npm run build} (frontend) & Compilar producción estática (dist/). \\
+    \bottomrule
+\end{longtable}
+
+\section{Solución de problemas}
+
+\begin{itemize}
+    \item \textbf{Error \texttt{FATAL: password authentication failed}}: verifique \texttt{DB\_USER} y \texttt{DB\_PASSWORD} en \texttt{.env} y que el usuario tenga permisos sobre la base de datos.
+    \item \textbf{Error CORS al iniciar sesión desde el frontend}: verifique que \texttt{CORS\_ALLOWED\_ORIGINS} incluya \texttt{http://localhost:5173}.
+    \item \textbf{\texttt{429 Too Many Requests} al iniciar sesión}: se activó el \emph{rate limiting} (5 intentos por minuto). Espere 60 segundos y reintente.
+    \item \textbf{Puerto 5173 ocupado}: Vite usará automáticamente el siguiente puerto libre; verifique la URL impresa al inicio.
+\end{itemize}
+
+\end{document}
