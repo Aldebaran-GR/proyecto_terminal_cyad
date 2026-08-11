@@ -26,14 +26,33 @@ dist/
 .DS_Store
 Thumbs.db
 
-# Pytest
+# Pytest / Cobertura
 .pytest_cache/
+.coverage
+htmlcov/
 
-# Claude Code
+# Claude Code / herramientas locales
 .claude/
+.agents/
+skills-lock.json
 
 # Logs
 *.log
 
 # Archivos de debug / QA
 *.network-response
+
+# ---- LaTeX (artefactos de compilación) ----
+*.aux
+*.bbl
+*.blg
+*.fdb_latexmk
+*.fls
+*.lof
+*.lot
+*.out
+*.synctex.gz
+*.toc
+
+# Entregables regenerables del reporte (PDFs finales, ZIP de código, cobertura HTML)
+docs/reporte/entregables/
