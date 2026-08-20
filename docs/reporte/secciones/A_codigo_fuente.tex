@@ -126,41 +126,65 @@ class DocumentoAcademicoBase(TimeStampedModel):
         abstract = True
 \end{Verbatim}
 
-\subsection{Backend --- Scoring ponderado de autoevaluacion}
+\subsection{Backend --- Scoring ponderado de autoevaluacion}\label{lst:scoring}
 
-Fragmento simplificado de \texttt{backend/autoevaluacion/views.py}: calculo del puntaje ponderado por seccion y asignacion del nivel de desempeno.
+Fragmento simplificado de \texttt{backend/autoevaluacion/views.py}: calculo del puntaje ponderado por seccion, con manejo por tipo de pregunta y \emph{snapshot} del peso en \texttt{RespuestaSeccion}.
 
 \begin{Verbatim}[fontsize=\small, frame=single]
 def _calcular_puntaje(respuesta):
-    total_pct = Decimal("0")
+    resultado_secciones = []
+    item_by_pregunta = {r.pregunta_id: r for r in respuesta.items.all()}
     for seccion in respuesta.formulario.secciones.all():
-        peso = seccion.peso  # decimal, suma 100 entre secciones
-        obt, maxp = 0, 0
+        sec_obt, sec_max = Decimal("0"), Decimal("0")
         for pregunta in seccion.preguntas.all():
-            resp = respuesta.respuestas_pregunta.filter(pregunta=pregunta).first()
-            if resp:
-                obt  += sum(o.puntos for o in resp.opciones.all())
-                maxp += max((o.puntos for o in pregunta.opciones.all()), default=0)
-        if maxp:
-            total_pct += peso * Decimal(obt) / Decimal(maxp)
-        RespuestaSeccion.objects.update_or_create(
-            respuesta=respuesta, seccion=seccion,
-            defaults={"puntaje": obt, "puntaje_maximo": maxp},
-        )
-    respuesta.porcentaje = total_pct
-    respuesta.save()
+            if pregunta.tipo in Pregunta.TIPOS_NO_PUNTABLES:
+                continue
+            item = item_by_pregunta.get(pregunta.id)
+            if pregunta.tipo == Pregunta.Tipo.CUADRICULA:
+                opts, filas = list(pregunta.opciones.all()), list(pregunta.filas.all())
+                if opts and filas:
+                    sec_max += max(o.puntos for o in opts) * len(filas)
+                if item:
+                    sec_obt += sum(c.opcion.puntos for c in item.celdas.all())
+            elif pregunta.tipo == Pregunta.Tipo.ESCALA_LINEAL:
+                cfg = pregunta.config or {}
+                factor = Decimal(str(cfg.get("puntos_factor", 1)))
+                sec_max += Decimal(str(cfg.get("max", 5))) * factor
+                if item and item.valor_texto:
+                    sec_obt += Decimal(item.valor_texto) * factor
+            # ... SI_NO, CASILLAS, OPCION_UNICA / LISTA_DESPLEGABLE ...
+        porcentaje = (sec_obt / sec_max * 100).quantize(Decimal("0.01")) \
+                     if sec_max > 0 else Decimal("0")
+        resultado_secciones.append({
+            "seccion": seccion, "obtenido": sec_obt, "maximo": sec_max,
+            "porcentaje": porcentaje, "peso": seccion.peso,
+        })
 
-def _asignar_nivel(respuesta):
-    nivel = NivelDesempeno.objects.filter(
-        formulario=respuesta.formulario,
-        porcentaje_min__lte=respuesta.porcentaje,
-        porcentaje_max__gte=respuesta.porcentaje,
-    ).first()
-    respuesta.nivel_desempeno = nivel
-    respuesta.save()
+    porcentaje_global = sum(
+        s["porcentaje"] * s["peso"] / Decimal("100") for s in resultado_secciones
+    ).quantize(Decimal("0.01"))
+
+    with transaction.atomic():
+        respuesta.porcentaje = porcentaje_global
+        respuesta.nivel_desempeno = NivelDesempeno.objects.filter(
+            formulario=respuesta.formulario,
+            porcentaje_min__lte=porcentaje_global,
+            porcentaje_max__gte=porcentaje_global,
+        ).first()
+        respuesta.save()
+        for s in resultado_secciones:
+            RespuestaSeccion.objects.update_or_create(
+                respuesta=respuesta, seccion=s["seccion"],
+                defaults={
+                    "puntaje":        s["obtenido"],
+                    "puntaje_maximo": s["maximo"],
+                    "porcentaje":     s["porcentaje"],
+                    "peso":           s["peso"],   # snapshot para desglose historico
+                },
+            )
 \end{Verbatim}
 
-\subsection{Backend --- Permisos por rol}
+\subsection{Backend --- Permisos por rol}\label{lst:permissions}
 
 Fragmento del sistema de permisos que garantiza que cada profesor solo edite sus documentos.
 
@@ -175,7 +199,7 @@ class IsOwnerProfesorOrAdminReadOnly(permissions.BasePermission):
         return obj.profesor and obj.profesor.usuario_id == request.user.id
 \end{Verbatim}
 
-\subsection{Frontend --- Cliente HTTP con refresh automatico de JWT}
+\subsection{Frontend --- Cliente HTTP con refresh automatico de JWT}\label{lst:jwt-refresh}
 
 Fragmento de \texttt{frontend/src/api/client.js}.
 
@@ -210,7 +234,7 @@ client.interceptors.response.use(
 );
 \end{Verbatim}
 
-\subsection{Frontend --- Guard de rutas por rol}
+\subsection{Frontend --- Guard de rutas por rol}\label{lst:role-route}
 
 Fragmento de \texttt{frontend/src/auth/RoleRoute.jsx}.
 
@@ -229,9 +253,9 @@ export const ProfesorRoute = ({ children }) =>
   <RoleRoute role="PROFESOR" >{children}</RoleRoute>;
 \end{Verbatim}
 
-\subsection{Frontend --- Renderizador dinamico de preguntas}
+\subsection{Frontend --- Renderizador dinamico de preguntas}\label{lst:renderer_preguntas}
 
-Fragmento de \texttt{frontend/src/pages/profesor/autoevaluacion/AutoevaluacionFormPage.jsx} que despacha por tipo de pregunta.
+Fragmento de \code{frontend/src/pages/profesor/autoevaluacion/AutoevaluacionFormPage.jsx} que despacha por tipo de pregunta.
 
 \begin{Verbatim}[fontsize=\small, frame=single]
 function PreguntaRenderer({ pregunta, value, onChange }) {
@@ -249,7 +273,7 @@ function PreguntaRenderer({ pregunta, value, onChange }) {
 }
 \end{Verbatim}
 
-\subsection{Backend --- Comando de importacion CSV para UEA}
+\subsection{Backend --- Comando de importacion CSV para UEA}\label{lst:import_csv}
 
 Comando de gestion \texttt{python manage.py cargar\_catalogos\_csv} para carga masiva idempotente. Fragmento simplificado.
 
@@ -274,6 +298,138 @@ class Command(BaseCommand):
                         "tipo":      fila["tipo"],
                     },
                 )
+\end{Verbatim}
+
+\subsection{Backend --- Constraint XOR y unicidad parcial de UEA}\label{lst:uea_constraints}
+
+Fragmento de \texttt{backend/catalogos/models.py}: reglas de integridad declarativas que fuerzan que una UEA pertenezca a licenciatura \emph{o} a posgrado (nunca a ambos ni a ninguno), y que la clave sea unica dentro de cada programa.
+
+\begin{Verbatim}[fontsize=\small, frame=single]
+class Meta:
+    constraints = [
+        CheckConstraint(
+            condition=(
+                (Q(licenciatura__isnull=False) & Q(posgrado__isnull=True))
+                | (Q(licenciatura__isnull=True)  & Q(posgrado__isnull=False))
+            ),
+            name="uea_xor_licenciatura_posgrado",
+        ),
+        UniqueConstraint(
+            fields=["clave", "licenciatura"],
+            condition=Q(licenciatura__isnull=False),
+            name="uea_clave_unica_por_licenciatura",
+        ),
+        UniqueConstraint(
+            fields=["clave", "posgrado"],
+            condition=Q(posgrado__isnull=False),
+            name="uea_clave_unica_por_posgrado",
+        ),
+    ]
+\end{Verbatim}
+
+\subsection{Backend --- Ciclo de vida de Formulario}\label{lst:formulario_states}
+
+Fragmento de \texttt{backend/autoevaluacion/models.py}: validacion de estructura y transiciones de la maquina de estados \texttt{BORRADOR} $\leftrightarrow$ \texttt{PUBLICADO} $\leftrightarrow$ \texttt{CERRADO}.
+
+\begin{Verbatim}[fontsize=\small, frame=single]
+def _validar_estructura_para_publicar(self):
+    secciones = list(self.secciones.all())
+    if not secciones:
+        raise ValueError("Debe definir al menos una seccion antes de publicar.")
+    suma = sum(s.peso for s in secciones)
+    if abs(suma - Decimal("100")) > Decimal("0.01"):
+        raise ValueError(f"La suma de pesos debe ser 100% (actual: {suma}%).")
+    if self.preguntas.filter(seccion__isnull=True).exists():
+        raise ValueError("Hay preguntas sin seccion asignada.")
+
+def publicar(self):
+    self._validar_estructura_para_publicar()
+    if self.estado == self.Estado.CERRADO and self.respuestas.exists():
+        self.version += 1     # publicar_revision incrementa version
+    self.estado = self.Estado.PUBLICADO
+    self.published_at = timezone.now()
+    self.save()
+
+def cerrar(self):
+    self.estado = self.Estado.CERRADO
+    self.closed_at = timezone.now()
+    self.save()
+
+def reabrir(self):
+    self.estado = self.Estado.PUBLICADO
+    self.save()
+
+def despublicar(self):
+    # Vuelve a BORRADOR sin cambiar version ni borrar respuestas.
+    self.estado = self.Estado.BORRADOR
+    self.save()
+
+def publicar_revision(self):
+    # CERRADO -> PUBLICADO incrementando version.
+    self._validar_estructura_para_publicar()
+    self.version += 1
+    self.estado = self.Estado.PUBLICADO
+    self.published_at = timezone.now()
+    self.save()
+\end{Verbatim}
+
+\subsection{Backend --- Login con distincion de cuenta desactivada}\label{lst:login_diff}
+
+Fragmento de \texttt{backend/accounts/serializers.py}. El \emph{serializer} personalizado distingue \emph{credenciales invalidas} de \emph{cuenta desactivada} devolviendo un codigo \texttt{account\_disabled} sin filtrar la existencia del correo.
+
+\begin{Verbatim}[fontsize=\small, frame=single]
+class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
+    def validate(self, attrs):
+        email = (attrs.get(self.username_field) or "").strip().lower()
+        password = attrs.get("password") or ""
+        usuario = Usuario.objects.filter(email__iexact=email).first()
+        if usuario and usuario.check_password(password) and not usuario.is_active:
+            raise AuthenticationFailed(
+                {"code": "account_disabled",
+                 "detail": "Tu cuenta se encuentra desactivada. "
+                           "Contacta al administrador para reactivarla."},
+                code="account_disabled",
+            )
+        data = super().validate(attrs)   # credenciales OK, usuario activo
+        u = self.user
+        data["user"] = {"id": u.id, "email": u.email,
+                        "nombre": u.nombre, "rol": u.rol}
+        return data
+\end{Verbatim}
+
+\subsection{Frontend --- Generacion de XLSX por periodo}\label{lst:xlsx_por_periodo}
+
+Fragmento simplificado de \code{frontend/src/pages/admin/reportes/ReportesPage.jsx}: descarga en el navegador con \emph{SheetJS}, agrupando las filas por periodo en hojas separadas del mismo libro.
+
+\begin{Verbatim}[fontsize=\small, frame=single]
+async function descargarDocumento(publicPath, fetcher) {
+  const params = { estado: "PUBLICADO", page_size: 500 }
+  if (periodoId) params.periodo = periodoId
+  if (deptoId)   params.profesor__departamento = deptoId
+
+  const res  = await fetcher(params)
+  const rows = res.data?.results ?? res.data ?? []
+
+  const porPeriodo = new Map()
+  for (const row of rows) {
+    const clave = row.periodo_clave ?? "Sin periodo"
+    if (!porPeriodo.has(clave)) porPeriodo.set(clave, [])
+    porPeriodo.get(clave).push(row)
+  }
+
+  const wb = XLSX.utils.book_new()
+  if (porPeriodo.size === 0) {
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([]), "Sin datos")
+  } else {
+    for (const [clave, groupRows] of porPeriodo) {
+      const ws = XLSX.utils.json_to_sheet(
+        groupRows.map((r) => rowToExcel(r, publicPath))
+      )
+      XLSX.utils.book_append_sheet(wb, ws, sheetName(clave))
+    }
+  }
+  XLSX.writeFile(wb, `${publicPath}-${Date.now()}.xlsx`)
+}
 \end{Verbatim}
 
 \subsection{Nota sobre el listado completo}

@@ -1,86 +1,168 @@
-%Diagrama Entidad-Relación resumido (agrupado por app Django).
+%Diagrama Entidad-Relación completo (agrupado por app Django).
+%Las etiquetas indican cardinalidad en notación "extremo A -- extremo B":
+%   1..1  (uno a uno),  1..N  (uno a muchos),
+%   0..1  (opcional),   N..M  (muchos a muchos).
 %Se incluye vía \input{er} desde secciones/06_desarrollo.tex.
 \begin{tikzpicture}[
     every node/.style={font=\scriptsize},
     entidad/.style={
         rectangle, draw, thick, rounded corners=2pt,
-        minimum height=0.75cm, minimum width=2.2cm, fill=white
+        minimum height=0.7cm, minimum width=2.3cm, fill=white,
+        inner sep=3pt
     },
     grupo/.style={
-        rounded corners=6pt, draw=black!40, dashed, inner sep=8pt
+        rounded corners=6pt, draw=black!40, dashed, inner sep=10pt
     },
-    rel/.style={-, thick, black!70}
+    rel/.style={-, thick, black!70},
+    card/.style={font=\tiny, fill=white, inner sep=1pt}
 ]
 
-%----- accounts -----
-\node[entidad] (usuario) at (-6.5, 5)  {Usuario};
-\node[entidad] (profesor) at (-6.5, 3.7)  {Profesor};
-\draw[rel] (usuario) -- node[right, font=\tiny] {1..1} (profesor);
+% =========================================================
+%  ACCOUNTS
+% =========================================================
+\node[entidad] (usuario)  at (-9.5, 6.5)  {Usuario};
+\node[entidad] (profesor) at (-9.5, 4.8)  {Profesor};
+\draw[rel] (usuario) -- node[card, right] {1..1} (profesor);
 \begin{scope}[on background layer]
 \node[grupo, fit=(usuario)(profesor), label=above:{\textbf{accounts}}] {};
 \end{scope}
 
-%----- catalogos -----
-\node[entidad] (depto) at (-2, 5.5)      {Departamento};
-\node[entidad] (lic) at (-2, 4.5)        {Licenciatura};
-\node[entidad] (pos) at (-2, 3.5)        {Posgrado};
-\node[entidad] (area) at (-2, 2.5)       {Área};
-\node[entidad] (uea) at (-2, 1.5)        {UEA};
-\node[entidad] (periodo) at (-2, 0.5)    {Periodo};
+% =========================================================
+%  CATALOGOS
+% =========================================================
+\node[entidad] (depto)   at (-5.5, 7.5) {Departamento};
+\node[entidad] (lic)     at (-5.5, 6.3) {Licenciatura};
+\node[entidad] (pos)     at (-5.5, 5.1) {Posgrado};
+\node[entidad] (area)    at (-5.5, 3.9) {Área};
+\node[entidad] (uea)     at (-5.5, 2.5) {UEA};
+\node[entidad] (periodo) at (-5.5, 1.0) {Periodo};
 
-\draw[rel] (depto) -- (lic);
-\draw[rel] (depto) -- (pos);
-\draw[rel] (lic) -- (uea);
-\draw[rel] (pos) -- (uea);
-\draw[rel] (area) -- (uea);
+\draw[rel] (depto.south) -- node[card, right] {1..N} (lic.north);
+\draw[rel] (depto.west)  to[out=180, in=180]
+           node[card, left, pos=0.55] {1..N} (pos.west);
+\draw[rel] (lic.south)   -- node[card, right] {1..N} (uea.north);
+\draw[rel] (pos.east)    to[out=0, in=45]
+           node[card, right, pos=0.4] {1..N} (uea.north east);
+\draw[rel] (area.south)  -- node[card, right] {1..N} (uea.north);
+
+% depto -> profesor (accounts) usa nodo del bloque accounts
+\draw[rel] (depto.west) to[out=180, in=0]
+           node[card, above, pos=0.35] {1..N (0..1)} (profesor.east);
+
 \begin{scope}[on background layer]
-\node[grupo, fit=(depto)(lic)(pos)(area)(uea)(periodo), label=above:{\textbf{catalogos}}] {};
+\node[grupo, fit=(depto)(lic)(pos)(area)(uea)(periodo),
+      label=above:{\textbf{catalogos}}] {};
 \end{scope}
 
-%----- documentos -----
-\node[entidad] (carta) at (2.5, 4)       {CartaTematica};
-\node[entidad] (requisito) at (2.5, 2.5) {RequisitoRecup.};
+% =========================================================
+%  DOCUMENTOS
+% =========================================================
+\node[entidad] (carta)     at (-1.5, 4.0) {CartaTematica};
+\node[entidad] (requisito) at (-1.5, 2.5) {RequisitoRecup.};
 \begin{scope}[on background layer]
-\node[grupo, fit=(carta)(requisito), label=above:{\textbf{documentos}}] {};
+\node[grupo, fit=(carta)(requisito),
+      label=above:{\textbf{documentos}}] {};
 \end{scope}
 
-\draw[rel] (profesor.east) to[out=0, in=180] (carta.west);
-\draw[rel] (profesor.east) to[out=0, in=180] (requisito.west);
-\draw[rel] (uea.east) -- (carta.west);
-\draw[rel] (uea.east) -- (requisito.west);
-\draw[rel] (periodo.east) to[out=0, in=180] (requisito.west);
-\draw[rel] (periodo.east) to[out=0, in=180] (carta.west);
+% Profesor -> documentos (SET_NULL, opcional)
+\draw[rel] (profesor.east) to[out=0, in=180]
+           node[card, above, pos=0.75] {1..N (0..1)} (carta.west);
+\draw[rel] (profesor.south) to[out=-30, in=180]
+           node[card, above, pos=0.9] {1..N (0..1)} (requisito.west);
+% UEA -> documentos
+\draw[rel] (uea.east) to[out=0, in=180]
+           node[card, above, pos=0.6] {1..N} (carta.west);
+\draw[rel] (uea.east) to[out=-10, in=180]
+           node[card, below, pos=0.6] {1..N} (requisito.west);
+% Periodo -> documentos
+\draw[rel] (periodo.east) to[out=0, in=180]
+           node[card, below, pos=0.55] {1..N} (requisito.west);
+\draw[rel] (periodo.east) to[out=15, in=200]
+           node[card, below, pos=0.75] {1..N} (carta.west);
 
-%----- autoevaluacion -----
-\node[entidad] (formulario) at (6.5, 5)     {Formulario};
-\node[entidad] (seccion) at (6.5, 4)        {Sección};
-\node[entidad] (pregunta) at (6.5, 3)       {Pregunta};
-\node[entidad] (opcion) at (6.5, 2)         {OpciónPregunta};
-\node[entidad] (nivel) at (6.5, 1)          {NivelDesempeño};
-\node[entidad] (respuesta) at (6.5, 0)      {Respuesta};
-\node[entidad] (respreg) at (6.5, -1)       {RespuestaPregunta};
-\node[entidad] (fila) at (9.5, 3)           {FilaCuadríc.};
-\node[entidad] (respsec) at (9.5, 0)        {Resp.Sección};
-\node[entidad] (respcelda) at (9.5, -1)     {RespuestaCelda};
+% =========================================================
+%  AUTOEVALUACION
+% =========================================================
+\node[entidad] (formulario) at (3.5, 7.2) {Formulario};
+\node[entidad] (seccion)    at (3.5, 5.9) {Sección};
+\node[entidad] (pregunta)   at (3.5, 4.6) {Pregunta};
+\node[entidad] (opcion)     at (3.5, 3.3) {OpciónPregunta};
+\node[entidad] (nivel)      at (3.5, 1.9) {NivelDesempeño};
+\node[entidad] (respuesta)  at (3.5, 0.5) {Respuesta};
+\node[entidad] (respreg)    at (3.5, -0.9){RespuestaPregunta};
 
-\draw[rel] (formulario) -- (seccion);
-\draw[rel] (seccion) -- (pregunta);
-\draw[rel] (pregunta) -- (opcion);
-\draw[rel] (formulario) -- (respuesta);
-\draw[rel] (respuesta) -- (respreg);
-\draw[rel] (respreg) -- (pregunta);
-\draw[rel] (respuesta) -- (nivel);
-\draw[rel] (pregunta.east) -- (fila.west);
-\draw[rel] (respuesta.east) -- (respsec.west);
-\draw[rel] (seccion.east) to[out=0, in=90] (respsec.north);
-\draw[rel] (respreg.east) -- (respcelda.west);
-\draw[rel] (fila.south) to[out=-90, in=90] (respcelda.north);
-\draw[rel] (opcion.east) to[out=0, in=90] (respcelda.north);
+\node[entidad] (fila)       at (7.2, 4.6) {FilaCuadríc.};
+\node[entidad] (respsec)    at (7.2, 0.5) {Resp.Sección};
+\node[entidad] (respcelda)  at (7.2, -0.9){RespuestaCelda};
+
+% Formulario -> hijos
+\draw[rel] (formulario.south) -- node[card, right] {1..N} (seccion.north);
+\draw[rel] (seccion.south)    -- node[card, right] {0..1 -- 1..N} (pregunta.north);
+\draw[rel] (pregunta.south)   -- node[card, right] {1..N} (opcion.north);
+\draw[rel] (formulario.east)  to[out=0, in=90]
+           node[card, right, pos=0.4] {1..N} (nivel.north east);
+\draw[rel] (formulario.west)  to[out=180, in=180]
+           node[card, left, pos=0.7] {1..N} (respuesta.west);
+
+% Pregunta -> FilaCuadricula
+\draw[rel] (pregunta.east) -- node[card, above] {1..N} (fila.west);
+
+% Nivel -> Respuesta
+\draw[rel] (nivel.south) -- node[card, right] {0..1 -- 1..N} (respuesta.north);
+
+% Respuesta -> RespuestaPregunta y RespuestaSeccion
+\draw[rel] (respuesta.south) -- node[card, right] {1..N} (respreg.north);
+\draw[rel] (respuesta.east)  -- node[card, above] {1..N} (respsec.west);
+
+% Seccion -> RespuestaSeccion
+\draw[rel] (seccion.east) to[out=0, in=90]
+           node[card, above, pos=0.6] {1..N} (respsec.north);
+
+% Pregunta -> RespuestaPregunta
+\draw[rel] (pregunta.west) to[out=180, in=180]
+           node[card, left, pos=0.5] {1..N} (respreg.west);
+
+% RespuestaPregunta -> RespuestaCelda
+\draw[rel] (respreg.east) -- node[card, above] {1..N} (respcelda.west);
+
+% Fila -> RespuestaCelda
+\draw[rel] (fila.south) to[out=-90, in=90]
+           node[card, right, pos=0.5] {1..N} (respcelda.north);
+
+% Opcion -> RespuestaCelda (columna elegida en la cuadrícula)
+\draw[rel] (opcion.east) to[out=0, in=180]
+           node[card, below, pos=0.5] {1..N} (respcelda.west);
+
+% Opcion <-> RespuestaPregunta (ManyToMany opciones_seleccionadas)
+\draw[rel, dashed] (opcion.south west) to[out=-135, in=45]
+           node[card, above, pos=0.45] {N..M} (respreg.north east);
+
 \begin{scope}[on background layer]
-\node[grupo, fit=(formulario)(seccion)(pregunta)(opcion)(nivel)(respuesta)(respreg)(fila)(respsec)(respcelda), label=above:{\textbf{autoevaluacion}}] {};
+\node[grupo, fit=(formulario)(seccion)(pregunta)(opcion)(nivel)
+                (respuesta)(respreg)(fila)(respsec)(respcelda),
+      label=above:{\textbf{autoevaluacion}}] {};
 \end{scope}
 
-\draw[rel] (profesor.south) to[out=-90, in=180] (respuesta.west);
-\draw[rel] (periodo.east) to[out=0, in=180] (formulario.west);
+% =========================================================
+%  Relaciones cross-app
+% =========================================================
+% Profesor -> Respuesta
+\draw[rel] (profesor.south) to[out=-90, in=180]
+           node[card, below, pos=0.85] {1..N} (respuesta.west);
+% Periodo -> Formulario
+\draw[rel] (periodo.east) to[out=20, in=180]
+           node[card, above, pos=0.75] {1..N} (formulario.west);
+
+% =========================================================
+%  Leyenda
+% =========================================================
+\node[draw=black!40, rounded corners=3pt, align=left,
+      font=\tiny, inner sep=4pt] at (7.2, 7.2) {
+    \textbf{Cardinalidad}\\
+    1..1 \; uno a uno\\
+    1..N \; uno a muchos\\
+    0..1 \; opcional\\
+    N..M \; muchos a muchos (línea discontinua)\\
+};
 
 \end{tikzpicture}

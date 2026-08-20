@@ -1,19 +1,19 @@
 \section{Desarrollo del proyecto}\label{sec:desarrollo}
 \justifying
 
-Esta sección describe la arquitectura general del sistema, su modelo de datos, cada uno de los cinco módulos funcionales entregados y los aspectos transversales de \emph{testing} y seguridad. La estructura del código se divide en dos monorepositorios lógicos: el \texttt{backend/} (Django) y el \texttt{frontend/} (React + Vite), ambos versionados con \emph{git} bajo el directorio raíz \texttt{proyecto\_terminal\_cyad/}.
+Esta sección narra el desarrollo del sistema \emph{paso a paso}: de la arquitectura general al flujo operativo de cada módulo, cubriendo la construcción del modelo de datos, la gestión de profesores y catálogos, la habilitación de periodos por recurso, la elaboración y publicación de documentos, la construcción de formularios de autoevaluación con su sistema de puntuación, la descarga de reportes y la vista pública de exploración. La estructura del código se divide en dos monorepositorios lógicos: el \texttt{backend/} (Django) y el \texttt{frontend/} (React + Vite), ambos versionados con \emph{git} bajo el directorio raíz \texttt{proyecto\_terminal\_cyad/}. Los fragmentos de código que ilustran cada mecanismo se recopilan en el Apéndice~\ref{apx:codigo} y se citan por su \emph{label} desde este capítulo.
 
 \subsection{Arquitectura general}
 
 El sistema sigue una arquitectura cliente--servidor de tres capas:
 
 \begin{enumerate}
-    \item \textbf{Capa de presentación (frontend)}: aplicación SPA en React 19 servida por Vite 8; renderizada en el navegador; consume la \emph{API} \emph{REST} mediante \emph{axios}; almacena el \emph{JWT} en memoria y gestiona el ciclo de vida de las sesiones (\emph{refresh} automático, expulsión al expirar).
-    \item \textbf{Capa de aplicación (backend)}: servidor Django~5 que expone la \emph{API} \emph{REST} bajo el prefijo \texttt{/api/v1/}; orquesta la lógica de negocio en \emph{ViewSets} de DRF; valida y serializa entradas con \emph{Serializers}; documenta la API con \emph{drf-spectacular} (\texttt{/api/docs/}).
-    \item \textbf{Capa de persistencia}: base de datos PostgreSQL~16 accedida vía el \emph{ORM} de Django, con migraciones versionadas por app.
+    \item \textbf{Capa de presentación (frontend)}: aplicación SPA en React 19 servida por Vite 8; renderizada en el navegador; consume la \emph{API} \emph{REST} mediante \emph{axios}; almacena el \emph{JWT} en \texttt{localStorage} y gestiona el ciclo de vida de las sesiones (\emph{refresh} automático transparente, expulsión al expirar el \emph{refresh token}).
+    \item \textbf{Capa de aplicación (backend)}: servidor Django~5 que expone la \emph{API} \emph{REST} bajo el prefijo \texttt{/api/v1/}; orquesta la lógica de negocio en \emph{ViewSets} de DRF; valida y serializa entradas con \emph{Serializers}; documenta la API con \emph{drf-spectacular} (\texttt{/api/docs/} y \texttt{/api/schema/}).
+    \item \textbf{Capa de persistencia}: base de datos PostgreSQL~16 accedida vía el \emph{ORM} de Django, con migraciones versionadas por app y \emph{constraints} declarativos que actúan como defensa en profundidad.
 \end{enumerate}
 
-La Figura~\ref{fig:arquitectura} muestra el diagrama de arquitectura y la Figura~\ref{fig:casos_uso} el diagrama de casos de uso, con los actores \emph{Administrador}, \emph{Profesor} y \emph{Público} y sus interacciones con los cinco módulos funcionales.
+La Figura~\ref{fig:arquitectura} muestra el diagrama de arquitectura y la Figura~\ref{fig:casos_uso} el diagrama de casos de uso, con los actores \emph{Administrador}, \emph{Profesor} y \emph{Público} y sus interacciones con los módulos funcionales.
 
 \begin{figure}[!ht]
     \centering
@@ -32,14 +32,27 @@ La Figura~\ref{fig:arquitectura} muestra el diagrama de arquitectura y la Figura
 \subsubsection{Estructura de directorios}
 
 \begin{itemize}
-    \item \texttt{backend/}: proyecto Django. Contiene la configuración global (\texttt{config/}), las seis apps (\texttt{core}, \texttt{accounts}, \texttt{catalogos}, \texttt{documentos}, \texttt{autoevaluacion}, \texttt{reportes}), \emph{scripts} de \emph{seeding} (\texttt{scripts/}), suite de pruebas (\texttt{tests/}) y \texttt{requirements.txt}.
-    \item \texttt{frontend/}: aplicación React + Vite. Contiene \texttt{src/pages/} (por rol: \texttt{admin/}, \texttt{profesor/}, \texttt{publico/}), \texttt{src/components/ui/} (componentes reutilizables), \texttt{src/api/} (clientes HTTP), \texttt{src/auth/} (contexto de sesión y \emph{guards}) y \texttt{src/layouts/}.
+    \item \texttt{backend/}: proyecto Django. Contiene la configuración global (\texttt{config/}), las seis apps (\texttt{core}, \texttt{accounts}, \texttt{catalogos}, \texttt{documentos}, \texttt{autoevaluacion}, \texttt{reportes}), \emph{scripts} operativos (\texttt{scripts/}), suite de pruebas (\texttt{tests/}), \texttt{conftest.py} con \emph{fixtures} globales de \emph{pytest} y \texttt{requirements.txt}.
+    \item \texttt{frontend/}: aplicación React + Vite. Contiene \texttt{src/pages/} (por rol: \texttt{admin/}, \texttt{profesor/}, \texttt{publico/}), \texttt{src/components/ui/} (componentes reutilizables), \texttt{src/api/} (clientes HTTP), \texttt{src/auth/} (contexto de sesión y \emph{guards}), \texttt{src/layouts/} y \texttt{src/utils/}.
     \item \texttt{docs/}: documentación complementaria; contiene este reporte (\texttt{docs/reporte/}) y los manuales (\texttt{docs/manuales/}).
 \end{itemize}
 
+\subsection{Metodología y evolución del desarrollo}
+
+El desarrollo se organizó por \emph{hitos} incrementales (M0--M9), cada uno con un objetivo verificable. M0 estableció el andamiaje del monorepo (Django + React inicializados, PostgreSQL conectado, JWT operativo). Los hitos M1 a M8 construyeron los módulos funcionales sucesivos y M9 corresponde al pulido, integración con la documentación y captura de evidencia visual.
+
+Dos episodios reorientaron el trabajo y quedan reflejados en el historial de \emph{git}:
+
+\begin{enumerate}
+    \item \textbf{Rediseño de junio de 2026 (documentos aplanados)}: la propuesta original modelaba la carta temática como un árbol de subtablas (\texttt{Tema}, \texttt{Subtema}, \texttt{Bibliografia}, \texttt{CriterioEvaluacion}). Tras validar con la Coordinación que la mayoría de los profesores redacta cada rubro como texto continuo, se decidió aplanar el modelo a doce \texttt{TextField} libres. La transición se materializó en la migración \texttt{documentos/0002\_rediseno\_documentos}, que redujo la complejidad del \emph{form-builder} de cartas y aceleró el desarrollo del resto del módulo.
+    \item \textbf{Nueve incrementos ``PR1--PR9'' en autoevaluación}: el módulo más complejo se entregó en nueve \emph{pull requests} sucesivos etiquetados en los mensajes de \emph{commit}: PR1 (\emph{form-builder} básico y tipos simples), PR2 (opciones puntuables), PR3 (tipo \texttt{ESCALA\_LINEAL}), PR4 (tipo \texttt{CUADRICULA}), PR5 (secciones con peso y ponderación 100\,\%), PR6 (\texttt{NivelDesempeno}), PR7 (versionado y \texttt{publicar\_revision}), PR8 (endpoints de estadísticas) y PR9 (duplicación cross-periodo y polución final).
+\end{enumerate}
+
+La configuración por entorno se distribuye en un archivo \texttt{.env} local, leído por \emph{python-decouple}; contiene \texttt{SECRET\_KEY}, credenciales de PostgreSQL, \texttt{DEBUG} y \texttt{CORS\_ALLOWED\_ORIGINS}. El archivo nunca se versiona.
+
 \subsection{Modelo de datos}
 
-El modelo de datos se distribuye por app siguiendo la separación de dominios. Un diagrama entidad-relación completo se muestra en la Figura~\ref{fig:er}.
+El modelo de datos se distribuye por app siguiendo la separación de dominios. Un diagrama entidad-relación completo se muestra en la Figura~\ref{fig:er}. En total, el sistema cuenta con 21 migraciones aplicadas distribuidas entre las apps (\texttt{accounts}: 3, \texttt{autoevaluacion}: 5, \texttt{catalogos}: 7, \texttt{documentos}: 5, y una inicial en \texttt{core} y \texttt{reportes}).
 
 \begin{figure}[!ht]
     \centering
@@ -48,27 +61,109 @@ El modelo de datos se distribuye por app siguiendo la separación de dominios. U
     \label{fig:er}
 \end{figure}
 
-Las entidades principales por app son:
+A continuación se describe cada entidad por app: campos que la conforman, restricciones declarativas y cardinalidad de sus relaciones. La notación empleada es la de \emph{crow's foot} en formato ``$1$--$N$'' (uno a muchos), ``$1$--$1$'' (uno a uno), ``$0..1$--$N$'' (opcional a muchos) y ``$N$--$M$'' (muchos a muchos).
+
+\subsubsection*{App \texttt{core} --- infraestructura compartida}
+
+No define tablas físicas. Aporta dos \emph{mixins} abstractos que la mayoría de los modelos concretos heredan:
+
+\begin{itemize}
+    \item \texttt{TimeStampedModel}: agrega \texttt{created\_at} (\texttt{auto\_now\_add}) y \texttt{updated\_at} (\texttt{auto\_now}).
+    \item \texttt{EstadoActivoModel}: agrega el campo booleano \texttt{estado} para borrado lógico (\emph{soft delete}).
+\end{itemize}
+
+Además provee la paginación por defecto (\texttt{DefaultPagination}), el \emph{exception handler} unificado (\texttt{api\_exception\_handler}) y las clases de permisos DRF (\texttt{IsAdmin}, \texttt{IsProfesor}, \texttt{IsAdminOrReadOnly}, \texttt{IsOwnerProfesorOrAdminReadOnly}) usadas transversalmente.
+
+\subsubsection*{App \texttt{accounts} --- usuarios y perfiles de profesor}
 
 \begin{description}
-    \item[\texttt{core}] Contiene dos clases abstractas reutilizables: \texttt{TimeStampedModel} (con \texttt{created\_at} y \texttt{updated\_at}) y \texttt{EstadoActivoModel} (con \texttt{estado} booleano). No define tablas propias.
-
-    \item[\texttt{accounts}] Define \texttt{Usuario} (extiende \texttt{AbstractBaseUser}), con \texttt{email} como \emph{USERNAME\_FIELD}, \texttt{nombre}, \texttt{rol} \{\emph{ADMIN}, \emph{PROFESOR}\}, \texttt{is\_active} y \texttt{is\_staff}. La entidad \texttt{Profesor} extiende al usuario con un perfil \emph{OneToOne} que agrega \texttt{numero\_economico} (único), \texttt{nombre\_completo}, \texttt{correo\_institucional} y \emph{FK} a \texttt{Departamento}.
-
-    \item[\texttt{catalogos}] Encapsula los catálogos institucionales: \texttt{Departamento} (clave, nombre), \texttt{Licenciatura} y \texttt{Posgrado} (clave, nombre, FK a departamento), \texttt{Area} (nombre, descripción), \texttt{UEA} (clave, nombre, trimestre 1--12, tipo \{OBL, OPT, OTRO\}, créditos, liga; FK a \emph{Licenciatura} XOR \emph{Posgrado}, FK a \emph{Área}; clave única por programa) y \texttt{Periodo} (clave YY-I/P/O, fecha\_inicio, fecha\_fin y tres \emph{flags} de recurso activo: \texttt{activo\_cartas}, \texttt{activo\_requisitos}, \texttt{activo\_autoevaluacion}).
-
-    \item[\texttt{documentos}] Contiene una clase abstracta \texttt{DocumentoAcademicoBase} con los campos comunes (\emph{FK} a \texttt{Profesor} y \texttt{UEA}, \emph{FK} a \texttt{Periodo}, \texttt{nombre\_grupo}, \texttt{id\_grupo}, \texttt{horario}, \texttt{modalidad} y \texttt{estado} \{BORRADOR, PUBLICADO\}) y \emph{snapshots} de identidad del profesor (\texttt{profesor\_nombre}, \texttt{profesor\_correo}) que preservan la autoría aunque el usuario sea desactivado. De ella heredan dos modelos concretos:
-    \begin{itemize}
-        \item \texttt{CartaTematica}: campos textuales libres (\texttt{descripcion\_uea}, \texttt{objetivo\_general}, \texttt{objetivos\_particulares}, \texttt{contenido\_sintetico}, \texttt{objetivos\_aprendizaje}, \texttt{requerimientos}, \texttt{conocimientos\_previos}, \texttt{modalidad\_evaluacion}, \texttt{revisiones\_asesorias}, \texttt{bibliografia}, \texttt{enlace}, \texttt{calendarizacion\_actividades}), con unicidad por \emph{(profesor, periodo, uea, id\_grupo)}.
-        \item \texttt{RequisitoRecuperacion}: \texttt{lugar}, \texttt{duracion\_aprox}, \texttt{fecha\_hora}, \texttt{recursos\_necesarios}, \texttt{requisitos}, \texttt{notas}, con misma unicidad.
-    \end{itemize}
-
-    \item[\texttt{autoevaluacion}] Modela el \emph{form-builder} y las respuestas: \texttt{Formulario} (título, descripción, FK Periodo, estado \{BORRADOR, PUBLICADO, CERRADO\}, versión, bandera \texttt{una\_respuesta\_por\_profesor}); \texttt{Seccion} (título, orden, peso decimal cuya suma es 100\,\%); \texttt{Pregunta} (ocho tipos: TEXTO\_CORTO, TEXTO\_LARGO, OPCION\_UNICA, CASILLAS, SI\_NO, ESCALA\_LINEAL, LISTA\_DESPLEGABLE, CUADRICULA; campo \texttt{config} en JSON); \texttt{OpcionPregunta} (texto, valor, puntos); \texttt{FilaCuadricula}; \texttt{NivelDesempeno} (rango \texttt{porcentaje\_min}--\texttt{porcentaje\_max}, observación, color); \texttt{Respuesta} (FK Formulario y Profesor, versión, estado \{BORRADOR, ENVIADO\}, puntaje\_obtenido, porcentaje, FK NivelDesempeno); \texttt{RespuestaPregunta}, \texttt{RespuestaCelda} y \texttt{RespuestaSeccion} (snapshot de puntaje por sección al enviar).
-
-    \item[\texttt{reportes}] No define modelos propios; sólo agrega vistas de agregación sobre las entidades de otras apps mediante consultas ORM.
+    \item[\texttt{Usuario}] Extiende \texttt{AbstractBaseUser} + \texttt{PermissionsMixin}. Campos: \texttt{email} (único, \emph{USERNAME\_FIELD}), \texttt{nombre}, \texttt{rol} $\in$ \{\emph{ADMIN}, \emph{PROFESOR}\}, \texttt{is\_active}, \texttt{is\_staff}, \texttt{password} (hash PBKDF2 vía \texttt{set\_password}), \texttt{created\_at}, \texttt{updated\_at}. Se acompaña de \texttt{UsuarioManager} con \texttt{create\_user} y \texttt{create\_superuser}.
+    \item[\texttt{Profesor}] Perfil extendido del usuario con \code{rol=PROFESOR}. Hereda de \code{TimeStampedModel} y \code{EstadoActivoModel}. Campos propios: \code{numero_economico} (único, opcional), \code{nombre_completo}, \code{correo_institucional} (único) y FK a \texttt{Departamento}. Un \texttt{save()} sobreescrito sincroniza \code{Usuario.is_active} con \code{Profesor.estado}, de modo que desactivar el perfil bloquea inmediatamente el inicio de sesión.
 \end{description}
 
-En total, el sistema cuenta con 21 migraciones aplicadas (\texttt{accounts}: 3, \texttt{autoevaluacion}: 5, \texttt{catalogos}: 7, \texttt{documentos}: 5, \texttt{core} y \texttt{reportes}: 1 cada uno para \texttt{\_\_init\_\_}). La migración \texttt{0002\_rediseno\_documentos} de la app \texttt{documentos} materializa la decisión de aplanar los documentos (eliminar los submodelos \texttt{Tema}, \texttt{Subtema}, \texttt{Bibliografia}, \texttt{CriterioEvaluacion} propuestos originalmente).
+\emph{Relaciones}:
+\begin{itemize}
+    \item \texttt{Usuario} \textbf{$1$--$1$} \texttt{Profesor} (OneToOne con \texttt{on\_delete=CASCADE}; borrar el \texttt{Usuario} borra el \texttt{Profesor}).
+    \item \texttt{Departamento} \textbf{$1$--$N$} \texttt{Profesor} (FK con \texttt{on\_delete=SET\_NULL}, opcional).
+\end{itemize}
+
+\subsubsection*{App \texttt{catalogos} --- catálogos institucionales de CyAD}
+
+\begin{description}
+    \item[\texttt{Departamento}] Departamento académico. Campos: \texttt{clave} (única), \texttt{nombre}, más los heredados de \texttt{TimeStampedModel} y \texttt{EstadoActivoModel}.
+    \item[\texttt{Licenciatura}] Programa de licenciatura. Campos: \texttt{clave} (única), \texttt{nombre}, \texttt{orden} (para ordenamiento en UI) y FK a \texttt{Departamento} (\texttt{SET\_NULL}).
+    \item[\texttt{Posgrado}] Programa de posgrado (maestría, especialidad o doctorado). Mismos campos que \texttt{Licenciatura}.
+    \item[\texttt{Area}] Área curricular a la que pertenece una UEA (troncal, optativa de concentración, etc.). Campos: \texttt{nombre}, \texttt{descripcion}, con \texttt{unique\_together=(nombre, descripcion)}.
+    \item[\texttt{UEA}] Unidad de Enseñanza-Aprendizaje. Campos: \texttt{clave} (normalizada a mayúsculas en \texttt{save()}), \texttt{nombre}, \texttt{trimestre} (entero 1--12 o cadena romana ``VII-XII'' para optativas), \texttt{tipo} $\in$ \{\emph{OBL}, \emph{OPT}, \emph{OTRO}\}, \texttt{creditos}, \texttt{liga} (URL oficial de la UEA). FKs con \texttt{on\_delete=PROTECT}: a \texttt{Licenciatura}, \texttt{Posgrado} y \texttt{Area}, todas opcionales. Tres \emph{constraints} declarativos: \texttt{CheckConstraint} \texttt{uea\_xor\_licenciatura\_posgrado} (exactamente uno de los dos programas está poblado); y dos \texttt{UniqueConstraint} parciales sobre (\texttt{clave}, \texttt{licenciatura}) y (\texttt{clave}, \texttt{posgrado}).
+    \item[\texttt{Periodo}] Periodo trimestral (por ejemplo, ``25-O''). Campos: \texttt{clave} (única), \texttt{fecha\_inicio}, \texttt{fecha\_fin}, tres booleanos independientes de habilitación por recurso (\texttt{activo\_cartas}, \texttt{activo\_requisitos}, \texttt{activo\_autoevaluacion}), un booleano derivado \texttt{activo} (OR de los tres, sincronizado en \texttt{save()}) y \texttt{estado} (habilitación general). El \texttt{save()} sobreescrito garantiza la invariante \emph{``a lo sumo un periodo activo por recurso''} apagando el \emph{flag} correspondiente en los demás periodos dentro de la misma transacción.
+\end{description}
+
+\emph{Relaciones}:
+\begin{itemize}
+    \item \texttt{Departamento} \textbf{$1$--$N$} \texttt{Licenciatura} y \texttt{Departamento} \textbf{$1$--$N$} \texttt{Posgrado} (\texttt{SET\_NULL}, opcional).
+    \item \texttt{Licenciatura} \textbf{$1$--$N$} \texttt{UEA} y \texttt{Posgrado} \textbf{$1$--$N$} \texttt{UEA} (\texttt{PROTECT}, mutuamente excluyentes por el XOR).
+    \item \texttt{Area} \textbf{$1$--$N$} \texttt{UEA} (\texttt{PROTECT}, opcional).
+    \item \texttt{Periodo} es referenciado desde \texttt{documentos} y \texttt{autoevaluacion} (véase abajo).
+\end{itemize}
+
+\subsubsection*{App \texttt{documentos} --- cartas temáticas y requisitos de recuperación}
+
+Toda la app comparte la clase abstracta \texttt{DocumentoAcademicoBase} con los campos comunes: FK opcional a \texttt{Profesor} (\texttt{SET\_NULL}, para preservar el documento como historial si el profesor es eliminado), \emph{snapshots} de identidad \texttt{profesor\_nombre} y \texttt{profesor\_correo} (rellenados automáticamente al crear el documento), FK a \texttt{UEA} y \texttt{Periodo} (ambas \texttt{PROTECT}), \texttt{nombre\_grupo}, \texttt{id\_grupo}, \texttt{horario}, \texttt{modalidad} $\in$ \{\emph{PRESENCIAL}, \emph{REMOTO}, \emph{MIXTO}\}, \texttt{estado} $\in$ \{\emph{BORRADOR}, \emph{PUBLICADO}\} y las marcas de tiempo de \texttt{TimeStampedModel}. Los métodos \texttt{puede\_editar()} y \texttt{puede\_eliminar()} exigen \texttt{estado=BORRADOR}.
+
+\begin{description}
+    \item[\texttt{CartaTematica}] Doce campos \texttt{TextField} libres para el contenido pedagógico: \code{descripcion_uea}, \code{objetivo_general}, \code{objetivos_particulares}, \code{contenido_sintetico}, \code{objetivos_aprendizaje}, \texttt{requerimientos}, \code{conocimientos_previos}, \code{modalidad_evaluacion}, \code{revisiones_asesorias}, \texttt{bibliografia}, \texttt{enlace} y \code{calendarizacion_actividades}. \texttt{UniqueConstraint} \code{unique_carta_profesor_periodo_uea_grupo} sobre (\code{profesor, periodo, uea, id_grupo}).
+    \item[\texttt{RequisitoRecuperacion}] Seis campos textuales: \texttt{lugar}, \code{duracion_aprox}, \code{fecha_hora}, \code{recursos_necesarios}, \texttt{requisitos} y \texttt{notas}. Misma \texttt{UniqueConstraint} compuesta que \texttt{CartaTematica}.
+\end{description}
+
+\emph{Relaciones (idénticas para ambos documentos)}:
+\begin{itemize}
+    \item \texttt{Profesor} \textbf{$0..1$--$N$} \texttt{CartaTematica} / \texttt{RequisitoRecuperacion} (\texttt{SET\_NULL}).
+    \item \texttt{UEA} \textbf{$1$--$N$} \texttt{CartaTematica} / \texttt{RequisitoRecuperacion} (\texttt{PROTECT}).
+    \item \texttt{Periodo} \textbf{$1$--$N$} \texttt{CartaTematica} / \texttt{RequisitoRecuperacion} (\texttt{PROTECT}).
+\end{itemize}
+
+\subsubsection*{App \texttt{autoevaluacion} --- \emph{form-builder}, respuestas y \emph{scoring}}
+
+Es la app con el modelo más rico. Se agrupa en tres bloques: definición del formulario, definición del baremo y captura de respuestas.
+
+\paragraph{Definición del formulario.}
+\begin{description}
+    \item[\texttt{Formulario}] Encabezado del instrumento. Campos: \texttt{titulo}, \texttt{descripcion}, FK a \texttt{Periodo} (\texttt{PROTECT}), \texttt{estado} $\in$ \{\emph{BORRADOR}, \emph{PUBLICADO}, \emph{CERRADO}\}, \texttt{version} (entero incrementable), \texttt{una\_respuesta\_por\_profesor} (booleano), FK opcional a \texttt{Usuario} en \texttt{created\_by} (\texttt{SET\_NULL}), y timestamps de ciclo de vida \texttt{published\_at} y \texttt{closed\_at}. Los métodos \texttt{publicar}, \texttt{cerrar}, \texttt{reabrir}, \texttt{despublicar} y \texttt{publicar\_revision} materializan la máquina de estados descrita en \S~5.2.
+    \item[\texttt{Seccion}] Bloque temático. Campos: FK a \texttt{Formulario} (\texttt{CASCADE}), \texttt{titulo}, \texttt{descripcion}, \texttt{orden}, \texttt{peso} decimal (\texttt{max\_digits=5, decimal\_places=2}) cuya suma sobre todas las secciones debe ser 100\,\% ($\pm 0.01$) para poder publicar.
+    \item[\texttt{Pregunta}] Ítem individual. Campos: FK a \texttt{Formulario} (\texttt{CASCADE}) y FK opcional a \texttt{Seccion} (\texttt{SET\_NULL}), \texttt{tipo} (ocho valores del \texttt{TextChoices}), \texttt{texto}, \texttt{ayuda}, \texttt{obligatoria}, \texttt{orden} y \texttt{config} (JSON dependiente del tipo: por ejemplo, \texttt{\{min, max, label\_min, label\_max, puntos\_factor\}} para \texttt{ESCALA\_LINEAL} o \texttt{\{puntos\_si, puntos\_no\}} para \texttt{SI\_NO}). El conjunto \texttt{TIPOS\_NO\_PUNTABLES} $= \{\texttt{TEXTO\_CORTO}, \texttt{TEXTO\_LARGO}\}$ marca las preguntas que se ignoran en el cálculo del puntaje.
+    \item[\texttt{OpcionPregunta}] Opción seleccionable. Campos: FK a \texttt{Pregunta} (\texttt{CASCADE}), \texttt{texto}, \texttt{valor} (identificador estable), \texttt{puntos} decimal y \texttt{orden}.
+    \item[\code{FilaCuadricula}] Fila de una pregunta \texttt{CUADRICULA}. Campos: FK a \texttt{Pregunta} (\texttt{CASCADE}), \texttt{texto} y \texttt{orden}. Las columnas de la cuadrícula reutilizan \code{OpcionPregunta}.
+\end{description}
+
+\paragraph{Definición del baremo.}
+\begin{description}
+    \item[\texttt{NivelDesempeno}] Rango porcentual con observación cualitativa. Campos: FK a \texttt{Formulario} (\texttt{CASCADE}), \texttt{nombre}, \texttt{porcentaje\_min} y \texttt{porcentaje\_max} decimales, \texttt{observacion}, \texttt{color} (clave para la UI: \texttt{green|blue|yellow|red|gray}) y \texttt{orden}.
+\end{description}
+
+\paragraph{Captura de respuestas.}
+\begin{description}
+    \item[\texttt{Respuesta}] Envío por profesor. Campos: FK a \texttt{Formulario} (\texttt{PROTECT}), FK a \texttt{Profesor} (\texttt{PROTECT}), \texttt{version\_formulario} (copia de \texttt{Formulario.version} al iniciar), \texttt{estado} $\in$ \{\emph{BORRADOR}, \emph{ENVIADO}\}, \texttt{enviado\_at} y los agregados calculados al enviar: \texttt{puntaje\_obtenido}, \texttt{puntaje\_maximo}, \texttt{porcentaje} y FK a \texttt{NivelDesempeno} (\texttt{SET\_NULL}). \texttt{UniqueConstraint} sobre (\texttt{formulario, profesor, version\_formulario}) que permite responder de nuevo tras una \texttt{publicar\_revision}.
+    \item[\texttt{RespuestaPregunta}] Ítem de respuesta. Campos: FK a \texttt{Respuesta} (\texttt{CASCADE}), FK a \texttt{Pregunta} (\texttt{PROTECT}), \code{valor_texto} (para tipos abiertos) y \code{opciones_seleccionadas} (\texttt{ManyToManyField} a \texttt{OpcionPregunta}). \code{unique_together}\texttt{=(respuesta, pregunta)}.
+    \item[\texttt{RespuestaCelda}] Elección columna-por-fila en una cuadrícula. Campos: FK a \texttt{RespuestaPregunta} (\texttt{CASCADE}), FK a \texttt{FilaCuadricula} (\texttt{PROTECT}) y FK a \texttt{OpcionPregunta} (\texttt{PROTECT}). \code{unique_together}\texttt{=(}\code{respuesta_pregunta}\texttt{, fila)}.
+    \item[\texttt{RespuestaSeccion}] \emph{Snapshot} del puntaje por sección al enviar. Campos: FK a \texttt{Respuesta} (\texttt{CASCADE}), FK a \texttt{Seccion} (\texttt{PROTECT}), \texttt{peso} (copia del peso vigente al enviar), \texttt{puntaje\_obtenido}, \texttt{puntaje\_maximo} y \texttt{porcentaje}. El campo \texttt{peso} preservado permite reconstruir el desglose aunque el administrador re-ajuste los pesos y publique una revisión.
+\end{description}
+
+\emph{Relaciones (agrupadas por dueño)}:
+\begin{itemize}
+    \item \texttt{Periodo} \textbf{$1$--$N$} \texttt{Formulario} y \texttt{Usuario} \textbf{$0..1$--$N$} \texttt{Formulario} (\emph{creador}).
+    \item \texttt{Formulario} \textbf{$1$--$N$} \{\texttt{Seccion}, \texttt{Pregunta}, \texttt{NivelDesempeno}, \texttt{Respuesta}\}.
+    \item \texttt{Seccion} \textbf{$0..1$--$N$} \texttt{Pregunta} (una pregunta puede quedar huérfana si su sección se elimina, aunque la validación de publicación lo prohíbe).
+    \item \texttt{Pregunta} \textbf{$1$--$N$} \texttt{OpcionPregunta} y \texttt{Pregunta} \textbf{$1$--$N$} \texttt{FilaCuadricula}.
+    \item \texttt{Profesor} \textbf{$1$--$N$} \texttt{Respuesta} y \texttt{NivelDesempeno} \textbf{$0..1$--$N$} \texttt{Respuesta}.
+    \item \texttt{Respuesta} \textbf{$1$--$N$} \texttt{RespuestaPregunta} y \texttt{Respuesta} \textbf{$1$--$N$} \texttt{RespuestaSeccion}.
+    \item \texttt{Pregunta} \textbf{$1$--$N$} \texttt{RespuestaPregunta}; \texttt{Seccion} \textbf{$1$--$N$} \texttt{RespuestaSeccion}.
+    \item \code{RespuestaPregunta} \textbf{$N$--$M$} \code{OpcionPregunta} (\code{opciones_seleccionadas}, con tabla intermedia autogenerada).
+    \item \code{RespuestaPregunta} \textbf{$1$--$N$} \code{RespuestaCelda}; \code{FilaCuadricula} \textbf{$1$--$N$} \code{RespuestaCelda}; \code{OpcionPregunta} \textbf{$1$--$N$} \code{RespuestaCelda}.
+\end{itemize}
+
+\subsubsection*{App \texttt{reportes} --- vistas de agregación}
+
+No define modelos propios. Contribuye únicamente con \emph{views} (\S~6, Módulo~6) que ejecutan agregaciones sobre las entidades de \texttt{documentos}, \texttt{autoevaluacion} y \texttt{catalogos} usando \texttt{aggregate}, \texttt{annotate}, \texttt{Count} y \texttt{Avg} del ORM.
 
 \subsection{Módulo 1: autenticación y gestión de usuarios}
 
@@ -76,125 +171,307 @@ Este módulo, implementado en la app \texttt{accounts}, controla el acceso al si
 
 \subsubsection{Autenticación con JWT}
 
-El \emph{endpoint} \texttt{POST /api/v1/auth/login/} extiende \texttt{TokenObtainPairView} de \emph{simplejwt} con un serializer personalizado que:
+El \emph{endpoint} \texttt{POST} \code{/api/v1/auth/login/} extiende \texttt{TokenObtainPairView} de \emph{simplejwt} con un \emph{serializer} personalizado (Apéndice~\ref{apx:codigo}, \hyperref[lst:login_diff]{``Backend --- \emph{Login} con distinción de cuenta desactivada''}) que:
 
 \begin{itemize}
-    \item Diferencia \emph{credenciales inválidas} de \emph{cuenta desactivada} en los mensajes de error, para dar diagnóstico útil sin filtrar existencia de cuentas.
-    \item Emite dos tokens: un \emph{access token} con vigencia de 60~minutos y un \emph{refresh token} con vigencia de 7~días. Los \emph{refresh tokens} se rotan en cada uso.
+    \item Diferencia \emph{credenciales inválidas} de \emph{cuenta desactivada} en los mensajes de error mediante un código \texttt{account\_disabled}, para dar diagnóstico útil sin filtrar existencia de cuentas.
+    \item Emite dos tokens: un \emph{access token} con vigencia de 60~minutos y un \emph{refresh token} con vigencia de 7~días. Los \emph{refresh tokens} se rotan en cada uso (\texttt{ROTATE\_REFRESH\_TOKENS=True}).
     \item Aplica \texttt{throttle\_scope="login"} para limitar a cinco intentos por minuto por dirección IP (véase \S~\ref{sec:seguridad}).
+    \item Devuelve, junto con los tokens, un objeto \texttt{user} con \texttt{id, email, nombre, rol}, útil para poblar el contexto de sesión del frontend en la misma respuesta.
 \end{itemize}
 
-El \emph{endpoint} \texttt{POST /api/v1/auth/refresh/} intercambia un \emph{refresh token} válido por un nuevo par de tokens. El cliente frontend intercepta las respuestas HTTP \texttt{401} y dispara automáticamente el \emph{refresh} antes de reintentar la petición original (\texttt{frontend/src/api/client.js}).
+El \emph{endpoint} \texttt{POST /api/v1/auth/refresh/} intercambia un \emph{refresh token} válido por un nuevo par de tokens. El cliente frontend intercepta las respuestas HTTP \texttt{401} y dispara automáticamente el \emph{refresh} antes de reintentar la petición original: mientras el \emph{refresh} está en curso, las peticiones concurrentes que también fallan con 401 se encolan y se despachan de una sola vez con el nuevo \emph{access token} (evita la ``tormenta de \emph{refresh}''). El \emph{endpoint} \texttt{GET /api/v1/auth/me/} devuelve el perfil completo del usuario autenticado, incluyendo el \emph{perfil\_profesor} embebido cuando aplica.
 
-\subsubsection{Gestión de usuarios}
+\subsubsection{Creación de un profesor con acceso al sistema}
 
-El \texttt{UsuarioViewSet} expone las operaciones CRUD sobre usuarios, restringidas al rol \emph{Administrador} mediante una \emph{permission class} personalizada. La acción \texttt{POST /usuarios/\{id\}/set-password/} permite al administrador restablecer la contraseña de cualquier profesor.
+La creación de un profesor sigue un flujo operativo unificado desde el rol administrador:
 
-El \texttt{ProfesorViewSet} expone las operaciones sobre el perfil de \texttt{Profesor} y admite filtrado por departamento y búsqueda por nombre o número económico.
+\begin{enumerate}
+    \item El administrador entra a \texttt{/admin/profesores}, oprime \emph{Nuevo profesor} y llena el formulario en la modal: \emph{nombre completo}, \emph{correo institucional} (que será el \emph{USERNAME\_FIELD}), \emph{número económico}, \emph{departamento} y \emph{contraseña inicial}.
+    \item El frontend envía \texttt{POST /api/v1/profesores/crear-con-usuario/}. En una única transacción atómica el backend:
+    \begin{enumerate}
+        \item verifica si el correo ya corresponde a un usuario existente sin perfil de profesor asociado (``usuario huérfano''); si es así, lo reutiliza actualizando su rol y contraseña;
+        \item de lo contrario crea el \texttt{Usuario} con \texttt{rol=PROFESOR} y hashea la contraseña con PBKDF2;
+        \item crea el \texttt{Profesor} enlazado por FK al usuario y al departamento.
+    \end{enumerate}
+    \item Devuelve \texttt{201 Created} con el profesor completo. Este puede iniciar sesión inmediatamente con el correo y la contraseña recibida.
+\end{enumerate}
+
+La misma tabla ofrece dos acciones adicionales por fila:
+
+\begin{itemize}
+    \item \textbf{Restablecer contraseña}: dispara una modal secundaria; \texttt{POST} \code{/api/v1/usuarios/{id}/set-password/} valida la nueva contraseña con la política estándar de Django (longitud mínima, no común, no numérica, no similar al perfil) y la guarda hasheada.
+    \item \textbf{Activar / desactivar}: \texttt{POST} \code{/api/v1/usuarios/{id}/toggle-activo/} conmuta \texttt{is\_active}. Al desactivar, el usuario queda con sesión expirada al vencer su \emph{access token} actual (máximo 60~minutos) y no podrá refrescar ni iniciar sesión de nuevo.
+\end{itemize}
+
+\emph{Imagen sugerida}: [IMAGEN PENDIENTE: captura de la modal ``Crear profesor'' desde \texttt{/admin/profesores} mostrando los campos \emph{nombre}, \emph{correo institucional}, \emph{número económico}, \emph{departamento} y \emph{contraseña}. Ubicar en \texttt{Imagenes/screenshots/admin\_crear\_profesor.png} y referenciarla como \texttt{fig:admin\_crear\_profesor}.]
 
 \subsubsection{Roles y permisos}
 
-Los dos roles \emph{ADMIN} y \emph{PROFESOR} se materializan como valores de un \texttt{TextChoices} en el modelo \texttt{Usuario}. La comprobación de rol se realiza:
+Los dos roles \emph{ADMIN} y \emph{PROFESOR} se materializan como valores de un \texttt{TextChoices} (mecanismo de Django que combina una enumeración con etiquetas legibles) en el modelo \texttt{Usuario}. La comprobación de rol se realiza:
 
 \begin{itemize}
-    \item En backend, mediante \emph{permission classes} de DRF (\texttt{IsOwnerProfesorOrAdminReadOnly}, \texttt{IsAdminRole}) que se declaran a nivel de \texttt{ViewSet}.
-    \item En frontend, mediante los \emph{wrappers} de ruta \texttt{AdminRoute} y \texttt{ProfesorRoute} (\texttt{src/auth/RoleRoute.jsx}) que redirigen a \texttt{/login} si el rol no coincide.
+    \item En \textbf{backend}, mediante \emph{permission classes} de DRF: \texttt{IsAdmin} para operaciones exclusivas de administrador, \texttt{IsAdminOrReadOnly} para catálogos, \texttt{IsProfesor} para acciones del profesor y \code{IsOwnerProfesorOrAdminReadOnly} para restringir la escritura al dueño del recurso y permitir sólo lectura al administrador (Apéndice~\ref{apx:codigo}, \hyperref[lst:permissions]{``Backend --- Permisos por rol''}). El chequeo tiene dos capas: \texttt{has\_permission} (a nivel de \emph{ViewSet}) y \texttt{has\_object\_permission} (a nivel de instancia).
+    \item En \textbf{frontend}, mediante los \emph{route guards} \texttt{AdminRoute} y \texttt{ProfesorRoute} (\S~\ref{subsec:patrones-front}) que componen \texttt{ProtectedRoute} + \texttt{RoleRoute} y redirigen si el rol no coincide.
 \end{itemize}
 
-\subsection{Módulo 2: gestión de cartas temáticas}
+\subsection{Módulo 2: catálogos institucionales}
 
-Implementado en la app \texttt{documentos}, este módulo permite al profesor gestionar sus cartas temáticas del trimestre.
+La app \texttt{catalogos} expone \emph{ViewSets} de CRUD completo para \texttt{Departamento}, \texttt{Licenciatura}, \texttt{Posgrado}, \texttt{Area}, \texttt{UEA} y \texttt{Periodo}, todos regidos por \code{IsAdminOrReadOnly}: cualquier usuario autenticado los lee (necesario para poblar selectores en el frontend), pero sólo el administrador los modifica.
 
-\subsubsection{Ciclo de vida y CRUD}
+\subsubsection{Precarga inicial y \emph{fixtures}}
 
-El \texttt{CartaTematicaViewSet} expone las operaciones estándar sobre \texttt{/api/v1/cartas-tematicas/}, con \texttt{IsOwnerProfesorOrAdminReadOnly}: cada profesor sólo ve y edita sus propias cartas; el administrador tiene acceso de solo lectura a todas las cartas. La acción personalizada \texttt{POST /cartas-tematicas/\{id\}/cambiar-estado/} transiciona el documento entre \emph{BORRADOR} y \emph{PUBLICADO}.
+Cinco \emph{fixtures} JSON (\texttt{catalogos/fixtures/*.json}) precargan los catálogos base: los cuatro departamentos de CyAD, las licenciaturas y posgrados activos, las áreas de conocimiento y cinco periodos históricos (24-I a 25-O). Se aplican con:
 
-\subsubsection{Validaciones}
+\begin{Verbatim}[fontsize=\small, frame=single]
+python manage.py loaddata \
+    catalogos/fixtures/departamentos.json \
+    catalogos/fixtures/licenciaturas.json \
+    catalogos/fixtures/posgrados.json \
+    catalogos/fixtures/areas.json \
+    catalogos/fixtures/periodos.json
+\end{Verbatim}
 
-Además de la unicidad \emph{(profesor, periodo, uea, id\_grupo)} declarada como \emph{constraint}, el serializer valida que:
+Esto reduce el tiempo de puesta en marcha del sistema a minutos, sin capturar manualmente los mismos datos.
+
+\subsubsection{Importación masiva de UEAs desde CSV}
+
+Las UEAs son numerosas (una por asignatura por programa), por lo que se ofrecen dos vías de carga masiva idempotente:
 
 \begin{itemize}
-    \item Sólo se puedan crear cartas para \texttt{Periodos} con \texttt{activo\_cartas=True}.
-    \item El profesor sólo pueda registrar cartas para UEAs de licenciaturas activas.
-    \item Los \emph{snapshots} \texttt{profesor\_nombre} y \texttt{profesor\_correo} se llenen automáticamente al crear el documento.
+    \item \textbf{Desde la interfaz}: \texttt{POST} \code{/api/v1/uea/import-csv/} con \code{multipart/form-data}. El backend lee las cabeceras \texttt{clave}, \texttt{nombre}, \code{programa_clave}, \texttt{trimestre}, \texttt{tipo}, \texttt{creditos}, \code{area_nombre}, \code{area_descripcion} y \texttt{url}, hace \emph{upsert} usando cachés en memoria para evitar \emph{queries} redundantes y detecta colisiones cuando la clave existe en licenciatura y posgrado simultáneamente.
+    \item \textbf{Desde la línea de comandos}: el comando de gestión \texttt{python manage.py }\code{cargar_catalogos_csv} (Apéndice~\ref{apx:codigo}, \hyperref[lst:import_csv]{``Backend --- Comando de importación CSV para UEA''}) consume archivos CSV desde un directorio configurable y produce el mismo efecto. Es útil para automatizar la puesta en marcha en entornos nuevos.
 \end{itemize}
+
+\subsubsection{Restricciones de integridad de UEA}
+
+El modelo \texttt{UEA} refuerza dos reglas del dominio como \emph{constraints} declarativos (Apéndice~\ref{apx:codigo}, \hyperref[lst:uea_constraints]{``Backend --- Constraint XOR y unicidad parcial de UEA''}):
+
+\begin{itemize}
+    \item \texttt{uea\_xor\_licenciatura\_posgrado}: una UEA pertenece a una licenciatura \emph{o} a un posgrado, nunca a ambos ni a ninguno (\S~\ref{subsec:constraints}).
+    \item Dos \texttt{UniqueConstraint} parciales que hacen la clave única por programa: la clave ``11XY99'' puede coexistir en una licenciatura y en un posgrado, pero no repetirse dentro del mismo programa.
+\end{itemize}
+
+Estas reglas se validan además en el \emph{serializer} para producir mensajes de error legibles.
+
+\emph{Imagen sugerida}: [IMAGEN PENDIENTE: captura de \texttt{/admin/catalogos/uea} mostrando la tabla de UEAs, el buscador y el botón \emph{Importar CSV}. Ubicar en \texttt{Imagenes/screenshots/admin\_uea.png} y referenciarla como \texttt{fig:admin\_uea}.]
+
+\subsection{Módulo 3: habilitación de periodos por recurso}
+
+Cada \texttt{Periodo} tiene tres \emph{flags} de activación independientes:
+
+\begin{description}
+    \item[\texttt{activo\_cartas}] Habilita la captura y publicación de cartas temáticas para ese periodo.
+    \item[\texttt{activo\_requisitos}] Habilita la captura y publicación de requisitos de recuperación.
+    \item[\texttt{activo\_autoevaluacion}] Habilita la creación de formularios de autoevaluación y la recepción de respuestas.
+\end{description}
+
+La separación en tres \emph{flags} refleja el ritmo real de la Coordinación de Estudios: la ventana de captura de cartas se abre al inicio del trimestre, la de requisitos hacia la mitad, y la de autoevaluación al final. Los tres pueden estar activos en periodos distintos simultáneamente. Hacerlo de esta manera evita que los profesores se confundan y publiquen documentos en periodos que no corresponden a la fase de captura vigente.
+
+\subsubsection{Invariante ``a lo sumo uno activo por recurso''}
+
+El sistema garantiza que sólo un periodo esté activo por recurso a la vez. Esto se implementa con un \texttt{save()} sobreescrito en \texttt{Periodo}: al persistir un periodo con \texttt{activo\_cartas=True}, la misma transacción hace \texttt{activo\_cartas=False} en todos los demás periodos. Lo mismo aplica a los otros dos \emph{flags}. Un método de clase \texttt{Periodo.get\_activo(recurso)} devuelve el periodo actualmente activo para un recurso dado, consumido por dashboards y por el asignador automático de periodo en los formularios de creación.
 
 \subsubsection{Interfaz de usuario}
 
-La interfaz del profesor consta de tres pantallas: lista (\texttt{CartasListPage}), formulario de creación/edición (\texttt{CartaFormPage}) y vista previa (\texttt{CartaPreviewPage}). El listado se agrupa por periodo mediante el componente \texttt{CollapsiblePeriodoCard} y muestra un \emph{badge} de estado. La interfaz del administrador (\texttt{CartasAdminPage}) muestra la vista global filtrable por periodo, con enlaces a la vista pública de cada carta publicada.
+En \texttt{/admin/catalogos/periodos} cada fila del listado muestra tres \emph{chips} (etiquetas) clicables (verde=activo, gris=inactivo). Al hacer clic sobre uno, el frontend dispara \texttt{PATCH /api/v1/periodos/\{id\}/} con el nuevo valor booleano; el resultado se refleja en toda la tabla porque los demás \emph{chips} del mismo recurso pasan a gris automáticamente.
 
-\subsection{Módulo 3: gestión de requisitos de recuperación}
+\subsubsection{Efectos sobre otros módulos}
 
-Este módulo comparte código y patrones con el de cartas temáticas: mismo \emph{base abstract model}, mismos permisos, mismo ciclo BORRADOR/PUBLICADO, misma unicidad. La diferencia está en los campos específicos ---\texttt{lugar}, \texttt{fecha\_hora}, \texttt{duracion\_aprox}, \texttt{recursos\_necesarios}, \texttt{requisitos} y \texttt{notas}--- y en la bandera de periodo \texttt{activo\_requisitos}, independiente de la de cartas: esto permite que la Coordinación abra la ventana de captura de cartas y la de requisitos en momentos distintos del trimestre.
+La habilitación se propaga:
 
-\subsection{Módulo 4: autoevaluación docente}
+\begin{itemize}
+    \item El \emph{serializer} de \texttt{CartaTematica} rechaza altas si el periodo destino no tiene \texttt{activo\_cartas=True} (equivalente para requisitos y autoevaluación).
+    \item El \emph{ViewSet} de documentos calcula un \emph{flag} derivado \texttt{puede\_editar\_ahora} que combina \texttt{estado=BORRADOR} con \texttt{periodo.activo\_cartas=True}. El frontend lo usa para deshabilitar botones de edición cuando el periodo se cierra.
+    \item El \emph{endpoint} \texttt{GET /api/v1/periodos/activos/} devuelve un objeto \texttt{\{cartas: \{...\}, requisitos: \{...\}, autoevaluacion: \{...\}\}} consumido por los dashboards y por los formularios de creación de documento (para asignar automáticamente el periodo activo).
+\end{itemize}
 
-Éste es el módulo más elaborado del sistema. Se implementó en nueve incrementos etiquetados como \emph{PR1} a \emph{PR9} en el historial de git.
+\subsubsection{Eliminación protegida}
 
-\subsubsection{Form-builder para administradores}
-
-El administrador diseña formularios de autoevaluación desde una interfaz drag-and-drop (\texttt{FormularioBuilderPage}) que soporta ocho tipos de pregunta:
-
-\begin{enumerate}
-    \item Texto corto (una línea).
-    \item Texto largo (párrafo).
-    \item Opción única (radio).
-    \item Casillas (checkboxes múltiples).
-    \item Sí/No.
-    \item Escala lineal (por ejemplo 1--5 tipo Likert).
-    \item Lista desplegable.
-    \item Cuadrícula (matriz filas $\times$ columnas para preguntas Likert compactas).
-\end{enumerate}
-
-Cada pregunta pertenece a una \texttt{Seccion} con un peso decimal; la suma de los pesos de las secciones de un formulario debe ser exactamente 100\,\%. Cada \texttt{OpcionPregunta} tiene un campo \texttt{puntos}, y los \texttt{NivelDesempeno} definen rangos porcentuales (por ejemplo \emph{0--40 Insuficiente}, \emph{40--70 Suficiente}, \emph{70--90 Bueno}, \emph{90--100 Sobresaliente}) con una \emph{observación} textual que se despliega al profesor al enviar su respuesta.
-
-\subsubsection{Versionado de formularios}
-
-Los formularios en estado \emph{PUBLICADO} son inmutables: para modificar preguntas ya publicadas, el administrador debe \emph{publicar una revisión}, lo que incrementa el número de versión del formulario. Las respuestas previas conservan la referencia a la versión con la que fueron enviadas (\texttt{version\_formulario}), garantizando integridad estadística e histórica. El sistema también permite duplicar un formulario para crear una nueva versión desde cero.
-
-\subsubsection{Scoring ponderado}
-
-Cuando el profesor envía una respuesta, la vista \texttt{RespuestaViewSet.enviar} calcula:
+Como \texttt{Periodo} es referenciado por múltiples entidades con FK \texttt{PROTECT}, eliminar un periodo requiere una operación cuidadosa:
 
 \begin{enumerate}
-    \item El puntaje obtenido por sección como suma de \texttt{puntos} de las opciones marcadas.
-    \item El puntaje máximo posible por sección.
-    \item El porcentaje ponderado global, ponderando por el peso de cada sección.
-    \item Almacena un \texttt{RespuestaSeccion} por sección con estos totales, para permitir análisis posterior a nivel de sección.
-    \item Determina el \texttt{NivelDesempeno} correspondiente al porcentaje global y adjunta su \emph{observación}.
+    \item El administrador consulta \texttt{GET} \code{/api/v1/periodos/{id}/preview-eliminacion/}, que devuelve el conteo de documentos y respuestas que se borrarían en cascada.
+    \item El \texttt{DELETE} está bloqueado si el periodo está activo para algún recurso.
+    \item Si el usuario confirma, \texttt{perform\_destroy} realiza una cascada manual dentro de una transacción atómica en el orden \emph{Respuesta} $\rightarrow$ \emph{Formulario} $\rightarrow$ \emph{CartaTematica} $\rightarrow$ \emph{RequisitoRecuperacion} $\rightarrow$ \emph{Periodo}.
 \end{enumerate}
 
-\subsubsection{Privacidad de respuestas}
+\emph{Imagen sugerida}: [IMAGEN PENDIENTE: captura de \texttt{/admin/catalogos/periodos} con tres \emph{chips} por fila (Cartas, Requisitos, Autoevaluación) mostrando el estado activo/inactivo. Ubicar en \texttt{Imagenes/screenshots/admin\_periodos.png} y referenciarla como \texttt{fig:admin\_periodos}.]
 
-El administrador puede ver quiénes respondieron cada formulario y el porcentaje agregado por profesor, así como estadísticas descriptivas por sección, pero las respuestas individuales cualitativas se marcan como confidenciales del profesor. Esta separación se materializa mediante dos \emph{serializers} distintos: uno \emph{summary} para el administrador y uno \emph{detail} para el propio profesor.
+\subsection{Módulo 4: cartas temáticas y requisitos de recuperación}
 
-\subsection{Módulo 5: reportes de cumplimiento}
+Este módulo, implementado en la app \texttt{documentos}, unifica el CRUD de los dos documentos porque comparten patrón: misma clase base abstracta, mismo ciclo de vida \texttt{BORRADOR} $\leftrightarrow$ \texttt{PUBLICADO}, misma unicidad compuesta y mismas reglas de propiedad. Difieren en los campos específicos y en el \emph{flag} de periodo que los habilita.
 
-La app \texttt{reportes} expone cinco endpoints de solo lectura, todos restringidos al rol \emph{Administrador}:
+\subsubsection{Creación y publicación desde el rol profesor}
+
+El flujo operativo del profesor es el siguiente:
+
+\begin{enumerate}
+    \item Entra a \code{/profesor/cartas} (o \code{/profesor/requisitos}). Ve la lista de sus documentos agrupada por periodo con el componente \texttt{CollapsiblePeriodoCard} (\S~\ref{subsec:ui-patterns}, patrón acordeón). La tarjeta del periodo activo se abre automáticamente al terminar de cargar los periodos activos.
+    \item Oprime \emph{Nueva carta}. El formulario (\texttt{CartaFormPage}) asigna automáticamente el periodo activo consultando \texttt{GET} \code{/periodos/activos/}; ese campo no es editable, evitando errores de captura.
+    \item Selecciona la UEA con un buscador libre que sugiere las diez mejores coincidencias por clave o nombre.
+    \item Llena \emph{nombre de grupo}, \emph{id de grupo}, \emph{horario}, \emph{modalidad} (presencial/remoto/mixto) y los doce campos de contenido de la carta (o los seis del requisito).
+    \item Elige \emph{Guardar borrador} (\texttt{POST} \code{/cartas-tematicas/} o \texttt{PATCH} \code{/cartas-tematicas/{id}/}) o \emph{Guardar y publicar}. Esta segunda opción encadena la actualización con \texttt{POST} \code{/cartas-tematicas/{id}/cambiar-estado/} para transicionar el documento a \texttt{PUBLICADO}.
+\end{enumerate}
+
+Al crearse el documento, el \emph{ViewSet} llena automáticamente los campos \texttt{profesor\_nombre} y \texttt{profesor\_correo} como \emph{snapshots} de identidad (\S~\ref{subsec:versionado}), extraídos del perfil del profesor autenticado. Estos \emph{snapshots} sobreviven a la eventual desactivación o eliminación del usuario.
+
+\subsubsection{Reglas de propiedad y ediciones fuera de tiempo}
+
+El \emph{ViewSet} de cartas usa el permiso \texttt{IsOwnerProfesorOrAdminReadOnly}: el profesor sólo ve y edita sus propios documentos; el administrador tiene acceso de sólo lectura a todos. Adicionalmente, un método privado \texttt{\_profesor\_puede\_modificar(obj)} bloquea cualquier modificación --- incluida la transición de estado --- si el periodo del documento ya no tiene el \emph{flag} correspondiente activo. Con esto, un profesor no puede alterar retroactivamente cartas de trimestres cerrados.
+
+La \texttt{UniqueConstraint} compuesta \emph{(profesor, periodo, uea, id\_grupo)} impide, a nivel de motor de base de datos, que un profesor tenga dos documentos para el mismo grupo en el mismo trimestre. En el evento de una violación, DRF devuelve \texttt{400 Bad Request} con un mensaje amigable.
+
+\subsubsection{Vista del administrador}
+
+El administrador dispone de las páginas \code{/admin/documentos/cartas} y \code{/admin/documentos/requisitos} con la vista global de los documentos \emph{publicados}, filtrable por periodo, con enlaces a la vista pública imprimible de cada uno. La interfaz es de sólo lectura: la publicación es responsabilidad del dueño; el administrador supervisa y descarga.
+
+Las evidencias visuales del listado del profesor y del formulario de creación se muestran en las Figuras~\ref{fig:docente_cartas_lista}, \ref{fig:docente_carta_form} y \ref{fig:docente_requisito_form} de la Sección~\ref{sec:resultados}.
+
+\subsection{Módulo 5: \emph{form-builder} y autoevaluación docente}
+
+Este es el módulo más elaborado del sistema. Se construyó en nueve incrementos PR1--PR9 (\S~2) y culmina con el envío por parte del profesor de una respuesta puntuada y evaluada contra rangos de desempeño.
+
+\subsubsection{Flujo operativo del administrador (\emph{form-builder})}
+
+\begin{enumerate}
+    \item El administrador entra a \texttt{/admin/autoevaluacion} y ve la lista de formularios (con \emph{polling} cada 15\,s para reflejar cambios entre pestañas). Crea un formulario nuevo asociado a un \texttt{Periodo} que tenga \texttt{activo\_autoevaluacion=True}.
+    \item Entra al constructor (\texttt{FormularioBuilderPage}). La interfaz se organiza en tres pestañas: \emph{Preguntas}, \emph{Niveles} y \emph{Estadísticas}.
+    \item En \emph{Preguntas} añade \textbf{secciones} con \emph{peso decimal}. Un indicador visual muestra en tiempo real ``$\Sigma$ pesos = X\,\%'' con marca de verificación cuando la suma es exactamente 100 (tolerancia $\pm 0.01$) o advertencia en caso contrario.
+    \item Añade preguntas dentro de cada sección. El sistema soporta ocho tipos:
+    \begin{enumerate}
+        \item Texto corto (una línea).
+        \item Texto largo (párrafo).
+        \item Opción única (\emph{radio}).
+        \item Casillas (\emph{checkboxes} múltiples).
+        \item Sí/No.
+        \item Escala lineal (Likert 1--$N$ con etiquetas configurables; \S~\ref{subsec:likert}).
+        \item Lista desplegable.
+        \item Cuadrícula (matriz filas $\times$ columnas para preguntas Likert compactas).
+    \end{enumerate}
+    Para los tipos con opciones, define \emph{puntos} por opción; para \texttt{ESCALA\_LINEAL} configura \texttt{min}, \texttt{max}, \texttt{puntos\_factor}; para \texttt{CUADRICULA} define filas y opciones (columnas).
+    \item En \emph{Niveles} define los \emph{niveles de desempeño}: rangos porcentuales con etiqueta, observación textual y color (por ejemplo, ``0--40 Insuficiente'', ``40--70 Suficiente'', ``70--90 Bueno'', ``90--100 Sobresaliente'').
+    \item Cuando la estructura está completa, oprime \emph{Publicar}. El backend valida (\S~5.3) y transiciona el formulario a \texttt{PUBLICADO}.
+\end{enumerate}
+
+\subsubsection{Máquina de estados del formulario}
+
+Un \texttt{Formulario} vive en una máquina de estados con tres estados y seis acciones (Apéndice~\ref{apx:codigo}, \hyperref[lst:formulario_states]{``Backend --- Ciclo de vida de Formulario''}):
+
+\begin{itemize}
+    \item \texttt{BORRADOR} $\rightarrow$ \texttt{PUBLICADO}: acción \texttt{publicar}. Valida que haya al menos una sección, que la suma de pesos sea 100 $\pm 0.01$\,\%, que no existan preguntas huérfanas (sin sección) y que cada sección con peso $>0$ tenga al menos una pregunta puntable. Registra \texttt{published\_at}.
+    \item \texttt{PUBLICADO} $\rightarrow$ \texttt{CERRADO}: acción \texttt{cerrar}. Deja de recibir respuestas. Registra \texttt{closed\_at}.
+    \item \texttt{CERRADO} $\rightarrow$ \texttt{PUBLICADO}: acción \texttt{reabrir}. Vuelve a aceptar respuestas sin cambiar la versión.
+    \item \texttt{PUBLICADO}/\texttt{CERRADO} $\rightarrow$ \texttt{BORRADOR}: acción \texttt{despublicar}. Permite editar preguntas y pesos; no incrementa versión ni borra respuestas.
+    \item \texttt{CERRADO} $\rightarrow$ \texttt{PUBLICADO} (versión $n+1$): acción \texttt{publicar\_revision}. \textbf{Incrementa \texttt{version}}. Las respuestas previas quedan asociadas a la versión anterior y no cuentan para la nueva; el profesor debe volver a responder.
+    \item Acción transversal \texttt{duplicar}: clona la estructura completa (secciones, preguntas, opciones, filas y niveles) a otro periodo, dentro de una transacción atómica, sin arrastrar respuestas. Facilita reutilizar un formulario ya afinado en trimestres sucesivos.
+\end{itemize}
+
+\emph{Imagen sugerida}: [IMAGEN OPCIONAL: diagrama de estados del formulario dibujado en TikZ, ubicable en \texttt{Imagenes/estados\_formulario.tex} y referenciable como \texttt{fig:estados\_formulario}. Alternativamente, capturar la barra de acciones del \emph{form-builder} que muestra los botones \emph{Publicar}, \emph{Cerrar}, \emph{Reabrir}, \emph{Despublicar} y \emph{Publicar revisión}.]
+
+\subsubsection{Sistema de puntuación (\emph{scoring} ponderado)}
+
+Cuando el profesor envía una respuesta, la acción \texttt{POST} \code{/respuestas/{id}/enviar/} desencadena el cálculo del puntaje. El algoritmo, resumido en el Apéndice~\ref{apx:codigo} (\hyperref[lst:scoring]{``Backend --- Scoring ponderado de autoevaluación''}), procede así:
+
+\begin{enumerate}
+    \item Para cada \texttt{Seccion}, recorre sus \texttt{Pregunta}s puntables e ignora las de tipo \texttt{TEXTO\_CORTO}/\texttt{TEXTO\_LARGO} (colección \texttt{TIPOS\_NO\_PUNTABLES}).
+    \item Suma los puntos obtenidos y el máximo posible según el tipo:
+    \begin{itemize}
+        \item \texttt{CUADRICULA}: máximo = (mayor \emph{puntos} entre las opciones) $\times$ (número de filas); obtenido = suma de puntos de cada celda respondida.
+        \item \texttt{ESCALA\_LINEAL}: máximo = \texttt{max} $\times$ \texttt{puntos\_factor}; obtenido = valor respondido $\times$ \texttt{puntos\_factor}.
+        \item \texttt{SI\_NO}: puntos configurados para la opción elegida (\texttt{puntos\_si} o \texttt{puntos\_no}).
+        \item \texttt{CASILLAS}: suma de puntos de todas las opciones marcadas.
+        \item \texttt{OPCION\_UNICA} / \texttt{LISTA\_DESPLEGABLE}: puntos de la opción seleccionada; máximo = mayor \emph{puntos} entre las opciones.
+    \end{itemize}
+    \item Calcula el porcentaje por sección: \emph{porcentaje}$_s$ = (obtenido$_s$ / máximo$_s$) $\times$ 100.
+    \item Calcula el porcentaje ponderado global sumando, sobre todas las secciones, \emph{porcentaje}$_s$ $\times$ (\emph{peso}$_s$ / 100).
+    \item Persiste un \texttt{RespuestaSeccion} por sección con \texttt{puntaje}, \texttt{puntaje\_maximo}, \texttt{porcentaje} y una \textbf{copia del \texttt{peso}} de la sección. Este \emph{snapshot} garantiza que el desglose histórico permanezca estable aun si el administrador ajusta los pesos y publica una revisión.
+    \item Determina el \texttt{NivelDesempeno} correspondiente buscando el rango \texttt{[porcentaje\_min, porcentaje\_max]} que contiene al porcentaje global; adjunta el nivel y su observación al resultado.
+\end{enumerate}
+
+\subsubsection{Privacidad de la ponderación mientras se contesta}
+
+El sistema separa dos \emph{serializers} de \texttt{OpcionPregunta}: \texttt{OpcionPreguntaSerializer} (para el administrador) expone el campo \texttt{puntos}; \texttt{OpcionPreguntaPublicSerializer} (para el profesor mientras contesta) lo omite. Así el respondiente no puede optimizar su elección conociendo la ponderación de antemano. Al enviar, el profesor recibe el resultado completo con desglose.
+
+\subsubsection{Flujo operativo del profesor}
+
+\begin{enumerate}
+    \item El profesor entra a \texttt{/profesor/autoevaluacion}. Ve la lista de formularios disponibles con un \emph{badge} por estado (Pendiente, En progreso, Respondido, Periodo cerrado) y \emph{polling} cada 15\,s.
+    \item Abre un formulario. El \texttt{QuestionRenderer} (Apéndice~\ref{apx:codigo}, \hyperref[lst:renderer_preguntas]{``Frontend --- Renderizador dinámico de preguntas''}) despacha por \texttt{pregunta.tipo} y produce el control apropiado (\emph{radio}, \emph{checkbox}, \emph{select}, escala 1--$N$, cuadrícula o \emph{textarea}).
+    \item Puede \emph{Guardar borrador} tantas veces como quiera (\texttt{POST /respuestas/} inicialmente, luego \texttt{PATCH /respuestas/\{id\}/}).
+    \item Cuando termina, oprime \emph{Enviar} (\texttt{POST /respuestas/\{id\}/enviar/}). Si faltan respuestas obligatorias, el backend responde con \texttt{preguntas\_faltantes} y el frontend resalta cada pregunta faltante en rojo y hace \emph{scroll} suave a la primera.
+    \item Al éxito, se muestra un \emph{ResultCard} con el puntaje obtenido, el porcentaje global, el nivel de desempeño asignado, la observación textual del nivel y el \textbf{desglose por sección} (porcentaje de la sección y aporte al total).
+\end{enumerate}
+
+\emph{Imágenes sugeridas}: además de la Figura~\ref{fig:admin_formulario_builder} y la Figura~\ref{fig:docente_autoevaluacion} de la Sección~\ref{sec:resultados}, [IMAGEN PENDIENTE: captura del panel de \emph{Niveles de desempeño} con los rangos y sus colores. Ubicar en \texttt{Imagenes/screenshots/admin\_niveles\_desempeno.png} como \texttt{fig:admin\_niveles\_desempeno}] y [IMAGEN PENDIENTE: captura del \emph{ResultCard} tras enviar la autoevaluación, mostrando puntaje, porcentaje, nivel y desglose por sección. Ubicar en \texttt{Imagenes/screenshots/profesor\_resultado\_autoeval.png} como \texttt{fig:profesor\_resultado\_autoeval}].
+
+\subsection{Módulo 6: reportes de cumplimiento y descargas XLSX}
+
+\subsubsection{Endpoints de agregación}
+
+La app \texttt{reportes} expone cinco endpoints de sólo lectura, todos restringidos al rol \emph{Administrador}:
 
 \begin{description}
-    \item[\texttt{GET /api/v1/reportes/dashboard/}] Métricas globales: total de profesores activos, cartas publicadas, requisitos publicados, respuestas de autoevaluación enviadas, y tasas de cumplimiento por periodo.
-    \item[\texttt{GET /api/v1/reportes/cumplimiento/}] Detalle de cumplimiento por departamento: para cada departamento, cuenta profesores con al menos una carta publicada y al menos un requisito publicado en el periodo activo.
-    \item[\texttt{GET /api/v1/reportes/cumplimiento-licenciatura/}] Idem, agrupado por licenciatura.
-    \item[\texttt{GET /api/v1/reportes/autoevaluacion-profesores/}] Lista los profesores con su porcentaje agregado, indicando quién ya envió y quién no.
-    \item[\texttt{GET /api/v1/reportes/resumen-autoevaluacion/}] Estadísticas descriptivas por formulario: total de respuestas, porcentaje promedio, distribución por nivel de desempeño.
+    \item[\texttt{GET} \code{/api/v1/reportes/dashboard/?periodo={id}}] Métricas globales: total de profesores activos, conteo de cartas y requisitos por estado (BORRADOR/PUBLICADO), y desglose de formularios y respuestas de autoevaluación.
+    \item[\texttt{GET} \code{/api/v1/reportes/cumplimiento/?periodo=&departamento=}] Detalle de cumplimiento por departamento: para cada uno, cuenta profesores activos y cuántos publicaron carta y requisito en el periodo, con porcentajes.
+    \item[\texttt{GET} \code{/api/v1/reportes/cumplimiento-licenciatura/}] Idem, agrupado por licenciatura, con conteos de UEA cubiertas.
+    \item[\texttt{GET} \code{/api/v1/reportes/autoevaluacion-profesores/}] Lista de profesores con su porcentaje del último formulario, indicando quién ya envió y quién no.
+    \item[\texttt{GET} \code{/api/v1/reportes/autoevaluacion/}] Estadísticas descriptivas por formulario: respuestas enviadas, total de profesores, tasa de respuesta, promedio general de porcentaje, distribución por nivel de desempeño y promedio por sección --- este último calculado con \code{RespuestaSeccion.objects.filter(...).aggregate(Avg("porcentaje"))}.
 \end{description}
 
-En el frontend, la \texttt{ReportesPage} presenta estos datos en tableros interactivos y ofrece descarga en formato \emph{XLSX} generado en el cliente con \emph{SheetJS} (\emph{xlsx} v0.18.5). La exportación es unificada: el administrador elige tipo de reporte y periodo, y descarga un libro con las hojas correspondientes.
+Todos los agregados se calculan con la API de agregación del ORM (\texttt{aggregate}, \texttt{annotate}, \texttt{Count}, \texttt{Avg}), sin ejecutar SQL manual, aprovechando la parametrización automática frente a inyección.
 
-\subsection{Catálogos administrables}
+\subsubsection{Generación de XLSX del lado del cliente}
 
-La app \texttt{catalogos} expone \emph{ViewSets} de CRUD completo para \texttt{Departamento}, \texttt{Licenciatura}, \texttt{Posgrado}, \texttt{Area}, \texttt{UEA} y \texttt{Periodo}, todos restringidos al rol \emph{Administrador}. Adicionalmente, el comando de gestión \texttt{python manage.py cargar\_catalogos\_csv} realiza importación idempotente desde archivos CSV para las UEAs (típicamente muchas por programa), evitando la captura manual masiva.
+Para las descargas tabulares el frontend usa \emph{SheetJS} (biblioteca \texttt{xlsx}), evitando cargar al backend con generación de binarios (Apéndice~\ref{apx:codigo}, \hyperref[lst:xlsx_por_periodo]{``Frontend --- Generación de XLSX por periodo''}). El patrón adoptado es \textbf{una hoja por periodo}:
 
-Los \emph{fixtures} JSON incluidos (\texttt{catalogos/fixtures/*.json}) precargan los cuatro departamentos de CyAD, las tres licenciaturas activas, los posgrados iniciales y las áreas de conocimiento, lo cual reduce el tiempo de puesta en marcha del sistema a minutos.
+\begin{enumerate}
+    \item El administrador entra a \texttt{/admin/reportes} y elige tipo de reporte (cartas, requisitos o autoevaluación), periodo (o \emph{Todos}) y opcionalmente departamento.
+    \item El frontend pide los datos ya publicados con \code{page_size=500} y filtros aplicados: \texttt{GET} \code{/api/v1/publico/cartas/?estado=PUBLICADO&periodo={id}&profesor__departamento={id}} (o su equivalente).
+    \item Agrupa las filas en un \texttt{Map<periodo\_clave, rows[]>}.
+    \item Crea el libro con \code{XLSX.utils.book_new()} y añade una hoja por grupo con \code{XLSX.utils.json_to_sheet(rows.map(rowToExcel))} y \texttt{XLSX.utils.book\_append\_sheet(wb, ws, sheetName(clave))}.
+    \item Dispara la descarga en el navegador con \texttt{XLSX.writeFile(wb, filename)}.
+\end{enumerate}
 
-\subsection{Vista pública de exploración}
+El compromiso es que el navegador procesa la conversión --- aceptable para volúmenes de hasta $\sim$500 filas por reporte. La ventaja es que se puede iterar sobre el formato de las hojas sin desplegar cambios en el servidor.
 
-Este componente ---no comprometido en la propuesta original y añadido a solicitud posterior--- permite a cualquier persona consultar cartas y requisitos publicados sin autenticarse. La página \texttt{ExplorarPage} implementa una cascada de tres pasos: (1) selección de periodo, (2) selección de licenciatura o posgrado, (3) navegación por UEA agrupada por trimestre y área con un acordeón que muestra los documentos publicados por cada UEA. Al hacer clic en un documento se abre una vista imprimible (\texttt{PublicCartaPage} o \texttt{PublicRequisitoPage}) con \texttt{window.print()} disponible como acción principal.
+La evidencia visual del panel de reportes está en la Figura~\ref{fig:admin_reportes}.
 
-Los \emph{endpoints} públicos correspondientes (bajo el prefijo \texttt{/api/v1/publico/}) no requieren autenticación y sólo devuelven documentos en estado \emph{PUBLICADO}.
+\subsection{Módulo 7: vista pública de exploración}
 
-\subsection{Pruebas automatizadas}\label{sec:testing}
+Este módulo --- añadido tras la propuesta original a solicitud de la Coordinación --- permite a cualquier persona consultar cartas y requisitos publicados sin autenticarse. Se apoya en un conjunto de \emph{endpoints} bajo el prefijo \code{/api/v1/publico/} con permiso \texttt{AllowAny} y \code{authentication_classes=[]}, sin paginación y filtrados a documentos en estado \texttt{PUBLICADO}.
+
+\subsubsection{Cascada de tres pasos}
+
+La página \texttt{ExplorarPage} (\code{/publico/explorar/:tipo} con \texttt{tipo} $\in$ \{\texttt{cartas}, \texttt{requisitos}\}) implementa una cascada (\S~\ref{subsec:ui-patterns}):
+
+\begin{enumerate}
+    \item \textbf{Periodo}: se listan los periodos que tengan documentos publicados del tipo elegido mediante \texttt{GET} \code{/publico/periodos/?tipo=carta}. Esto evita mostrar periodos vacíos.
+    \item \textbf{Programa}: el visitante elige entre licenciaturas y posgrados vía \texttt{GET} \code{/publico/licenciaturas/} y \texttt{GET} \code{/publico/posgrados/}.
+    \item \textbf{UEA}: se cargan las UEA con documentos disponibles vía \texttt{GET} \code{/publico/uea/?licenciatura={id}&periodo={id}&con_documentos_de=carta}. Para licenciaturas, la interfaz las agrupa por \emph{trimestre} (patrón acordeón) o por nombre del área optativa; para posgrados, se muestran en un bloque único.
+\end{enumerate}
+
+Los documentos publicados por cada UEA se cargan bajo demanda (\emph{lazy load}) al expandir la sección correspondiente, usando la propiedad \texttt{enabled: expanded} de \emph{TanStack Query}. Esto evita descargar cientos de documentos en la carga inicial.
+
+\subsubsection{Vista imprimible}
+
+Al hacer clic sobre un documento, la aplicación abre \texttt{/publico/cartas/\{id\}} o \texttt{/publico/requisitos/\{id\}}. Estas páginas usan \texttt{PublicDocumentLayout}, un envoltorio que aplica clases Tailwind con el prefijo \texttt{print:} (por ejemplo, \texttt{print:hidden} en la barra de acciones, \texttt{print:bg-white} en el fondo) para producir un PDF limpio desde el diálogo de impresión del navegador (\texttt{window.print()}). No se usan bibliotecas de generación de PDF del lado del servidor.
+
+Un cliente axios separado (\texttt{publicClient} en \texttt{src/api/publico.js}) \textbf{sin} interceptores de JWT sirve estos endpoints, para evitar enviar \texttt{Authorization} cuando el usuario está autenticado en otra pestaña. El backend igualmente ignoraría el token porque los endpoints públicos usan \texttt{AllowAny}, pero el aislamiento simplifica el razonamiento.
+
+La evidencia visual está en la Figura~\ref{fig:publico_explorar} de la Sección~\ref{sec:resultados}. La vista de detalle imprimible (\texttt{fig:publico\_carta}) está pendiente de captura: [IMAGEN PENDIENTE: captura de \texttt{/publico/cartas/\{id\}} con \emph{banner} del documento, campos de contenido y botón \emph{Imprimir}. Ubicar en \texttt{Imagenes/screenshots/publico\_carta.png}].
+
+\subsection{Aspectos transversales}
+
+\subsubsection{Documentación viva de la API}
+
+El complemento \emph{drf-spectacular} analiza las anotaciones de los \emph{ViewSets} y \emph{serializers} y genera un documento OpenAPI (\S~\ref{subsec:openapi}) expuesto en \texttt{/api/schema/} (YAML descargable) y \texttt{/api/docs/} (Swagger UI interactivo). Esto elimina la clase de errores que produce mantener documentación manual desincronizada.
+
+\subsubsection{Formato de error unificado}
+
+Un \emph{exception handler} personalizado (\texttt{core.exceptions.api\_exception\_handler}) envuelve todas las respuestas de error de DRF como \texttt{\{success: false, status\_code: N, errors: \{...\}\}}. El frontend consume este contrato con una utilidad \texttt{parseApiError()} que prioriza campos conocidos (\texttt{preguntas\_faltantes}, \texttt{detail}, \texttt{non\_field\_errors}) para producir mensajes legibles.
+
+\subsubsection{Pruebas automatizadas}\label{sec:testing}
 
 El backend cuenta con una suite exhaustiva de pruebas construida con \emph{pytest}~8, \emph{pytest-django}~4 y \emph{factory-boy}~3. La distribución aproximada de líneas de test por app es:
 
@@ -207,23 +484,22 @@ El backend cuenta con una suite exhaustiva de pruebas construida con \emph{pytes
     \item \textbf{Total}: aproximadamente 4\,186 líneas.
 \end{itemize}
 
-Adicionalmente, \texttt{backend/conftest.py} incluye una \emph{fixture} \emph{autouse} que limpia el \emph{cache} de Django antes de cada prueba, evitando que el \emph{throttling} acumulado del \emph{login} contamine tests posteriores. La ejecución típica de la suite completa toma unos minutos y no requiere infraestructura adicional (usa una base de datos de test aislada).
-
-Los detalles del reporte de cobertura se presentan en la Sección~\ref{sec:resultados}.
+El archivo \texttt{backend/conftest.py} incluye una \emph{fixture} \emph{autouse} que limpia el \emph{cache} de Django antes de cada prueba, evitando que el \emph{throttling} acumulado del \emph{login} contamine tests posteriores. La ejecución típica de la suite completa toma unos minutos y no requiere infraestructura adicional (usa una base de datos de test aislada). Los detalles del reporte de cobertura se presentan en la Sección~\ref{sec:resultados}.
 
 \subsection{Seguridad}\label{sec:seguridad}
 
 Las medidas de seguridad implementadas siguen las recomendaciones de \emph{OWASP Top 10}~\cite{owasp2021}:
 
 \begin{itemize}
-    \item \textbf{Modo DEBUG seguro por defecto}: \texttt{DEBUG=False} salvo que \texttt{.env} lo active explícitamente (\texttt{config/settings.py:23}), evitando la exposición accidental de trazas y variables en producción.
-    \item \textbf{Rate limiting del login}: cinco intentos por minuto vía \texttt{ScopedRateThrottle} (\texttt{settings.py:160-166}). Después del quinto intento fallido, el endpoint responde \texttt{429 Too Many Requests}.
+    \item \textbf{Modo DEBUG seguro por defecto}: \texttt{DEBUG=False} salvo que \texttt{.env} lo active explícitamente (\texttt{config/settings.py}), evitando la exposición accidental de trazas y variables en producción.
+    \item \textbf{\emph{Rate limiting} del \emph{login}}: cinco intentos por minuto vía \texttt{ScopedRateThrottle} de DRF con \texttt{throttle\_scope="login"}. Después del quinto intento fallido, el endpoint responde \texttt{429 Too Many Requests}.
     \item \textbf{Validación de contraseñas}: se aplican los cuatro validadores estándar de Django (similitud con datos de usuario, longitud mínima, contraseñas comunes, contraseñas numéricas).
-    \item \textbf{Hashing de contraseñas}: por defecto Django usa PBKDF2 con SHA-256.
-    \item \textbf{CORS whitelist}: los orígenes permitidos se configuran vía \texttt{CORS\_ALLOWED\_ORIGINS} y se envían credenciales solo con los que estén en la lista.
-    \item \textbf{Autenticación por JWT rotativo}: el \emph{refresh} rota en cada uso, minimizando el impacto de una filtración.
-    \item \textbf{Diferenciación de rol y permisos por ViewSet}: no hay endpoints sin permiso explícito; el default global es \texttt{IsAuthenticated}.
-    \item \textbf{Endpoints públicos aislados}: bajo el prefijo \texttt{/api/v1/publico/}, expuestos con permiso \texttt{AllowAny} pero limitados a lectura de documentos en estado \emph{PUBLICADO}.
+    \item \textbf{\emph{Hashing} de contraseñas}: PBKDF2 con SHA-256 por defecto (\S~2 del marco), reforzado con \emph{salt} aleatorio.
+    \item \textbf{CORS \emph{whitelist}}: los orígenes permitidos se configuran vía \texttt{CORS\_ALLOWED\_ORIGINS} y se envían credenciales sólo con los que estén en la lista.
+    \item \textbf{Autenticación por JWT rotativo}: el \emph{refresh} rota en cada uso, minimizando el impacto de una filtración; los tokens se firman con HMAC-SHA256.
+    \item \textbf{Diferenciación de rol y permisos por ViewSet}: no hay endpoints sin permiso explícito; el \emph{default} global es \texttt{IsAuthenticated}. La escritura sobre recursos propios se restringe adicionalmente con \texttt{IsOwnerProfesorOrAdminReadOnly}.
+    \item \textbf{Endpoints públicos aislados}: bajo el prefijo \texttt{/api/v1/publico/}, expuestos con permiso \texttt{AllowAny} pero limitados a lectura de documentos en estado \emph{PUBLICADO}, sin exponer campos internos ni contadores.
+    \item \textbf{Prevención de inyección SQL}: garantizada por el uso exclusivo del ORM de Django; no se ejecuta SQL crudo con interpolación de cadenas en ninguna vista.
 \end{itemize}
 
 \newpage

@@ -1,13 +1,134 @@
 \section{Marco teórico}\label{sec:marco}
 \justifying
 
-Esta sección define los conceptos, patrones arquitectónicos, protocolos y herramientas de software que sustentan el desarrollo del sistema. Cada concepto se acompaña de la justificación de por qué se seleccionó, cuál fue su papel dentro del proyecto y qué alternativas existían.
+En esta sección se describen detalladamente los conceptos, tecnologías y herramientas necesarias para llevar a cabo la implementación del proyecto. Inicialmente se desglosan las definiciones relacionadas con los documentos académicos gestionados dentro del sistema y palabras clave utilizadas a lo largo del documento; posteriormente, se definen conceptos relacionados con las tecnologías utilizadas para el desarrollo del sistema.
+
+\subsection{Documentos académicos gestionados dentro del sistema}\label{subsec:documentos}
+
+El sistema gira alrededor de dos documentos institucionales que cada profesor elabora por cada UEA que imparte a lo largo de un trimestre: la \emph{carta temática} y los \emph{requisitos de recuperación}. Ambos se depositan en un espacio público consultable por alumnos y personal académico y comparten un conjunto de metadatos comunes: profesor autor, UEA, periodo trimestral, nombre e identificador de grupo, horario, modalidad (presencial, remoto o mixto) y estado del documento (\emph{borrador} mientras se redacta, \emph{publicado} una vez difundido).
+
+\subsubsection*{Carta temática}
+
+Una \emph{carta temática} es el programa detallado con el que un profesor comunica cómo va a impartir una UEA durante un trimestre. No sustituye al programa oficial de la licenciatura o del posgrado --- que es fijo y aprobado por la División ---, sino que lo particulariza: bajo qué enfoque se desarrollará el curso, con qué calendario, con qué materiales y bajo qué criterios de evaluación.
+
+En el sistema, cada carta temática se compone de los siguientes campos de contenido, redactados como texto libre por el profesor:
+
+\begin{description}
+    \item[Descripción de la UEA] Presentación general de la asignatura y su ubicación dentro del plan de estudios.
+    \item[Objetivo general] Propósito global que se espera que el estudiante alcance al concluir el trimestre.
+    \item[Objetivos particulares] Metas específicas que, en conjunto, permiten alcanzar el objetivo general.
+    \item[Contenido sintético] Enumeración de los temas y subtemas que se abordarán.
+    \item[Objetivos de aprendizaje] Resultados observables (conocimientos, habilidades, actitudes) que el estudiante deberá demostrar.
+    \item[Requerimientos] Materiales, herramientas, equipo o \emph{software} que el estudiante necesita para cursar la UEA.
+    \item[Conocimientos previos] Contenidos que el estudiante debe dominar antes de iniciar el curso.
+    \item[Modalidad de evaluación] Instrumentos y ponderaciones con los que se calificará al estudiante.
+    \item[Revisiones y asesorías] Momentos y modos en que el profesor atiende dudas o revisa avances.
+    \item[Bibliografía] Fuentes básicas y complementarias recomendadas.
+    \item[Enlace] Liga(s) al aula virtual, videoconferencia o repositorio, cuando la modalidad lo requiere.
+    \item[Calendarización de actividades] Secuencia semana a semana de temas, entregas y evaluaciones.
+\end{description}
+
+\subsubsection*{Requisitos de recuperación}
+
+Los \emph{requisitos de recuperación} constituyen el documento con el que el profesor comunica en qué consiste la \emph{evaluación global} que la normatividad de la UAM ofrece a los estudiantes que no aprueban la UEA por la vía ordinaria. Su publicación oportuna es indispensable porque el estudiante debe conocer, con antelación, cuáles son las condiciones exactas para presentarla: dónde, cuándo, con qué materiales y bajo qué reglas.
+
+En el sistema, cada requisito de recuperación se compone de los siguientes campos:
+
+\begin{description}
+    \item[Lugar] Espacio físico o virtual donde se presentará la evaluación. Si es remoto, puede incluir liga y contraseña.
+    \item[Duración aproximada] Tiempo estimado que tomará la evaluación.
+    \item[Fecha y hora] Momento en que se aplicará la evaluación, como texto libre (por ejemplo, ``Jueves 03 de septiembre, 10:00 h'').
+    \item[Recursos necesarios] Materiales, herramientas o equipo que el estudiante debe traer o tener disponibles.
+    \item[Requisitos] Condiciones que el estudiante debe cumplir para poder presentar la evaluación (por ejemplo, entrega previa de investigación, maqueta o porcentaje mínimo de tareas del trimestre).
+    \item[Notas] Aclaraciones adicionales que el profesor considere pertinentes.
+\end{description}
+
+Los campos son de texto libre y no obligatorios individualmente, para acomodar la heterogeneidad de las UEA de la División (talleres, laboratorios, seminarios teóricos, cursos híbridos), pero se validan como conjunto al momento de publicar. Ambos documentos son únicos por la combinación \emph{(profesor, periodo, UEA, grupo)}: un mismo profesor no puede tener dos cartas temáticas ni dos requisitos vigentes para el mismo grupo en un mismo trimestre.
+
+\subsection{Glosario y siglas}\label{subsec:glosario}
+
+Este apartado reúne, como referencia rápida, la terminología institucional UAM-A/CyAD, las siglas técnicas y las bibliotecas mencionadas a lo largo del reporte.
+
+\subsubsection*{Terminología institucional UAM-A / CyAD}
+
+\begin{description}
+    \item[UAM] Universidad Autónoma Metropolitana
+    \item[División] Nivel organizativo intermedio entre la Unidad y los Departamentos. En este proyecto: División de Ciencias y Artes para el Diseño (\emph{CyAD}).
+    \item[Departamento] Unidad organizativa académica que agrupa profesores por área disciplinar. CyAD tiene cuatro: \emph{Evaluación del Diseño en el Tiempo}, \emph{Investigación y Conocimiento para el Diseño}, \emph{Procesos y Técnicas de Realización} y \emph{Medio Ambiente}.
+    \item[Licenciatura] Programa de estudios de pregrado (ej. Arquitectura, Diseño de la Comunicación Gráfica, Diseño Industrial).
+    \item[Posgrado] Programa de estudios de nivel superior a la licenciatura.
+    \item[Coordinación de Estudios] Instancia académica-administrativa responsable de la operación de un programa docente.
+    \item[Plan de estudios] Documento oficial que fija las UEAs, su secuencia y sus créditos para una licenciatura o posgrado.
+    \item[UEA] \emph{Unidad de Enseñanza-Aprendizaje}; corresponde a una asignatura en otros sistemas académicos. Se identifica por una clave numérica (ej. 1132049).
+    \item[Área de conocimiento] Agrupación temática de las UEAs dentro de un programa (por ejemplo ``Composición'', ``Cálculo estructural''). Distinta del Departamento.
+    \item[Trimestre] Unidad temporal académica de la UAM. Un plan de estudios se cursa nominalmente en 12 trimestres.
+    \item[Periodo YY-\{I,P,O\}] Nomenclatura del trimestre en el sistema: \texttt{YY} son los dos últimos dígitos del año y la letra codifica Invierno, Primavera u Otoño, respectivamente. Por ejemplo, \texttt{26-P} designa el trimestre de Primavera de 2026.
+    \item[Modalidad] Forma en que se imparte una UEA: presencial, remoto o mixto.
+    \item[Evaluación global] Evaluación única prevista por la normatividad UAM para estudiantes que no aprobaron por vía ordinaria.
+    \item[Número económico] Identificador numérico único que la UAM asigna a cada trabajador académico.
+\end{description}
+
+\subsubsection*{Siglas técnicas}
+
+\begin{description}
+    \item[ACID] \emph{Atomicity, Consistency, Isolation, Durability} --- propiedades que garantizan la corrección de las transacciones en un RDBMS.
+    \item[API] \emph{Application Programming Interface} --- contrato de operaciones que un componente expone a otros.
+    \item[CI/CD] \emph{Continuous Integration / Continuous Delivery} --- automatización de compilación, pruebas y despliegue tras cada cambio versionado.
+    \item[CORS] \emph{Cross-Origin Resource Sharing} --- protocolo del navegador que autoriza peticiones entre orígenes distintos (ver \S~\ref{subsec:http-cors}).
+    \item[CRUD] \emph{Create, Read, Update, Delete} --- las cuatro operaciones básicas sobre un recurso persistente.
+    \item[CSRF] \emph{Cross-Site Request Forgery} --- ataque en el que un sitio malicioso induce al navegador de una víctima a enviar peticiones autenticadas a otro sitio.
+    \item[DOM] \emph{Document Object Model} --- representación en árbol de un documento HTML manipulable por JavaScript.
+    \item[E2E] \emph{End-to-end} --- prueba que ejercita el sistema completo desde la perspectiva del usuario.
+    \item[FK] \emph{Foreign Key} --- clave foránea; columna que referencia la clave primaria de otra tabla.
+    \item[HMAC] \emph{Hash-based Message Authentication Code} --- construcción que combina una función \emph{hash} (SHA-256 en este proyecto) con una clave secreta para firmar mensajes.
+    \item[HMR] \emph{Hot Module Replacement} --- técnica de Vite que reemplaza módulos en el navegador sin recargar la página.
+    \item[HTTP / HTTPS] \emph{HyperText Transfer Protocol} (y su variante cifrada con TLS) --- protocolo de aplicación de la web.
+    \item[JWT] \emph{JSON Web Token} --- token firmado usado como credencial de sesión sin estado (RFC 7519).
+    \item[KPI] \emph{Key Performance Indicator} --- indicador clave de desempeño mostrado en los \emph{dashboards}.
+    \item[LDAP] \emph{Lightweight Directory Access Protocol} --- protocolo estándar de directorios institucionales de usuarios.
+    \item[ORM] \emph{Object-Relational Mapper} --- capa que traduce entre objetos y filas de una base de datos relacional.
+    \item[PBKDF2] \emph{Password-Based Key Derivation Function 2} --- algoritmo estándar para derivar una huella robusta a partir de una contraseña.
+    \item[PDF] \emph{Portable Document Format} --- formato de documento paginado listo para imprimir.
+    \item[DOCX] Formato de documento de Microsoft Word.
+    \item[RBAC] \emph{Role-Based Access Control} --- control de acceso basado en roles.
+    \item[RDBMS] \emph{Relational Database Management System} --- gestor de base de datos relacional (PostgreSQL en este proyecto).
+    \item[REST] \emph{Representational State Transfer} --- estilo arquitectónico para APIs sobre HTTP.
+    \item[SMTP] \emph{Simple Mail Transfer Protocol} --- protocolo estándar de envío de correo electrónico.
+    \item[SPA] \emph{Single Page Application} --- aplicación web cuya navegación ocurre sin recargar la página.
+    \item[SSO] \emph{Single Sign-On} --- mecanismo de inicio de sesión unificado entre varios sistemas.
+    \item[SQL] \emph{Structured Query Language} --- lenguaje estándar de consulta relacional.
+    \item[TLS] \emph{Transport Layer Security} --- protocolo que cifra el canal HTTP en HTTPS.
+    \item[UI / UX] \emph{User Interface / User Experience} --- interfaz de usuario / experiencia de usuario.
+    \item[URI / URL] \emph{Uniform Resource Identifier / Locator} --- identificador (y localizador) de un recurso en la web.
+    \item[WSGI] \emph{Web Server Gateway Interface} --- especificación de interfaz entre servidores web y aplicaciones Python.
+    \item[XLSX] Formato de libro de Microsoft Excel.
+    \item[XSS] \emph{Cross-Site Scripting} --- inyección de script malicioso en una página vista por otro usuario.
+    \item[YAML] \emph{YAML Ain't Markup Language} --- formato jerárquico textual usado por el esquema OpenAPI.
+\end{description}
+
+\subsubsection*{Bibliotecas y herramientas mencionadas}
+
+\begin{description}
+    \item[\emph{SheetJS} (\texttt{xlsx})] Genera libros XLSX en el navegador; se usa para descargar reportes desde el rol administrador.
+    \item[\emph{drf-spectacular}] Genera la especificación OpenAPI y la interfaz Swagger UI desde el código de DRF.
+    \item[\emph{django-cors-headers}] Middleware que gestiona la lista blanca de orígenes CORS.
+    \item[\emph{django-filter}] Añade filtros declarativos por \emph{query string} a los \emph{ViewSets} de DRF.
+    \item[\emph{python-decouple}] Lee la configuración desde archivos \texttt{.env}.
+    \item[\emph{psycopg2}] Adaptador PostgreSQL para Python que usa el ORM de Django.
+    \item[\emph{djangorestframework-simplejwt}] Implementación de JWT (\emph{access} + \emph{refresh} con rotación) para DRF.
+    \item[\emph{factory-boy}] Construcción de instancias de prueba con datos consistentes.
+    \item[\emph{coverage.py} y \emph{pytest-cov}] Miden la cobertura de código ejecutado por las pruebas.
+    \item[\emph{pytest-django}] Integración de \emph{pytest} con Django (fixtures de BD, cliente de pruebas, aislamiento).
+    \item[\emph{WeasyPrint} y \emph{ReportLab}] Generadores de PDF del lado del servidor considerados y descartados por sus dependencias nativas (GTK/Cairo).
+    \item[\emph{Gunicorn} y \emph{Nginx}] \emph{Application server} WSGI y servidor HTTP inverso recomendados para el despliegue productivo (fuera del alcance actual).
+    \item[\emph{Vitest}, \emph{Jest}, \emph{React Testing Library}] Herramientas típicas para probar componentes React; se mencionan como trabajo futuro (el proyecto aún no las incorpora).
+    \item[\emph{Lighthouse} y \emph{axe-core}] Herramientas de auditoría de rendimiento y accesibilidad, mencionadas como línea de trabajo pendiente.
+    \item[\emph{Google Forms} / \emph{Google Sheets}] Combinación que la Coordinación usaba antes del sistema (fuente del formulario ad hoc de autoevaluación y de la hoja de cálculo con los resultados); se referencia como motivación del proyecto.
+\end{description}
 
 \subsection{Aplicación web y arquitectura cliente--servidor}
 
 Una \emph{aplicación web} es un programa cuya interfaz se ejecuta dentro de un navegador y cuya lógica principal reside en un servidor remoto. A diferencia de una aplicación de escritorio, no requiere instalación: basta con una URL. La arquitectura habitual es \emph{cliente--servidor}, en la que dos programas independientes se comunican a través de una red: el \emph{cliente} solicita datos u operaciones y el \emph{servidor} las procesa y responde.
-
-El sistema desarrollado adopta esta arquitectura con una separación estricta: el \emph{frontend} (cliente) se ejecuta en el navegador del usuario y se distribuye como una \emph{Single Page Application} (SPA); el \emph{backend} (servidor) expone una API HTTP con la que el frontend se comunica mediante peticiones asíncronas. Esta separación permite desplegar y evolucionar cada capa de forma independiente, y facilita construir clientes adicionales (por ejemplo móviles) sobre la misma API.
 
 \subsection{Patrón Modelo--Vista--Controlador (MVC)}
 
@@ -19,24 +140,29 @@ El \emph{Modelo--Vista--Controlador} es un patrón arquitectónico introducido p
     \item \textbf{Controlador}: recibe las entradas del usuario, decide qué operación realizar sobre el modelo y actualiza la vista.
 \end{itemize}
 
-En el proyecto la implementación es una particularización moderna: el \emph{Modelo} corresponde a las clases de Django que se persisten en PostgreSQL; la \emph{Vista} está formada por los componentes de React que se renderizan en el navegador; el \emph{Controlador} se distribuye entre las \emph{views} y \emph{serializers} del backend (que traducen entre HTTP y el modelo) y los \emph{hooks} y el \emph{routing} del frontend (que reaccionan a los eventos del usuario).
-
 \subsection{REST y APIs sobre HTTP}
 
 \emph{REST} (\emph{Representational State Transfer}) es un estilo arquitectónico definido por Roy Fielding en su tesis doctoral~\cite{fielding2000}. Establece un conjunto de restricciones para diseñar servicios distribuidos escalables sobre HTTP:
 
 \begin{itemize}
-    \item Cada recurso se identifica por una URI única (por ejemplo, \texttt{/api/v1/cartas-tematicas/42/}).
-    \item Las operaciones se expresan con los verbos HTTP estándar: \texttt{GET} (leer), \texttt{POST} (crear), \texttt{PUT}/\texttt{PATCH} (actualizar), \texttt{DELETE} (eliminar).
+    \item Cada recurso se identifica por una URI única (por ejemplo, \code{/api/v1/cartas-tematicas/42/}).
+    \item Las operaciones se expresan con los verbos HTTP estándar: \texttt{GET} (leer), \texttt{POST} (crear), \texttt{PUT}/\texttt{PATCH} (actualizar), \texttt{DELETE} (eliminar). Al conjunto de estas cuatro operaciones se le conoce como \emph{CRUD}.
     \item Las respuestas usan una representación acordada (habitualmente JSON) y son \emph{sin estado}: cada petición contiene toda la información necesaria para procesarla.
-    \item Los códigos de estado HTTP (200, 201, 400, 401, 403, 404, etc.) comunican de manera estándar el resultado.
 \end{itemize}
 
-En el proyecto, todas las operaciones de negocio (crear una carta temática, publicar un requisito, enviar una autoevaluación, consultar un reporte) se exponen como recursos REST versionados bajo \texttt{/api/v1/}.
+\subsection{HTTP, \emph{endpoints}, códigos de estado y CORS}\label{subsec:http-cors}
+
+\emph{HTTP} (\emph{HyperText Transfer Protocol}) es el protocolo de aplicación de la web sobre el que se transporta la API. Su variante segura, \emph{HTTPS}, cifra el canal con TLS y se recomienda en producción. Cada intercambio HTTP consta de una petición (verbo, URI, cabeceras, cuerpo opcional) y una respuesta (código de estado, cabeceras, cuerpo opcional).
+
+Se llama \emph{endpoint} a cada URI concreta que el servidor expone para un recurso u operación --- por ejemplo, \texttt{POST /api/v1/auth/login/}. En este reporte los términos ``endpoint'' y ``ruta de la API'' se usan como sinónimos, siempre entendidos como el par (verbo, URI) que el cliente invoca.
+
+Los \emph{códigos de estado} más relevantes para el sistema son: \texttt{200 OK} (éxito con contenido), \texttt{201 Created} (recurso creado), \texttt{204 No Content} (éxito sin cuerpo), \texttt{400 Bad Request} (payload inválido), \texttt{401 Unauthorized} (token ausente o expirado), \texttt{403 Forbidden} (autenticado pero sin permiso), \texttt{404 Not Found}, \texttt{409 Conflict} (violación de unicidad) y \texttt{429 Too Many Requests} (\emph{rate limit} excedido; devuelto por el \emph{throttling} del \emph{endpoint} de \emph{login}).
+
+\emph{CORS} (\emph{Cross-Origin Resource Sharing}) es el mecanismo con el que un navegador permite que un documento cargado desde un origen (esquema + dominio + puerto) haga peticiones a otro origen distinto. Por defecto, la \emph{política del mismo origen} lo prohíbe; el servidor debe declarar explícitamente qué orígenes acepta mediante cabeceras \texttt{Access-Control-Allow-Origin} y responder a las peticiones de \emph{preflight} (\texttt{OPTIONS}). En este proyecto el backend mantiene una lista blanca de orígenes autorizados (por ejemplo, el frontend en \texttt{http://localhost:5173} durante el desarrollo) configurada vía la variable \texttt{CORS\_ALLOWED\_ORIGINS} y aplicada por la biblioteca \emph{django-cors-headers}.
 
 \subsection{Python y Django}
 
-\emph{Python} es un lenguaje de programación de alto nivel, interpretado y de tipado dinámico, ampliamente utilizado en desarrollo web, análisis de datos y automatización. Se seleccionó por su legibilidad, la madurez de su ecosistema y la disponibilidad de Django.
+\emph{Python} es un lenguaje de programación de alto nivel, interpretado y de tipado dinámico, ampliamente utilizado en desarrollo web.
 
 \emph{Django}~\cite{django2024} es un \emph{framework} web escrito en Python que sigue el principio ``\emph{baterías incluidas}'': provee, listos para usar, los componentes que la mayoría de las aplicaciones web necesitan. Los más relevantes para este proyecto son:
 
@@ -55,27 +181,36 @@ En el proyecto, todas las operaciones de negocio (crear una carta temática, pub
 \begin{itemize}
     \item \textbf{\emph{Serializers}}: traducen entre objetos de Python (instancias de modelos) y representaciones serializables (JSON). Validan la entrada y controlan qué campos se exponen hacia afuera.
     \item \textbf{\emph{ViewSets} y \emph{routers}}: agrupan las operaciones CRUD sobre un recurso y las publican bajo URLs consistentes con las convenciones REST.
-    \item \textbf{Permisos}: clases reutilizables que declaran quién puede acceder a cada acción (por ejemplo, ``sólo el dueño del recurso puede modificarlo'').
-    \item \textbf{\emph{Throttling}}: limita el número de peticiones que un cliente puede hacer en un lapso, útil para mitigar ataques de fuerza bruta.
-    \item \textbf{\emph{drf-spectacular}}: complemento que analiza el código y genera automáticamente una descripción \emph{OpenAPI} de la API, junto con un explorador \emph{Swagger UI} interactivo.
+    \item \textbf{Permisos (\emph{permission classes})}: clases reutilizables que declaran quién puede acceder a cada acción (por ejemplo, ``sólo el dueño del recurso puede modificarlo''). Se aplican a nivel de \emph{ViewSet} y, mediante \texttt{has\_object\_permission}, también a nivel de instancia.
+    \item \textbf{\emph{Throttling} y \emph{rate limiting}}: mecanismos equivalentes (el segundo es el término genérico) que limitan el número de peticiones que un cliente puede hacer en un lapso; útiles para mitigar ataques de fuerza bruta.
+    \item \textbf{\emph{drf-spectacular}}: complemento que analiza el código y genera automáticamente la especificación \emph{OpenAPI} de la API, junto con un explorador \emph{Swagger UI} interactivo.
 \end{itemize}
 
 En el proyecto DRF permite mantener la definición del contrato de la API cercana al modelo, con \emph{serializers} explícitos que documentan qué campos son públicos y qué reglas de validación aplican.
 
+\subsection{OpenAPI y \emph{Swagger UI}}\label{subsec:openapi}
+
+\emph{OpenAPI} es una especificación abierta para describir contratos de APIs REST en un formato máquina-legible (JSON o YAML). Un documento OpenAPI enumera los \emph{endpoints}, los verbos que aceptan, los esquemas de los cuerpos de petición y respuesta, los códigos de estado posibles y los mecanismos de autenticación. Sirve como documentación viva, como insumo para generadores de clientes en distintos lenguajes y como fuente para pruebas de contrato.
+
+\emph{Swagger UI} es una interfaz web que consume un documento OpenAPI y produce un explorador navegable en el que se pueden probar las peticiones interactivamente. En el proyecto, \emph{drf-spectacular} genera la especificación desde las anotaciones del código de DRF y la expone en dos rutas: \texttt{/api/schema/} (documento OpenAPI en YAML descargable) y \texttt{/api/docs/} (Swagger UI). Con esto se evita la desincronización clásica entre la documentación redactada a mano y el comportamiento real del servidor.
+
 \subsection{PostgreSQL}
 
-\emph{PostgreSQL}~\cite{postgres2024} es un sistema de gestión de bases de datos relacional (\emph{RDBMS}), libre y de código abierto, con más de 30 años de desarrollo. Se seleccionó la versión 16 por varias razones:
+\emph{PostgreSQL}~\cite{postgres2024} es un sistema de gestión de bases de datos relacional (\emph{RDBMS}), libre y de código abierto, con más de 30 años de desarrollo. Se seleccionó principalmente por su compatibilidad con el ORM de Django.
+
+\subsection{\emph{Constraints} declarativos: unicidad compuesta, XOR y unicidad parcial}\label{subsec:constraints}
+
+Una \emph{restricción declarativa} (\emph{constraint}) se define a nivel del esquema de la base de datos y es el motor quien la hace cumplir. Complementa la validación aplicativa (en \emph{serializers} y modelos) como \emph{defensa en profundidad}: aunque una capa falle, la otra sigue previniendo estados inconsistentes. El proyecto usa tres variantes:
 
 \begin{itemize}
-    \item \textbf{Cumplimiento estricto del estándar SQL} y soporte de \emph{transacciones ACID}, lo que garantiza consistencia de los datos incluso ante fallos.
-    \item \textbf{\emph{Constraints} declarativos avanzados}: \texttt{CHECK}, \texttt{UNIQUE}, \texttt{EXCLUDE}. En este proyecto se usan para forzar reglas como ``una UEA pertenece a una licenciatura \emph{o} a un posgrado, nunca a ambos'' o ``no puede haber dos UEA con la misma clave dentro del mismo programa''.
-    \item \textbf{Tipos avanzados}: \texttt{JSONB} (JSON binario indexable), arreglos, tipos temporales precisos.
-    \item \textbf{Compatibilidad con el ORM de Django}: no requiere adaptadores adicionales y aprovecha las funcionalidades específicas del motor.
+    \item \textbf{Unicidad compuesta}: \texttt{UniqueConstraint(fields=[\allowbreak"profesor",} \texttt{"periodo",} \texttt{"uea",} \texttt{"id\_grupo"])} garantiza que un profesor no tenga dos cartas temáticas para el mismo grupo en el mismo trimestre para la misma UEA. La validación se realiza en el motor con un índice único; el intento de duplicación devuelve un error de integridad que DRF traduce a \texttt{400 Bad Request}.
+    \item \textbf{Restricción XOR}: expresa ``exactamente uno de un conjunto de campos debe estar presente''. En el proyecto se aplica a \texttt{UEA}, que debe apuntar a una licenciatura \emph{o} a un posgrado, nunca a ambos ni a ninguno. Se implementa como \texttt{CheckConstraint} con predicados \code{Q(licenciatura__isnull=False)} \& \code{Q(posgrado__isnull=True)} en disyunción con su opuesto.
+    \item \textbf{Unicidad parcial}: \code{UniqueConstraint(condition=...)} restringe la unicidad a un subconjunto de filas. Se usa para forzar clave única por programa: la misma clave textual (por ejemplo ``11XY99'') puede coexistir en una licenciatura y en un posgrado, pero no repetirse dentro del mismo programa.
 \end{itemize}
 
 \subsection{React}
 
-\emph{React}~\cite{reactdocs} es una biblioteca de JavaScript, desarrollada originalmente por Facebook (hoy Meta), para construir interfaces de usuario a partir de \emph{componentes} reutilizables. El proyecto utiliza la versión 19.
+\emph{React}~\cite{reactdocs} es una biblioteca de JavaScript, desarrollada originalmente por Facebook (hoy Meta), para construir interfaces de usuario a partir de \emph{componentes} reutilizables.
 
 Los conceptos centrales de React que se aprovechan son:
 
@@ -88,12 +223,12 @@ Los conceptos centrales de React que se aprovechan son:
 
 \subsection{Vite}
 
-\emph{Vite}~\cite{vite2024} es una herramienta de \emph{build} y servidor de desarrollo para aplicaciones frontend modernas. Sustituye a herramientas más antiguas como \emph{webpack} y aprovecha los módulos nativos de JavaScript (\emph{ES modules}) del navegador para arrancar el servidor en milisegundos, incluso en proyectos grandes.
+\emph{Vite}~\cite{vite2024} es una herramienta de \emph{build} y servidor de desarrollo para aplicaciones frontend modernas que aprovecha los módulos nativos de JavaScript (\emph{ES modules}) del navegador para arrancar el servidor en milisegundos, incluso en proyectos grandes.
 
 Sus aportes en este proyecto son:
 
 \begin{itemize}
-    \item \textbf{Servidor de desarrollo con \emph{Hot Module Replacement}}: los cambios en el código se reflejan en el navegador sin recargar la página completa, preservando el estado.
+    \item \textbf{Servidor de desarrollo con \emph{Hot Module Replacement} (HMR)}: los cambios en el código se reflejan en el navegador sin recargar la página completa, preservando el estado.
     \item \textbf{\emph{Build} optimizado para producción}: compila, minifica y divide el código en \emph{chunks} para producir un paquete estático servible por cualquier servidor HTTP.
     \item \textbf{Configuración mínima} y ecosistema de \emph{plugins}.
 \end{itemize}
@@ -108,7 +243,7 @@ Ventajas aprovechadas:
     \item Elimina la necesidad de nombrar clases semánticas cuando no aportan valor.
     \item El paso de \emph{build} descarta las clases no utilizadas, produciendo hojas de estilo compactas.
     \item Aporta un sistema de diseño (espaciados, tipografía, paleta) coherente por defecto.
-    \item Fomenta una interfaz responsiva mediante \emph{breakpoint prefixes} (\texttt{sm:}, \texttt{md:}, \texttt{lg:}).
+    \item Fomenta una interfaz responsiva mediante \emph{breakpoint prefixes} (\texttt{sm:}, \texttt{md:}, \texttt{lg:}) y admite el prefijo \texttt{print:} para especializar la apariencia al momento de imprimir.
 \end{itemize}
 
 \subsection{Bibliotecas complementarias del frontend}
@@ -121,12 +256,34 @@ Alrededor de React se utilizan bibliotecas específicas para tareas concretas:
     \item[Zod] Biblioteca de validación de esquemas con inferencia de tipos. Se combina con React Hook Form para validar en el cliente antes de enviar al servidor.
     \item[React Router] Manejo del enrutamiento del lado del cliente. Permite construir SPAs con navegación sin recarga y \emph{guards} de ruta según el rol.
     \item[axios] Cliente HTTP con soporte de \emph{interceptors}, utilizado para adjuntar automáticamente el \emph{access token} JWT y refrescarlo cuando expira.
-    \item[SheetJS (xlsx)] Genera archivos \emph{.xlsx} en el navegador para la descarga de reportes.
+    \item[SheetJS (\texttt{xlsx})] Genera archivos \emph{.xlsx} en el navegador para la descarga de reportes.
+\end{description}
+
+\subsection{Patrones frontend: SPA con \emph{guards}, \emph{interceptores} y estado de servidor}\label{subsec:patrones-front}
+
+El frontend se apoya en tres patrones que estructuran el flujo de datos y de navegación:
+
+\begin{description}
+    \item[\emph{Route guard} (guardián de ruta)] Componente contenedor que, antes de renderizar la ruta que envuelve, verifica una condición (autenticación, rol) y decide entre renderizar los hijos o emitir una redirección declarativa (el elemento \texttt{Navigate} de \emph{React Router}). El proyecto compone dos \emph{guards} independientes --- \texttt{ProtectedRoute} (chequea sesión) y \texttt{RoleRoute} (chequea rol) --- para obtener \texttt{AdminRoute} y \texttt{ProfesorRoute}. La redirección declarativa se prefiere sobre \texttt{navigate()} imperativo dentro del \emph{render} para evitar efectos secundarios en el ciclo de vida de React.
+    \item[\emph{Interceptor} (\emph{axios})] Función que intercepta las peticiones o respuestas HTTP antes de que las reciba el código que las originó. En el proyecto, un \emph{interceptor} de petición adjunta la cabecera \texttt{Authorization: Bearer} con el \emph{access token}; un \emph{interceptor} de respuesta detecta \texttt{401 Unauthorized}, lanza un \emph{refresh} del token y encola las peticiones concurrentes que caen en 401 para reintentarlas transparentemente con el nuevo \emph{access token}.
+    \item[Estado de servidor vs. estado local] La distinción, popularizada por TanStack Query, separa los datos que \emph{pertenecen} al servidor (y que el cliente cachea) del estado propio de la interfaz (formularios en edición, apertura de \emph{modals}). El servidor es la fuente de verdad; el cliente sincroniza con estrategias como \emph{stale-while-revalidate} (mostrar lo cacheado y refrescar en paralelo) y \emph{polling} (revalidar cada N segundos, útil para vistas colaborativas).
+\end{description}
+
+\subsection{Componentes de interfaz: \emph{form-builder}, cascada, acordeón, \emph{dashboard} y \emph{badge}}\label{subsec:ui-patterns}
+
+El sistema utiliza patrones de interacción específicos, mencionados a lo largo del reporte:
+
+\begin{description}
+    \item[\emph{Form-builder}] Constructor visual de formularios. Permite al administrador definir la estructura (secciones, preguntas de distintos tipos, opciones, puntuaciones) desde una interfaz gráfica en lugar de programar. Se contrapone a los formularios estáticos codificados en el frontend. En este proyecto es la vía por la que la Coordinación diseña las autoevaluaciones docentes.
+    \item[Cascada (\emph{drill-down})] Selección progresiva en la que cada elección restringe el conjunto de opciones del siguiente paso. En la vista pública, el visitante elige primero un periodo, luego un programa (licenciatura o posgrado) y por último una UEA, filtrando los documentos a mostrar.
+    \item[Acordeón (\emph{collapsible sections})] Componente que agrupa contenido en paneles expandibles y colapsables. Se usa para navegar por UEAs agrupadas por trimestre en la vista pública y para las listas de documentos del profesor agrupadas por periodo.
+    \item[\emph{Dashboard}] Tablero con indicadores clave de desempeño (\emph{KPIs}) y resúmenes agregados, pensado para lectura rápida. El sistema entrega dos dashboards: uno para el profesor (sus documentos por periodo activo) y uno para el administrador (métricas globales de cumplimiento).
+    \item[\emph{Badge} y \emph{chip}] Etiquetas visuales pequeñas que comunican el estado de un objeto (por ejemplo, ``BORRADOR'', ``PUBLICADO'', ``ACTIVO''). En este proyecto los \emph{chips} clicables del listado de periodos también actúan como controles para activar o desactivar cada uno de los tres \emph{flags} de recurso.
 \end{description}
 
 \subsection{Autenticación con JSON Web Tokens (JWT)}
 
-Un \emph{JSON Web Token} (JWT)~\cite{jwt2015} es un formato compacto y firmado criptográficamente para transmitir información entre partes. Se define en el estándar \emph{RFC 7519} y consta de tres partes codificadas en Base64 y separadas por puntos: encabezado, \emph{payload} (información del usuario y expiración) y firma (para verificar integridad).
+Un \emph{JSON Web Token} (JWT)~\cite{jwt2015} es un formato compacto y firmado criptográficamente para transmitir información entre partes. Se define en el estándar \emph{RFC 7519} y consta de tres partes codificadas en Base64URL y separadas por puntos: encabezado, \emph{payload} (información del usuario y expiración) y firma (para verificar integridad).
 
 En el proyecto la autenticación con JWT se implementa mediante \emph{djangorestframework-simplejwt} y sigue este flujo:
 
@@ -152,11 +309,11 @@ Se prefirió JWT sobre el esquema tradicional de sesiones con \emph{cookies} por
 Los permisos se aplican en dos capas:
 
 \begin{itemize}
-    \item En el \textbf{backend} mediante clases \emph{DRF permission} (por ejemplo, \texttt{IsOwnerProfesorOrAdminReadOnly}) que verifican rol y propiedad del recurso.
+    \item En el \textbf{backend} mediante clases \emph{DRF permission} (por ejemplo, \code{IsOwnerProfesorOrAdminReadOnly}) que verifican rol y propiedad del recurso.
     \item En el \textbf{frontend} mediante \emph{guards} de ruta que redirigen si el rol no coincide, y renderizado condicional que oculta acciones no autorizadas.
 \end{itemize}
 
-La verificación en ambos lados es defensa en profundidad: el backend es la fuente de verdad; el frontend evita mostrar interfaces inútiles.
+La verificación en ambos lados es \emph{defensa en profundidad}: el backend es la fuente de verdad; el frontend evita mostrar interfaces inútiles. El principio de defensa en profundidad, tomado de la ingeniería de seguridad, consiste en superponer varias capas independientes de protección para que la falla de una no comprometa al sistema.
 
 \subsection{Seguridad web y OWASP Top 10}
 
@@ -164,21 +321,70 @@ El \emph{OWASP Top 10}~\cite{owasp2021} es un documento consensuado por la \emph
 
 \begin{itemize}
     \item \textbf{A01 --- \emph{Broken Access Control}}: se mitiga con las verificaciones de rol y propiedad en el backend.
-    \item \textbf{A02 --- \emph{Cryptographic Failures}}: contraseñas hasheadas con PBKDF2 (algoritmo por defecto de Django) y tokens firmados con HMAC-SHA256.
+    \item \textbf{A02 --- \emph{Cryptographic Failures}}: contraseñas hasheadas con PBKDF2 (algoritmo por defecto de Django) y tokens firmados con HMAC-SHA256. El \emph{hashing} es una función unidireccional que produce una huella de longitud fija a partir de la contraseña; PBKDF2 la refuerza aplicando miles de iteraciones y un \emph{salt} aleatorio, encareciendo los ataques de diccionario.
     \item \textbf{A03 --- \emph{Injection}}: prevenida por el ORM (consultas parametrizadas) y por la validación de entrada en \emph{serializers}.
-    \item \textbf{A05 --- \emph{Security Misconfiguration}}: en producción se establece \texttt{DEBUG=False} y una \emph{whitelist} explícita de \emph{hosts} y de orígenes CORS.
-    \item \textbf{A07 --- \emph{Identification and Authentication Failures}}: se aplica \emph{throttling} en el \emph{login} (5 intentos por minuto), rotación de \emph{refresh tokens} y política de contraseñas fuerte.
+    \item \textbf{A05 --- \emph{Security Misconfiguration}}: en producción se establece \texttt{DEBUG=False} (la variable de Django que activa las trazas detalladas de error, útiles en desarrollo pero peligrosas en producción) y una \emph{whitelist} explícita de \emph{hosts} y de orígenes CORS.
+    \item \textbf{A07 --- \emph{Identification and Authentication Failures}}: se aplica \emph{throttling} en el \emph{login} (5 intentos por minuto, respuesta \texttt{429 Too Many Requests} al superarse), rotación de \emph{refresh tokens} y política de contraseñas fuerte.
 \end{itemize}
 
-\subsection{Pruebas automatizadas}
+\subsection{Formatos de intercambio de datos}\label{subsec:formatos}
+
+El sistema produce, consume o exporta datos en varios formatos, cada uno elegido por adecuarse a un caso de uso concreto:
+
+\begin{description}
+    \item[JSON] (\emph{JavaScript Object Notation}) --- formato textual ligero de pares clave--valor y arreglos anidados. Es el formato por defecto de la API REST (peticiones y respuestas) y de los \emph{fixtures} de Django que precargan los catálogos institucionales.
+    \item[JSONB] --- variante binaria e indexable de JSON que ofrece PostgreSQL; se usa dentro del modelo \texttt{Pregunta} para el campo \texttt{config} (por ejemplo, los límites de una escala lineal), evitando crear una tabla auxiliar por cada tipo de pregunta.
+    \item[CSV] (\emph{Comma-Separated Values}) --- formato tabular plano que separa campos por comas y filas por saltos de línea. Es el formato de intercambio con hojas de cálculo. El sistema lo usa para la importación masiva del catálogo de UEAs (\texttt{POST /uea/import-csv/} y el comando de gestión equivalente).
+    \item[XLSX] --- formato binario de libros de Excel. Se genera del lado del cliente con \emph{SheetJS}: el navegador arma un \emph{workbook} con una hoja por periodo y lo descarga sin intervención del servidor. Esta elección reduce carga del backend y permite iterar rápidamente sobre el formato sin desplegar cambios.
+    \item[YAML] (\emph{YAML Ain't Markup Language}) --- formato textual jerárquico legible. En este proyecto sólo aparece como formato de salida del esquema \emph{OpenAPI} en \texttt{/api/schema/}.
+    \item[PDF] (\emph{Portable Document Format}) --- se obtiene desde el propio navegador vía \texttt{window.print()} sobre las vistas públicas del documento, que aplican reglas CSS con el prefijo \texttt{print:} de Tailwind para producir una salida limpia.
+\end{description}
+
+\subsection{Máquina de estados y ciclo de vida de artefactos}\label{subsec:state-machine}
+
+Una \emph{máquina de estados finitos} modela un artefacto como un conjunto de estados discretos y un conjunto de transiciones válidas entre ellos, disparadas por acciones. Aplicar este patrón hace explícitas las reglas de negocio (qué acciones son válidas en qué momento) y evita estados inconsistentes.
+
+El sistema usa dos máquinas de estados:
+
+\begin{itemize}
+    \item Los \textbf{documentos académicos} (cartas y requisitos) tienen dos estados: \texttt{BORRADOR} (editable por el dueño) y \texttt{PUBLICADO} (visible al público, sólo despublicable por el dueño para volver a editar). La transición se dispara con la acción \texttt{cambiar-estado}.
+    \item Los \textbf{formularios de autoevaluación} tienen tres estados: \texttt{BORRADOR}, \texttt{PUBLICADO} (aceptando respuestas) y \texttt{CERRADO} (histórico, sin recibir nuevas respuestas). Las acciones válidas son \texttt{publicar}, \texttt{cerrar}, \texttt{reabrir}, \texttt{despublicar} y \texttt{publicar\_revision}. Esta última merece atención aparte por su efecto sobre el versionado (\S~\ref{subsec:versionado}).
+\end{itemize}
+
+Modelar el ciclo como máquina de estados aporta idempotencia (aplicar \texttt{publicar} sobre un formulario ya publicado no cambia nada), inmutabilidad tras publicar (no se pueden alterar preguntas o pesos de un formulario publicado sin transitar por \texttt{despublicar} o \texttt{publicar\_revision}) y trazabilidad de las transiciones.
+
+\subsection{Versionado inmutable y \emph{snapshots} históricos}\label{subsec:versionado}
+
+Dos técnicas complementarias garantizan que la información histórica sobreviva a los cambios administrativos posteriores:
+
+\begin{description}
+    \item[\emph{Snapshot} de identidad] Al crear un documento, se copian el nombre y el correo del profesor en columnas dedicadas (\texttt{profesor\_nombre}, \texttt{profesor\_correo}). Si más adelante el usuario se elimina, la FK con \texttt{on\_delete=SET\_NULL} deja el documento sin dueño vivo, pero los \emph{snapshots} preservan a quién pertenecía. Es una técnica de \emph{denormalización controlada} que sacrifica una pequeña redundancia por trazabilidad institucional.
+    \item[Versionado incremental de formulario] Cada \texttt{Formulario} tiene un entero que indica la \texttt{version} del mismo (inicialmente 1). La acción \texttt{publicar\_revision} incrementa esta versión al reabrir el formulario tras su cierre; las respuestas ya enviadas quedan atadas a la versión con la que se contestaron mediante el campo \texttt{version\_formulario} de \texttt{Respuesta}. Además, cada \texttt{RespuestaSeccion} copia el \texttt{peso} de la sección al momento del envío, de modo que el desglose por sección permanece estable aunque el administrador ajuste pesos posteriormente. Este esquema hace posibles comparaciones históricas consistentes sin bloquear la evolución del instrumento.
+\end{description}
+
+\subsection{Escalas de medición: Likert y niveles de desempeño}\label{subsec:likert}
+
+Una \emph{escala de Likert} es una escala psicométrica en la que el respondiente indica su grado de acuerdo con una afirmación mediante una opción entre varias equiespaciadas (típicamente 1 a 5: ``Muy en desacuerdo'' \ldots ``Muy de acuerdo'' o ``Nunca'' \ldots ``Siempre''). En el sistema esta escala aparece como el tipo de pregunta \texttt{ESCALA\_LINEAL} y también, en modo compacto de matriz filas×columnas, como el tipo \texttt{CUADRICULA}.
+
+Un \emph{nivel de desempeño} es un rango porcentual con etiqueta descriptiva, observación y color (por ejemplo, ``0--40 Insuficiente'', ``40--70 Suficiente'', ``70--90 Bueno'', ``90--100 Sobresaliente''). Al enviar una autoevaluación, el sistema calcula el porcentaje global ponderado y busca el nivel cuyo rango lo contiene; adjunta el nivel y su observación al resultado. Este mecanismo permite convertir un puntaje continuo en una interpretación cualitativa comprensible para el profesor.
+
+\subsection{Metodología, hitos y control de versiones}\label{subsec:metodologia}
+
+El desarrollo del sistema se organizó por \emph{hitos} incrementales (M0--M9), cada uno con un objetivo verificable y un \emph{checkpoint} de revisión: M0 corresponde al andamiaje inicial del monorepo, y M9 al pulido final y la integración con la documentación. Dentro del módulo de autoevaluación --- el más elaborado --- se etiquetaron nueve incrementos ``PR1'' a ``PR9'' que corresponden a otros tantos \emph{pull requests} en el historial de git, cada uno enfocado a una capacidad concreta (\emph{form-builder} básico, tipos de pregunta, secciones ponderadas, niveles de desempeño, versionado, estadísticas, etc.).
+
+El código se organiza como \emph{monorepo}: un único repositorio git con dos subproyectos hermanos, \texttt{backend/} y \texttt{frontend/}. Los mensajes de \emph{commit} siguen la convención \emph{Conventional Commits} (prefijos \texttt{feat}, \texttt{fix}, \texttt{chore}, \texttt{docs}, \texttt{refactor}) para facilitar la lectura del historial y automatizar futuros \emph{changelogs}.
+
+La configuración por entorno se aloja en archivos \texttt{.env} (leídos con \emph{python-decouple}) que definen credenciales de base de datos, la clave secreta de Django, el modo \texttt{DEBUG} y la lista blanca de CORS. El archivo \texttt{.env} nunca se versiona; en su lugar, un \texttt{.env.example} documenta las variables necesarias.
+
+\subsection{Pruebas automatizadas}\label{subsec:pruebas}
 
 Las pruebas automatizadas del proyecto se ejecutan con \emph{pytest} y \emph{pytest-django}. Los conceptos utilizados son:
 
 \begin{itemize}
     \item \textbf{Prueba unitaria}: verifica una función o unidad aislada.
     \item \textbf{Prueba de integración}: verifica la interacción de varios componentes (por ejemplo, una petición HTTP que atraviesa \emph{view}, \emph{serializer}, ORM y base de datos).
+    \item \textbf{Prueba \emph{end-to-end} (E2E)}: verifica el comportamiento del sistema completo desde el punto de vista del usuario, usualmente atravesando frontend y backend. El script \texttt{scripts/smoke\_test.py} ejerce los principales \emph{endpoints} contra un servidor en ejecución como \emph{smoke test} E2E.
     \item \textbf{\emph{Factory}}: patrón para construir instancias de prueba consistentes; se emplea la biblioteca \emph{factory-boy}.
     \item \textbf{Cobertura de código}: porcentaje del código ejecutado por las pruebas. Se mide con \emph{coverage.py} a través del complemento \emph{pytest-cov}.
+    \item \textbf{\emph{Fixture} (dos acepciones)}: en el contexto de \emph{pytest}, es una función que provee datos preparados a una prueba; en el contexto de Django, es un archivo (JSON o YAML) con datos precargables al inicializar el sistema. Ambas acepciones se usan en el proyecto y se distinguen en el texto por el contexto.
 \end{itemize}
-
-Se privilegian las pruebas de integración sobre las unitarias porque atrapan errores en las fronteras (URL, permisos, serialización) que son las más frecuentes en una API REST.

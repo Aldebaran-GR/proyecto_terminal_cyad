@@ -10,6 +10,21 @@
 %Permite usar _ en texto sin escapar
 \RequirePackage{underscore}
 
+%Mejora el ajuste tipográfico (protrusión y expansión) y evita
+%muchos overfull hbox de forma automática.
+\RequirePackage{microtype}
+%Permite cortar \url{} en cualquier carácter (rutas y endpoints largos).
+\RequirePackage{xurl}
+%Válvula de escape para párrafos con líneas todavía difíciles de romper.
+\setlength{\emergencystretch}{3em}
+%Macro para rutas, endpoints REST e identificadores punteados largos.
+%Lee su argumento en modo verbatim (como \url), por lo que admite
+%llaves balanceadas, &, _, # sin escaparlos, y con xurl permite corte
+%de línea tras /, ., _, -, ?, &, =, etc.  Uso: \code{/api/v1/{id}/foo}.
+%Nota: como \url, descarta espacios en su argumento; para combinar con
+%texto normal, usar \texttt{VERB} \code{/ruta} (verbo fuera).
+\DeclareUrlCommand\code{\urlstyle{tt}}
+
 %Determinar el tamaño del papel y el margen
 \RequirePackage[letterpaper, margin=1in]{geometry}
 
@@ -102,9 +117,13 @@
 {
 	language=[LaTeX]{TeX},
 	texcsstyle=*\color{blue},
-	basicstyle=\ttfamily,
+	basicstyle=\ttfamily\small,
 	moretexcs={mycommand}, % user command highlight
 	frame=single,
+	breaklines=true,
+	breakatwhitespace=false,
+	columns=fullflexible,
+	postbreak=\mbox{\textcolor{codegray}{$\hookrightarrow$}\space},
 }
 
 \lstset{style=mystyle2,inputencoding=utf8,extendedchars=true}
