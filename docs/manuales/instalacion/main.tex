@@ -26,16 +26,16 @@ Este manual describe cómo instalar y ejecutar el \emph{Sistema para la gestión
 
 \section{Prerrequisitos}
 
-\begin{longtable}{p{0.35\textwidth} p{0.20\textwidth} p{0.37\textwidth}}
+\begin{longtable}{p{0.30\textwidth} p{0.20\textwidth} p{0.42\textwidth}}
     \toprule
     \textbf{Software} & \textbf{Versión mínima} & \textbf{Uso} \\
     \midrule
     \endhead
-    Python & 3.13 & Ejecución del backend Django. \\
+    Python & 3.11+ (probado con 3.13) & Ejecución del backend Django. \\
     \midrule
-    Node.js & 22 LTS & Ejecución del frontend Vite + React. \\
+    Node.js & 20+ (probado con 22 LTS) & Ejecución del frontend Vite + React. \\
     \midrule
-    PostgreSQL & 16 & Base de datos relacional. \\
+    PostgreSQL & 14+ (probado con 17) & Base de datos relacional. \\
     \midrule
     Git & 2.40+ & Clonado del repositorio. \\
     \midrule
@@ -44,6 +44,8 @@ Este manual describe cómo instalar y ejecutar el \emph{Sistema para la gestión
 \end{longtable}
 
 En Windows se recomienda utilizar \emph{Git Bash} o \emph{PowerShell}. En Linux/macOS los comandos son idénticos, cambiando la ruta del entorno virtual (\texttt{bin/} en lugar de \texttt{Scripts/}).
+
+\textbf{Nota importante para Windows:} el instalador oficial de PostgreSQL no agrega \texttt{psql} al \texttt{PATH} del sistema. Si al escribir \texttt{psql --version} obtiene ``command not found'', agregue manualmente la carpeta \texttt{C:\textbackslash Program Files\textbackslash PostgreSQL\textbackslash 17\textbackslash bin} (ajuste al número de versión que tenga) a la variable de entorno \texttt{Path} de Windows, o invoque \texttt{psql} por ruta completa.
 
 \section{Clonado del repositorio}
 
@@ -68,38 +70,56 @@ pip install -r requirements.txt
 
 \subsection{Base de datos}
 
-Crear la base de datos con el usuario que se usará desde Django. Un ejemplo con \texttt{psql}:
-
-\begin{quote}
-\ttfamily
-psql -U postgres \\
-CREATE DATABASE cyad\_db; \\
-CREATE USER cyad\_user WITH PASSWORD 'cyad\_pass'; \\
-GRANT ALL PRIVILEGES ON DATABASE cyad\_db TO cyad\_user;
-\end{quote}
-
-Alternativamente, ejecute el script auxiliar:
+El proyecto utiliza por defecto el usuario \texttt{postgres} y una base de datos llamada \texttt{proyecto\_terminal\_cyad} (ver \texttt{backend/.env.example}). La forma recomendada es dejar que el script auxiliar cree la base de datos automáticamente después de configurar el archivo \texttt{.env} (siguiente sección):
 
 \begin{quote}
 \ttfamily
 python scripts/create\_db.py
 \end{quote}
 
+Si prefiere crearla manualmente con \texttt{psql}:
+
+\begin{quote}
+\ttfamily
+psql -U postgres \\
+CREATE DATABASE proyecto\_terminal\_cyad;
+\end{quote}
+
+También puede definir un usuario dedicado con permisos limitados (recomendado en despliegues compartidos) y ajustar \texttt{DB\_USER}/\texttt{DB\_PASSWORD} en el archivo \texttt{.env} en consecuencia:
+
+\begin{quote}
+\ttfamily
+CREATE USER cyad\_user WITH PASSWORD 'cyad\_pass'; \\
+GRANT ALL PRIVILEGES ON DATABASE proyecto\_terminal\_cyad TO cyad\_user;
+\end{quote}
+
 \subsection{Archivo \texttt{.env}}
 
-Cree \texttt{backend/.env} con el siguiente contenido (ajuste según su entorno):
+\textbf{Ubicación:} el archivo \texttt{.env} que Django lee debe estar en la carpeta \texttt{backend/} (donde vive \texttt{manage.py}), \emph{no} en la raíz del repositorio. El repositorio incluye \texttt{backend/.env.example} como plantilla; cópielo y ajuste los valores:
+
+\begin{quote}
+\ttfamily
+cd backend \\
+cp .env.example .env
+\end{quote}
+
+Contenido esperado (valores por defecto de la plantilla; ajuste \texttt{DB\_PASSWORD} y \texttt{SECRET\_KEY} a su entorno):
 
 \begin{Verbatim}[fontsize=\small, frame=single]
 DEBUG=True
-SECRET_KEY=cambia-esto-por-una-clave-segura-de-50-caracteres
+SECRET_KEY=cambia-esta-clave-por-una-aleatoria-larga
 ALLOWED_HOSTS=localhost,127.0.0.1
-DB_NAME=cyad_db
-DB_USER=cyad_user
-DB_PASSWORD=cyad_pass
+DB_NAME=proyecto_terminal_cyad
+DB_USER=postgres
+DB_PASSWORD=tu_password_de_postgres
 DB_HOST=localhost
 DB_PORT=5432
-CORS_ALLOWED_ORIGINS=http://localhost:5173
+JWT_ACCESS_MINUTES=60
+JWT_REFRESH_DAYS=7
+CORS_ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
 \end{Verbatim}
+
+\textbf{Nota:} existe también un archivo \texttt{.env.example} en la raíz del repositorio; \emph{no} es el que lee Django y su esquema de variables JWT (\texttt{ACCESS\_TOKEN\_LIFETIME}, \texttt{REFRESH\_TOKEN\_LIFETIME}) no coincide con lo que espera \texttt{backend/config/settings.py}. Utilice siempre \texttt{backend/.env.example}.
 
 Para producción se debe establecer \texttt{DEBUG=False}, definir \texttt{ALLOWED\_HOSTS} con el dominio real y generar una \texttt{SECRET\_KEY} con \texttt{python -c "from django.core.management.utils import get\_random\_secret\_key; print(get\_random\_secret\_key())"}.
 
@@ -112,7 +132,14 @@ python manage.py migrate
 
 \subsection{Datos iniciales}
 
-Cargue los catálogos institucionales (departamentos, licenciaturas, posgrados, áreas, periodos):
+La forma más rápida de dejar el sistema listo para usar es ejecutar el \emph{seed} de demostración, que es idempotente y crea catálogos, UEAs, usuarios de prueba, periodo activo y el formulario de autoevaluación en un solo comando:
+
+\begin{quote}
+\ttfamily
+python scripts/seed\_demo.py
+\end{quote}
+
+De forma alternativa, se pueden cargar los catálogos base y los usuarios mínimos por separado (útil cuando ya existen datos):
 
 \begin{quote}
 \ttfamily
@@ -120,15 +147,8 @@ python manage.py loaddata catalogos/fixtures/departamentos.json \\
 python manage.py loaddata catalogos/fixtures/licenciaturas.json \\
 python manage.py loaddata catalogos/fixtures/posgrados.json \\
 python manage.py loaddata catalogos/fixtures/areas.json \\
-python manage.py loaddata catalogos/fixtures/periodos.json
-\end{quote}
-
-Cree los usuarios de prueba y los datos demo (formulario de autoevaluación, UEAs, perfiles):
-
-\begin{quote}
-\ttfamily
-python scripts/seed\_users.py \\
-python scripts/seed\_demo.py
+python manage.py loaddata catalogos/fixtures/periodos.json \\
+python scripts/seed\_users.py
 \end{quote}
 
 Al finalizar, existirán las siguientes cuentas:
@@ -171,8 +191,10 @@ El frontend queda disponible en \texttt{http://localhost:5173}. Vite realiza \em
 Si el backend no está en \texttt{localhost:8000}, cree \texttt{frontend/.env.local} con:
 
 \begin{Verbatim}[fontsize=\small, frame=single]
-VITE_API_BASE_URL=http://tu-servidor:8000/api/v1
+VITE_API_URL=http://tu-servidor:8000/api/v1
 \end{Verbatim}
+
+\textbf{Nota:} el nombre correcto de la variable es \texttt{VITE\_API\_URL} (verificable en \texttt{frontend/src/api/client.js}).
 
 \section{Verificación}
 
@@ -209,6 +231,8 @@ VITE_API_BASE_URL=http://tu-servidor:8000/api/v1
     \item \textbf{Error CORS al iniciar sesión desde el frontend}: verifique que \texttt{CORS\_ALLOWED\_ORIGINS} incluya \texttt{http://localhost:5173}.
     \item \textbf{\texttt{429 Too Many Requests} al iniciar sesión}: se activó el \emph{rate limiting} (5 intentos por minuto). Espere 60 segundos y reintente.
     \item \textbf{Puerto 5173 ocupado}: Vite usará automáticamente el siguiente puerto libre; verifique la URL impresa al inicio.
+    \item \textbf{\texttt{seed\_demo.py} falla con ``La suma de pesos de las secciones debe ser 100\,\%'' }: en algunas versiones del script las secciones se crean sin \texttt{peso}, lo que hace fallar la publicación del formulario. Como \emph{workaround} temporal, edite \texttt{backend/scripts/seed\_demo.py} y añada \texttt{peso=Decimal("50")} a la creación de cada una de las dos \texttt{Seccion.objects.create(\ldots)}, luego ejecute \texttt{python manage.py flush --noinput} y vuelva a lanzar el seed. Ver \texttt{hallazgos\_despliegue.pdf} para detalles.
+    \item \textbf{\texttt{psql: command not found} en Windows}: agregue \texttt{C:\textbackslash Program Files\textbackslash PostgreSQL\textbackslash<versión>\textbackslash bin} al \texttt{PATH}, o llame a \texttt{psql} por ruta completa. Alternativamente, use \emph{pgAdmin} o el script \texttt{scripts/create\_db.py}, que utiliza el driver Python y no requiere \texttt{psql} en el PATH.
 \end{itemize}
 
 \end{document}
