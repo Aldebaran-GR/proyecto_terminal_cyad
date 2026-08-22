@@ -7,6 +7,12 @@
 \RequirePackage{listings,xcolor}
 %Verbatim con soporte UTF-8 (fancyvrb) para el apéndice de código
 \RequirePackage{fancyvrb}
+%Para embeber PDFs externos (manuales de instalación y usuario) como anexos.
+\RequirePackage{pdfpages}
+%Versiones recientes de pdfpages pasan la clave "artifact" a
+%\includegraphics (marcado semántico PDF/UA) que graphicx en esta
+%distribución no reconoce. La declaramos como no-op para silenciar el error.
+\define@key{Gin}{artifact}[]{}
 %Permite usar _ en texto sin escapar
 \RequirePackage{underscore}
 
