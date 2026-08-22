@@ -296,10 +296,12 @@ else:
 if not formulario.preguntas.exists():
     sec1 = Seccion.objects.create(
         formulario=formulario, titulo="Planeación", orden=0,
-        descripcion="Reflexión sobre la planeación del curso."
+        descripcion="Reflexión sobre la planeación del curso.",
+        peso=Decimal("50"),
     )
     sec2 = Seccion.objects.create(
         formulario=formulario, titulo="Desempeño en aula", orden=1,
+        peso=Decimal("50"),
     )
 
     # P1 — OPCION_UNICA con opciones puntuables

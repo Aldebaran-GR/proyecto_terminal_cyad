@@ -1,10 +1,12 @@
 """Tests del módulo Reportes (M5) — endpoints de agregación."""
 
+from decimal import Decimal
+
 import pytest
 from rest_framework.test import APIClient
 
 from accounts.models import Profesor, Usuario
-from autoevaluacion.models import Formulario, Respuesta
+from autoevaluacion.models import Formulario, Respuesta, Seccion
 from catalogos.models import Departamento, Licenciatura, Periodo, UEA
 from documentos.models import CartaTematica, RequisitoRecuperacion
 
@@ -158,6 +160,7 @@ class TestDashboard:
             periodo=periodo,
             created_by=admin,
         )
+        Seccion.objects.create(formulario=formulario, titulo="Única", orden=0, peso=Decimal("100"))
         formulario.publicar()
         auth_admin(client)
         r = client.get(f"/api/v1/reportes/dashboard/?periodo={periodo.id}")
@@ -299,6 +302,7 @@ class TestResumenAutoevaluacion:
         formulario = Formulario.objects.create(
             titulo="F Tasa", periodo=periodo, created_by=admin
         )
+        Seccion.objects.create(formulario=formulario, titulo="Única", orden=0, peso=Decimal("100"))
         formulario.publicar()
         Respuesta.objects.create(
             formulario=formulario,
@@ -336,6 +340,7 @@ class TestAutoevaluacionProfesores:
     def test_profesor_sin_respuesta_0_porciento(self, client, admin, depto, periodo):
         _make_prof(None, "psinae@cyad.uam.mx", "P Sin Respuesta", depto)
         formulario = Formulario.objects.create(titulo="F AE Sin", periodo=periodo, created_by=admin)
+        Seccion.objects.create(formulario=formulario, titulo="Única", orden=0, peso=Decimal("100"))
         formulario.publicar()
         auth_admin(client)
         r = client.get(f"/api/v1/reportes/autoevaluacion-profesores/?periodo={periodo.id}")
@@ -346,6 +351,7 @@ class TestAutoevaluacionProfesores:
     def test_profesor_con_respuesta_enviada(self, client, admin, depto, periodo):
         prof = _make_prof(None, "pconae@cyad.uam.mx", "P Con Respuesta", depto)
         formulario = Formulario.objects.create(titulo="F AE Con", periodo=periodo, created_by=admin)
+        Seccion.objects.create(formulario=formulario, titulo="Única", orden=0, peso=Decimal("100"))
         formulario.publicar()
         Respuesta.objects.create(
             formulario=formulario,

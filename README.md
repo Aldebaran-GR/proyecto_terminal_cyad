@@ -64,7 +64,9 @@ Sistema web para que los profesores de la **División de Ciencias y Artes para e
 ```bash
 git clone <repo> proyecto_terminal_cyad
 cd proyecto_terminal_cyad
-cp .env.example .env        # editar credenciales de PostgreSQL si es necesario
+cd backend
+cp .env.example .env         # editar credenciales de PostgreSQL si es necesario
+cd ..
 ```
 
 ### 3.2 Backend
