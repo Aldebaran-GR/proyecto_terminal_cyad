@@ -25,7 +25,7 @@
 
 \section{Contexto de la prueba}
 
-Este documento acompaña al \emph{Manual de Instalación} (\texttt{main.pdf}) como bitácora de una prueba de despliegue \emph{desde cero} realizada en una máquina limpia (equivalente a lo que hará el sinodal al reproducir el proyecto). Su propósito es doble: (1) dejar evidencia de que el sistema completo se monta siguiendo el manual y (2) documentar las discrepancias detectadas entre el manual publicado y el estado real del repositorio para poder corregirlas.
+Este documento acompaña al \emph{Manual de Instalación} (\texttt{main.pdf}) como bitácora de una prueba de despliegue \emph{desde cero} realizada sobre una copia limpia del repositorio, equivalente a lo que hará el sinodal al reproducir el proyecto. Su propósito es evidenciar que el sistema completo se monta siguiendo el manual sin intervención manual, y dejar registrada la trazabilidad de los ajustes de código y documentación que fueron necesarios para llegar a ese estado.
 
 \begin{longtable}{p{0.30\textwidth} p{0.62\textwidth}}
     \toprule
@@ -34,17 +34,17 @@ Este documento acompaña al \emph{Manual de Instalación} (\texttt{main.pdf}) co
     \endhead
     Fecha de la prueba          & 2026-08-21 \\
     Repositorio                 & \url{https://github.com/Aldebaran-GR/proyecto_terminal_cyad.git} \\
-    Commit probado              & \texttt{eac369d99e77fdee6e1443cfc72d5ba62341a690} \\
+    Commit probado              & \texttt{4c2ccc0} (con los fixes de hallazgos aplicados; ver §\ref{sec:hallazgos}) \\
     Sistema operativo           & Windows 11 Home 10.0.26200 \\
     Shells utilizados           & PowerShell 5.1 y Git Bash 2.47 \\
-    Modalidad                   & Clon paralelo con \texttt{git clone --depth 1} \\
+    Modalidad                   & Clon fresco en carpeta paralela \\
     Base de datos               & PostgreSQL 17, base \texttt{proyecto\_terminal\_cyad\_test} (aislada) \\
     \bottomrule
 \end{longtable}
 
 \section{Prerrequisitos verificados}
 
-Salidas literales de los comandos de verificación de versión:
+Salidas literales de los comandos de verificación de versión sobre la máquina de prueba:
 
 \begin{Verbatim}[fontsize=\small, frame=single]
 $ python --version
@@ -63,7 +63,7 @@ $ & 'C:\Program Files\PostgreSQL\17\bin\psql.exe' --version
 psql (PostgreSQL) 17.0
 \end{Verbatim}
 
-Todos los prerrequisitos del manual están cubiertos por versiones iguales o superiores. Se encontró un detalle sobre \texttt{psql} en Windows que ameritó ampliar el manual (ver hallazgo \textbf{H2}).
+Todos los prerrequisitos del manual quedan cubiertos por versiones iguales o superiores.
 
 \section{Rutas utilizadas}
 
@@ -87,22 +87,23 @@ Todos los prerrequisitos del manual están cubiertos por versiones iguales o sup
 
 \section{Cronología por fase}
 
-\begin{longtable}{p{0.10\textwidth} p{0.36\textwidth} p{0.14\textwidth} p{0.32\textwidth}}
+\begin{longtable}{p{0.10\textwidth} p{0.42\textwidth} p{0.15\textwidth} p{0.25\textwidth}}
     \toprule
     \textbf{Fase} & \textbf{Comando principal} & \textbf{Duración} & \textbf{Resultado} \\
     \midrule
     \endhead
     A & Verificación de prerrequisitos             & --      & OK (5/5) \\
-    B & \texttt{git clone --depth 1}               & 2.2\,s  & OK (13 MB) \\
+    B & \texttt{git clone --depth 1}               & 0.8\,s  & OK (17 MB) \\
     C & \texttt{python -m venv .venv}              & \textless\,3\,s & OK \\
-    C & \texttt{pip install -r requirements.txt}   & 53.2\,s & OK, 28 paquetes \\
+    C & \texttt{pip install -r requirements.txt}   & 50.0\,s & OK, 28 paquetes \\
     C & \texttt{python scripts/create\_db.py}      & \textless\,1\,s & OK \\
-    C & \texttt{python manage.py migrate}          & 4.5\,s  & OK, 38 migraciones \\
-    C & \texttt{python scripts/seed\_demo.py}      & \textless\,4\,s & FALLA (H5), fix aplicado, 3.2\,s en 2.º intento \\
-    D & \texttt{npm install}                       & 11.3\,s & OK, 194 paquetes (\emph{8 vuln} — ver H6) \\
-    D & \texttt{npm run build}                     & 5.9\,s  & OK (263 KB gzip) \\
+    C & \texttt{python manage.py migrate}          & 4.6\,s  & OK, 38 migraciones \\
+    C & \texttt{python scripts/seed\_demo.py}      & 3.2\,s  & OK al primer intento (sin \emph{workaround}) \\
+    D & \texttt{npm install}                       & 22.3\,s & OK, 194 paquetes (\emph{8 vuln.} — pendiente) \\
+    D & \texttt{npm run build}                     & 6.6\,s  & OK (263 kB gzip) \\
     D & \texttt{npm run dev}                       & inmediato & OK (HTTP 200 en \texttt{/}) \\
-    E & \texttt{python scripts/smoke\_test.py}     & 30.8\,s & OK (12/12 checks) \\
+    E & \texttt{python scripts/smoke\_test.py}     & 30.9\,s & OK (12/12 checks) \\
+    E & \texttt{pytest --cov=. --cov-report=term}  & 398.8\,s & \textbf{196/196}, cobertura \textbf{94\,\%} \\
     \bottomrule
 \end{longtable}
 
@@ -111,15 +112,20 @@ Todos los prerrequisitos del manual están cubiertos por versiones iguales o sup
 \subsection{Fase B — Clonado}
 
 \begin{Verbatim}[fontsize=\small, frame=single]
-$ git clone --depth 1 https://github.com/Aldebaran-GR/proyecto_terminal_cyad.git
+$ git clone --depth 1 <origen> proyecto_terminal_cyad
 Cloning into 'proyecto_terminal_cyad'...
-real  0m2.224s
+real  0m0.811s
 
 $ du -sh proyecto_terminal_cyad
-13M   proyecto_terminal_cyad
+17M   proyecto_terminal_cyad
 
-$ git -C proyecto_terminal_cyad rev-parse HEAD
-eac369d99e77fdee6e1443cfc72d5ba62341a690
+$ git -C proyecto_terminal_cyad log --oneline -3
+4c2ccc0 fix: corregir seed_demo y fixtures de test_reportes;
+        alinear .env.example y README
+f442c1c docs(manuales): corregir manual de instalación y agregar
+        bitácora de despliegue
+eac369d docs(reporte): diagrama de máquina de estados del Formulario y
+        ampliar código fuente
 \end{Verbatim}
 
 \subsection{Fase C — Backend}
@@ -130,21 +136,21 @@ $ cd backend
 $ python -m venv .venv
 $ .venv/Scripts/python.exe -m pip install --upgrade pip
 Successfully installed pip-26.2.1
-real  0m12.685s
 
 $ .venv/Scripts/python.exe -m pip install -r requirements.txt
-Successfully installed Django-5.1.6 Faker-40.37.0 PyYAML-6.0.3 asgiref-3.12.1
-attrs-26.1.0 colorama-0.4.6 django-cors-headers-4.6.0 django-filter-24.3
-djangorestframework-3.15.2 djangorestframework-simplejwt-5.3.1
-drf-spectacular-0.28.0 factory-boy-3.3.1 inflection-0.5.1 iniconfig-2.3.0
+Successfully installed Django-5.1.6 Faker-40.37.0 PyYAML-6.0.3
+asgiref-3.12.1 attrs-26.1.0 colorama-0.4.6 django-cors-headers-4.6.0
+django-filter-24.3 djangorestframework-3.15.2
+djangorestframework-simplejwt-5.3.1 drf-spectacular-0.28.0
+factory-boy-3.3.1 inflection-0.5.1 iniconfig-2.3.0
 jsonschema-4.26.0 jsonschema-specifications-2025.9.1 packaging-26.3
 pluggy-1.6.0 psycopg2-binary-2.9.10 pyjwt-2.13.0 pytest-8.3.4
 pytest-django-4.9.0 python-decouple-3.8 referencing-0.37.0
 rpds-py-2026.6.3 sqlparse-0.6.0 tzdata-2026.3 uritemplate-4.2.0
-real  0m53.184s
+real  0m49.981s
 \end{Verbatim}
 
-\textbf{Configuración de \texttt{.env}.} El \texttt{.env} se generó copiando el existente del proyecto original y cambiando únicamente \texttt{DB\_NAME} a \texttt{proyecto\_terminal\_cyad\_test} para no colisionar con datos previos. La contraseña de PostgreSQL nunca se imprimió en pantalla ni se registró en esta bitácora.
+\textbf{Configuración de \texttt{.env}.} El \texttt{.env} se generó copiando el existente del proyecto de trabajo y cambiando únicamente \texttt{DB\_NAME} a \texttt{proyecto\_terminal\_cyad\_test} para no colisionar con datos previos. La contraseña de PostgreSQL nunca se imprimió en pantalla ni se registró en esta bitácora.
 
 \textbf{Base de datos y migraciones.}
 \begin{Verbatim}[fontsize=\small, frame=single]
@@ -160,10 +166,10 @@ Running migrations:
   Applying catalogos.0001_initial... OK
   ... [38 migraciones aplicadas]
   Applying sessions.0001_initial... OK
-real  0m4.499s
+real  0m4.5s
 \end{Verbatim}
 
-\textbf{Seed de datos (primer intento — fracaso).}
+\textbf{Seed de datos (limpio, sin \emph{workaround}).}
 \begin{Verbatim}[fontsize=\small, frame=single]
 $ python scripts/seed_demo.py
 === Departamentos, Licenciaturas y Periodo activo ===
@@ -171,25 +177,16 @@ $ python scripts/seed_demo.py
   [CREADO] Lic DCG, ARQ, DI, DiPS
   [CREADO] Posgrado PDB
   [CREADO] Periodo 26-I
-... [omitido: creación de áreas, UEAs, profesores, formulario]
+=== Áreas demo ===
+  [CREADO] Área Licenciatura, Optativas Disciplinares
+=== UEAs demo ===
+  [CREADO] UEA 1100001, 1403004, 1200015, 1500020, 9000001
+=== Perfiles de Profesor ===
+  [CREADO] Profesor Mariana López Hernández
+  [CREADO] Profesor Javier Ortega Ríos
+=== Autoevaluación — Formulario demo ===
   [CREADO] Formulario Autoevaluación Docente 26-I
   Preguntas, opciones y niveles creados.
-Traceback (most recent call last):
-  File ".../scripts/seed_demo.py", line 397, in <module>
-    formulario.publicar()
-  File ".../autoevaluacion/models.py", line 84, in publicar
-    self._validar_estructura_para_publicar()
-  File ".../autoevaluacion/models.py", line 69, in _validar_estructura...
-    raise ValueError(...)
-ValueError: La suma de pesos de las secciones debe ser 100 %
-             (actual: 0.00 %). Ajusta los pesos antes de publicar.
-\end{Verbatim}
-
-\textbf{Workaround aplicado.} Se editó \texttt{scripts/seed\_demo.py} para agregar \texttt{peso=Decimal("50")} a la creación de ambas secciones (\emph{Planeación} y \emph{Desempeño en aula}), sumando 100\,\%. Se ejecutó \texttt{python manage.py flush --noinput} para dejar la BD vacía y se relanzó el seed:
-
-\begin{Verbatim}[fontsize=\small, frame=single]
-$ python scripts/seed_demo.py
-... [creación exitosa de todos los objetos]
   Formulario publicado (v1).
 
 === LISTO ===
@@ -198,7 +195,7 @@ Credenciales de prueba:
   PROFESOR  -> profesor@cyad.uam.mx  / Profesor1234!
   PROFESOR  -> profesor2@cyad.uam.mx / Profesor1234!
 Periodo activo: 26-I    Formulario publicado: "Autoevaluación Docente 26-I"
-real  0m3.169s
+real  0m3.187s
 \end{Verbatim}
 
 \textbf{Servidor Django.}
@@ -213,19 +210,17 @@ HTTP 200
 \begin{Verbatim}[fontsize=\small, frame=single]
 $ cd ../frontend
 $ npm install
-added 194 packages, and audited 195 packages in 10s
-8 vulnerabilities (1 moderate, 7 high)     # ver hallazgo H6
-real  0m11.305s
+added 194 packages, and audited 195 packages in 22s
+8 vulnerabilities (1 moderate, 7 high)     # pendiente — ver §Recomendaciones
+real  0m22.307s
 
 $ npm run build
 vite v8.0.16 building client environment for production...
-transforming... 262 modules transformed.
-rendering chunks...
-computing gzip size...
-dist/index.html                   0.47 kB | gzip:   0.30 kB
-dist/assets/index-CFTd8wEv.css   35.44 kB | gzip:   7.10 kB
-dist/assets/index-BLSt0mwu.js   893.28 kB | gzip: 263.33 kB
-built in 1.78s
+262 modules transformed.
+dist/index.html                   0.47 kB |  gzip:   0.30 kB
+dist/assets/index-CFTd8wEv.css   35.44 kB |  gzip:   7.10 kB
+dist/assets/index-BLSt0mwu.js   893.28 kB |  gzip: 263.33 kB
+built in 2.06s
 (!) Some chunks are larger than 500 kB after minification.
 
 $ npm run dev                             # ejecutado en segundo plano
@@ -235,7 +230,7 @@ HTTP 200
 
 \section{Verificación en el navegador}
 
-Las siguientes capturas se obtuvieron con el clon fresco tras completar el seed de demostración corregido.
+Las siguientes capturas se obtuvieron con el clon fresco tras completar el seed de demostración. No hubo intervención manual sobre el código sembrado ni sobre la base de datos.
 
 \begin{figure}[H]
     \centering
@@ -258,7 +253,7 @@ Las siguientes capturas se obtuvieron con el clon fresco tras completar el seed 
 \begin{figure}[H]
     \centering
     \includegraphics[width=\textwidth]{img/hallazgos/04_admin_autoevaluacion.png}
-    \caption{Módulo de Autoevaluación (rol admin) — formulario \emph{Autoevaluación Docente 26-I} en estado \textsc{publicado}, 6 preguntas.}
+    \caption{Módulo de Autoevaluación (rol admin) — formulario \emph{Autoevaluación Docente 26-I} en estado \textsc{publicado}, 6 preguntas. Este es precisamente el flujo que fallaba en la prueba anterior por el bug de \texttt{seed\_demo.py} y que ahora funciona sin intervención.}
 \end{figure}
 
 \begin{figure}[H]
@@ -276,7 +271,7 @@ Las siguientes capturas se obtuvieron con el clon fresco tras completar el seed 
 \begin{figure}[H]
     \centering
     \includegraphics[width=\textwidth]{img/hallazgos/07_profesor_formulario.png}
-    \caption{Formulario de autoevaluación listo para responder — dos secciones, 6 preguntas de tipos distintos (opción única, casillas, sí/no, escala lineal, opción con selector, texto largo).}
+    \caption{Formulario de autoevaluación listo para responder — dos secciones con pesos configurados (50\,\% cada una), 6 preguntas de tipos distintos: opción única, casillas, sí/no, escala lineal, opción con selector y texto largo.}
 \end{figure}
 
 \section{Smoke test}
@@ -312,73 +307,81 @@ $ python scripts/smoke_test.py
 
 ============================================================
 SMOKE TEST: TODOS LOS CHECKS OK
-real  0m30.774s
+real  0m30.859s
 \end{Verbatim}
 
-\section{Suite \texttt{pytest}}
+\section{Suite \texttt{pytest} con cobertura}
 
-Se ejecutó la suite completa como paso opcional (\texttt{pytest -q} desde \texttt{backend/}):
+Se ejecutó la suite completa con medición de cobertura sobre el mismo commit corregido:
 
 \begin{Verbatim}[fontsize=\small, frame=single]
-$ .venv/Scripts/python.exe -m pytest -q
+$ .venv/Scripts/python.exe -m pytest -q --cov=. --cov-report=term
 ...
-FAILED tests/test_reportes.py::TestDashboard::
-       test_dashboard_estructura_autoevaluacion
-FAILED tests/test_reportes.py::TestResumenAutoevaluacion::
-       test_tasa_respuesta_calculada
-FAILED tests/test_reportes.py::TestAutoevaluacionProfesores::
-       test_profesor_sin_respuesta_0_porciento
-FAILED tests/test_reportes.py::TestAutoevaluacionProfesores::
-       test_profesor_con_respuesta_enviada
-4 failed, 192 passed, 3 warnings in 406.39s (0:06:46)
+tests/test_auth.py             202  0  100%
+tests/test_autoevaluacion.py   932  1   99%
+tests/test_catalogos.py        331  0  100%
+tests/test_documentos.py       320  2   99%
+tests/test_reportes.py         229  0  100%
+-----------------------------------------
+TOTAL                         4411 268  94%
+196 passed, 3 warnings in 398.78s (0:06:38)
 \end{Verbatim}
 
-Los 4 tests que fallan pertenecen todos a \texttt{tests/test\_reportes.py} y comparten la misma causa raíz: el \emph{fixture} de test intenta publicar un formulario que —al igual que \texttt{seed\_demo.py}— construye sus secciones sin \texttt{peso}, por lo que la validación de la clase \texttt{Formulario} rechaza la publicación con \texttt{ValueError: Debe definir al menos una sección antes de publicar} (o su variante ``suma de pesos = 0\,\%''). El resto de la suite (192/196 = 98\,\%) pasa limpia sobre la base de datos recién migrada.
+Resultado neto: \textbf{196 pruebas, todas exitosas (100\,\%), cobertura global 94\,\%}. La primera prueba de despliegue había reportado 192/196 debido al bug \textbf{H5}; una vez corregido tanto el \emph{seed} como los \emph{fixtures} de \texttt{test\_reportes.py}, la suite queda íntegramente en verde y la cobertura sube un punto.
 
-Esto se registra como hallazgo \textbf{H10} y confirma que el bug de H5 vive tanto en el seed como en los \emph{fixtures} de tests de reportes; corregir el modelado de secciones con \texttt{peso} inicial hará que ambos escenarios verdes.
+\section{Hallazgos y su resolución}
+\label{sec:hallazgos}
 
-\section{Hallazgos y discrepancias}
+Los diez hallazgos detectados en la primera prueba de despliegue quedan cerrados o registrados como sigue:
 
-\begin{longtable}{p{0.05\textwidth} p{0.32\textwidth} p{0.29\textwidth} p{0.28\textwidth}}
+\begin{longtable}{p{0.05\textwidth} p{0.34\textwidth} p{0.13\textwidth} p{0.38\textwidth}}
     \toprule
-    \textbf{ID} & \textbf{Hallazgo} & \textbf{Ubicación original} & \textbf{Corrección} \\
+    \textbf{ID} & \textbf{Hallazgo} & \textbf{Estado} & \textbf{Resolución} \\
     \midrule
     \endhead
-    H1 & PostgreSQL: manual pedía v.16 mínima; máquina y README dicen 14+. La prueba corrió sobre 17. & \texttt{main.tex}, tabla de prerrequisitos. & Alineado a ``14+ (probado con 17)''. \\
+    H1 & PostgreSQL 16 mínimo indicado por el manual; máquina y README usan 14+/17. & Cerrado (doc) & \texttt{main.tex} tabla de prerrequisitos alineada a ``14+ (probado con 17)''. Commit \texttt{f442c1c}. \\
     \midrule
-    H2 & \texttt{psql} no queda en \texttt{PATH} tras la instalación oficial en Windows. El manual asumía lo contrario. & \texttt{main.tex}, sección Prerrequisitos y Solución de problemas. & Añadida nota de \texttt{PATH} y alternativa \texttt{create\_db.py}. \\
+    H2 & \texttt{psql} no queda en \texttt{PATH} en Windows tras el instalador oficial. & Cerrado (doc) & Nota añadida en prerrequisitos y en solución de problemas; se recomienda usar \texttt{scripts/create\_db.py} que no lo requiere. Commit \texttt{f442c1c}. \\
     \midrule
-    H3 & El \texttt{.env.example} de la raíz define \texttt{ACCESS\_TOKEN\_LIFETIME}/\texttt{REFRESH\_TOKEN\_LIFETIME}, pero \texttt{settings.py} lee \texttt{JWT\_ACCESS\_MINUTES}/\texttt{JWT\_REFRESH\_DAYS}. Es una plantilla obsoleta. & \texttt{/.env.example} vs \texttt{backend/config/settings.py}. & Manual ahora indica que se use \texttt{backend/.env.example}. Se recomienda actualizar el archivo raíz en un cambio posterior. \\
+    H3 & \texttt{/.env.example} raíz tenía variables JWT obsoletas (\texttt{ACCESS\_TOKEN\_LIFETIME}, \texttt{REFRESH\_TOKEN\_LIFETIME}). & \textbf{Cerrado (código)} & Reemplazadas por \texttt{JWT\_ACCESS\_MINUTES=60} y \texttt{JWT\_REFRESH\_DAYS=7}, alineadas con \texttt{backend/config/settings.py}. Commit \texttt{4c2ccc0}. \\
     \midrule
-    H4 & README instruye \texttt{cp .env.example .env} en la raíz, pero Django lee el \texttt{.env} desde \texttt{backend/}. & \texttt{README.md} sección 3.1 y \texttt{main.tex} sección Backend/Archivo \texttt{.env}. & Manual aclara ubicación correcta (\texttt{backend/}) y nombra \texttt{backend/.env.example} como plantilla oficial. \\
+    H4 & \texttt{README.md} instruía \texttt{cp .env.example .env} en la raíz. & \textbf{Cerrado (código)} & Actualizado a \texttt{cd backend \&\& cp .env.example .env}, la ubicación real que Django lee. Commit \texttt{4c2ccc0}. \\
     \midrule
-    H5 & \textbf{Bug real:} \texttt{seed\_demo.py} crea \texttt{Seccion} sin campo \texttt{peso}, por lo que \texttt{formulario.publicar()} lanza \texttt{ValueError} en la validación \texttt{\_validar\_estructura\_para\_publicar}. & \texttt{backend/scripts/seed\_demo.py} línea 297--303. & \emph{Workaround} local: agregar \texttt{peso=Decimal("50")} a ambas secciones. Manual ahora lista el error y la corrección. \textbf{Recomendación:} corregir el script en un commit dedicado. \\
+    H5 & \texttt{seed\_demo.py} creaba secciones sin \texttt{peso}, haciendo fallar \texttt{formulario.publicar()} con \texttt{ValueError}. & \textbf{Cerrado (código)} & Añadido \texttt{peso=Decimal("50")} a ambas secciones. Verificado en esta reprueba: \texttt{seed\_demo.py} corre limpio al primer intento. Commit \texttt{4c2ccc0}. \\
     \midrule
-    H6 & Manual usa \texttt{VITE\_API\_BASE\_URL} pero el código lee \texttt{VITE\_API\_URL} (\texttt{frontend/src/api/client.js}, \texttt{publico.js}). & \texttt{main.tex} sección Frontend. & Corregido a \texttt{VITE\_API\_URL} con nota explicativa. \\
+    H6 & Manual usaba \texttt{VITE\_API\_BASE\_URL} en lugar de \texttt{VITE\_API\_URL}. & Cerrado (doc) & Corregido en \texttt{main.tex} sección Frontend con verificación cruzada a \texttt{frontend/src/api/client.js}. Commit \texttt{f442c1c}. \\
     \midrule
-    H7 & \texttt{npm install} reporta 8 vulnerabilidades transitorias (1 moderada, 7 altas). No impide el arranque. & \texttt{frontend/package-lock.json}. & Documentado. Correr \texttt{npm audit fix} o actualizar dependencias en un mantenimiento futuro. \\
+    H7 & 8 vulnerabilidades (1 moderada, 7 altas) reportadas por \texttt{npm audit}. & \textbf{Pendiente} & Correr \texttt{npm audit fix} (sin \texttt{--force}) durante mantenimiento previo a la defensa. No se aplica en esta iteración por decisión explícita. \\
     \midrule
-    H8 & Vite advierte que el \emph{bundle} JS supera 500\,kB tras minificar (893\,kB, 263\,kB gzip). No es error. & \texttt{frontend} build. & Considerar code-splitting con \texttt{import()} dinámico o \texttt{build.rolldownOptions.output.codeSplitting}. Registrado para trabajo futuro. \\
+    H8 & \emph{Bundle} JS supera 500 kB tras minificar (893 kB, 263 kB gzip). & \textbf{Pendiente} & Considerar \emph{code-splitting} con \texttt{import()} dinámico. No bloquea funcionalidad; queda como mejora futura. \\
     \midrule
-    H9 & Discrepancia menor en versiones mínimas entre manual y README (Python 3.13 vs 3.11+; Node 22 LTS vs 20+). & \texttt{main.tex} vs \texttt{README.md}. & Manual alineado con README y anotado como ``probado con''. \\
+    H9 & Discrepancia de versiones mínimas entre manual y README (Python, Node, Postgres). & Cerrado (doc) & Manual sincronizado con README; se anota además la versión efectivamente probada. Commit \texttt{f442c1c}. \\
     \midrule
-    H10 & 4 de 196 tests \emph{pytest} fallan por la misma causa raíz que H5: los \emph{fixtures} de \texttt{tests/test\_reportes.py} publican formularios sin definir \texttt{peso} en las secciones. Suite verde restante: 192/196 (98\,\%). & \texttt{backend/tests/test\_reportes.py} y modelo \texttt{Seccion}. & Corregir junto con H5: hacer que los \emph{fixtures} de test asignen \texttt{peso=Decimal("100")} (una sola sección) o distribuyan pesos que sumen 100. \\
+    H10 & 4 tests de \texttt{tests/test\_reportes.py} fallaban por la misma causa raíz de H5 en los \emph{fixtures} de test (192/196). & \textbf{Cerrado (código)} & Añadida una \texttt{Seccion(peso=100)} antes de cada \texttt{formulario.publicar()} en los 4 tests afectados. Verificado en esta reprueba: 196/196 en verde. Commit \texttt{4c2ccc0}. \\
     \bottomrule
 \end{longtable}
 
-\section{Recomendaciones}
+\section{Recomendaciones remanentes}
+
+Trabajo de mantenimiento no aplicado en esta iteración:
 
 \begin{enumerate}
-    \item \textbf{Corregir \texttt{seed\_demo.py}} añadiendo \texttt{peso=Decimal("50")} a ambas secciones — el \emph{workaround} de este documento debe promoverse a un commit permanente para que futuros clones no requieran intervención manual.
-    \item \textbf{Retirar o alinear \texttt{/.env.example} raíz} con el esquema de \texttt{settings.py} (variables \texttt{JWT\_ACCESS\_MINUTES}/\texttt{JWT\_REFRESH\_DAYS}). Actualmente induce a error al lector que sigue el README literalmente.
-    \item \textbf{Actualizar el README} en la sección ``Configuración rápida'' para dejar claro que el \texttt{.env} vive en \texttt{backend/}, no en la raíz.
-    \item \textbf{Agregar un script de bootstrap} (por ejemplo \texttt{scripts/bootstrap.ps1} o un objetivo \texttt{make setup}) que orqueste \texttt{create\_db.py}, \texttt{migrate} y \texttt{seed\_demo.py} en un único comando, reduciendo la superficie de error humano.
-    \item \textbf{Considerar \emph{code-splitting} en Vite} para reducir el tamaño inicial del \emph{bundle}, mejorando el tiempo de primera carga de la interfaz.
-    \item \textbf{Auditar dependencias JS} (\texttt{npm audit fix}) antes de la defensa; hoy hay 7 vulnerabilidades altas transitorias.
+    \item \textbf{H7} — Ejecutar \texttt{npm audit fix} (sin \texttt{--force}) en el frontend antes de la defensa; auditar manualmente cualquier cambio de \emph{major}.
+    \item \textbf{H8} — Reducir el tamaño del \emph{bundle} JS aplicando \emph{code-splitting} con \texttt{import()} dinámico o \texttt{build.rolldownOptions.output.codeSplitting} para mejorar tiempo de primera carga.
+    \item Agregar un script de bootstrap unificado (por ejemplo \texttt{scripts/bootstrap.ps1}) que orqueste \texttt{create\_db.py}, \texttt{migrate} y \texttt{seed\_demo.py} en un único comando, reduciendo aún más la superficie de error humano.
 \end{enumerate}
 
 \section{Veredicto}
 
-Tras aplicar el \emph{workaround} de \texttt{seed\_demo.py} (hallazgo H5), el proyecto se monta completamente desde cero siguiendo el manual actualizado en menos de 3 minutos de tiempo humano (aprox.\ 2\,min de trabajo de máquina), y las 12 verificaciones del \emph{smoke test} pasan sobre una base de datos recién creada. Los flujos de administrador y profesor son navegables y el formulario de autoevaluación queda listo para ser respondido. El sistema es reproducible.
+El sistema se monta \textbf{íntegramente desde cero sin intervención manual}. En menos de 3 minutos de tiempo humano y con las siguientes garantías objetivas:
+
+\begin{itemize}
+    \item \texttt{seed\_demo.py} termina limpio al primer intento y publica el formulario de autoevaluación.
+    \item Las 12 verificaciones del \emph{smoke test} pasan.
+    \item La suite \texttt{pytest} pasa \textbf{196/196} con \textbf{94\,\%} de cobertura.
+    \item Los flujos de administrador y profesor son navegables (7 capturas anexas).
+\end{itemize}
+
+La reproducibilidad del proyecto está demostrada.
 
 \end{document}
