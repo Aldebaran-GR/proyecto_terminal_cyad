@@ -1,0 +1,56 @@
+%Diagrama de la maquina de estados del Formulario de autoevaluacion.
+%Se incluye via \input{Imagenes/estados_formulario} desde secciones/06_desarrollo.tex.
+%Usa librerias positioning y arrows.meta, ya cargadas por computacion.cls.
+%Se evita la sintaxis >={...} porque babel-spanish activa el caracter '>'.
+\begin{tikzpicture}[
+    node distance=3.8cm and 4.0cm,
+    every node/.style={font=\sffamily\small},
+    flecha/.style={-{Stealth[length=2.2mm]}, thick},
+    estado/.style={
+        circle, draw=black!70, thick,
+        fill=blue!8, minimum size=1.9cm, align=center,
+        inner sep=1pt
+    },
+    etiqueta/.style={font=\scriptsize\sffamily, align=center,
+                     fill=white, inner sep=1pt},
+    inicio/.style={font=\scriptsize\itshape}
+]
+    % Nodos
+    \node[estado] (B) {BORRA-\\DOR};
+    \node[estado, right=of B] (P) {PUBLI-\\CADO};
+    \node[estado, right=of P] (C) {CERRA-\\DO};
+
+    % Marca de estado inicial
+    \draw[flecha]
+        ([xshift=-1.1cm]B.west) node[inicio, left=1pt] {inicial} -- (B.west);
+
+    % Transiciones BORRADOR <-> PUBLICADO
+    \draw[flecha] (B) edge[bend left=22]
+        node[etiqueta, above] {publicar} (P);
+    \draw[flecha] (P) edge[bend left=22]
+        node[etiqueta, below] {despublicar} (B);
+
+    % Transiciones PUBLICADO <-> CERRADO
+    \draw[flecha] (P) edge[bend left=22]
+        node[etiqueta, above] {cerrar} (C);
+    \draw[flecha] (C) edge[bend left=22]
+        node[etiqueta, below, align=center]
+            {reabrir\\{\tiny(misma version)}} (P);
+
+    % Transicion CERRADO -> PUBLICADO con revision (version + 1)
+    \draw[flecha] (C) edge[bend left=55]
+        node[etiqueta, above, align=center]
+            {publicar\_revision\\{\tiny(version + 1)}} (P);
+
+    % Transicion CERRADO -> BORRADOR (despublicar desde CERRADO)
+    \draw[flecha] (C) edge[bend right=45]
+        node[etiqueta, below] {despublicar} ([yshift=-1pt]B.south east);
+
+    % Nota lateral sobre la accion transversal "duplicar"
+    \node[font=\scriptsize\itshape, align=left,
+          anchor=north west, text width=6.5cm]
+         at ([yshift=-1.6cm]B.south west)
+         {Accion transversal \texttt{duplicar}: clona la estructura
+          completa a otro periodo (sin arrastrar respuestas) desde
+          cualquier estado.};
+\end{tikzpicture}

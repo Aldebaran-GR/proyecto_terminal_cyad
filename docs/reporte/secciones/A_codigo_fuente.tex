@@ -62,6 +62,68 @@ class Usuario(AbstractBaseUser, PermissionsMixin):
     objects = UsuarioManager()
 \end{Verbatim}
 
+\subsection{Backend --- Perfil de Profesor y Periodo}\label{lst:modelos_perfil_periodo}
+
+Fragmento de \texttt{backend/accounts/models.py} y \texttt{backend/catalogos/models.py}: el perfil \texttt{Profesor} sincroniza \texttt{Usuario.is\_active} con \texttt{Profesor.estado} para que desactivar el perfil bloquee el inicio de sesión, y el modelo \texttt{Periodo} garantiza en \texttt{save()} la invariante ``a lo sumo un periodo activo por recurso''.
+
+\begin{Verbatim}[fontsize=\small, frame=single]
+# backend/accounts/models.py
+class Profesor(TimeStampedModel, EstadoActivoModel):
+    usuario = models.OneToOneField(
+        Usuario, on_delete=models.CASCADE, related_name="perfil_profesor",
+        limit_choices_to={"rol": Usuario.Rol.PROFESOR},
+    )
+    numero_economico     = models.CharField(max_length=20, unique=True,
+                                            null=True, blank=True)
+    nombre_completo      = models.CharField(max_length=255)
+    correo_institucional = models.EmailField(unique=True)
+    departamento         = models.ForeignKey(
+        "catalogos.Departamento", on_delete=models.SET_NULL,
+        null=True, blank=True, related_name="profesores",
+    )
+
+    def save(self, *args, **kwargs):
+        # Sincroniza el login del Usuario con el estado del perfil.
+        super().save(*args, **kwargs)
+        if self.usuario_id and self.usuario.is_active != bool(self.estado):
+            self.usuario.is_active = bool(self.estado)
+            self.usuario.save(update_fields=["is_active"])
+
+
+# backend/catalogos/models.py
+class Periodo(TimeStampedModel):
+    class Recurso(models.TextChoices):
+        CARTAS         = "CARTAS",         "Cartas Temáticas"
+        REQUISITOS     = "REQUISITOS",     "Requisitos de Recuperación"
+        AUTOEVALUACION = "AUTOEVALUACION", "Autoevaluación"
+
+    clave        = models.CharField(max_length=10, unique=True)
+    fecha_inicio = models.DateField()
+    fecha_fin    = models.DateField()
+    activo_cartas         = models.BooleanField(default=False)
+    activo_requisitos     = models.BooleanField(default=False)
+    activo_autoevaluacion = models.BooleanField(default=False)
+    activo = models.BooleanField(default=False, editable=False)  # OR de los tres
+    estado = models.BooleanField(default=True)
+
+    @classmethod
+    def get_activo(cls, recurso, hoy=None):
+        field = {"CARTAS": "activo_cartas",
+                 "REQUISITOS": "activo_requisitos",
+                 "AUTOEVALUACION": "activo_autoevaluacion"}.get(recurso)
+        return cls.objects.filter(**{field: True, "estado": True}).first() if field else None
+
+    def save(self, *args, **kwargs):
+        # Invariante: a lo sumo un Periodo con cada flag activo.
+        per_resource = ("activo_cartas", "activo_requisitos", "activo_autoevaluacion")
+        for field in per_resource:
+            if getattr(self, field):
+                Periodo.objects.exclude(pk=self.pk) \
+                    .filter(**{field: True}).update(**{field: False})
+        self.activo = any(getattr(self, f) for f in per_resource)
+        super().save(*args, **kwargs)
+\end{Verbatim}
+
 \subsection{Backend --- JWT y throttling}
 
 Fragmento de \texttt{backend/config/settings.py}.
@@ -124,6 +186,174 @@ class DocumentoAcademicoBase(TimeStampedModel):
 
     class Meta:
         abstract = True
+\end{Verbatim}
+
+\subsection{Backend --- Modelos del \emph{form-builder}}\label{lst:modelos_form_builder}
+
+Fragmento de \texttt{backend/autoevaluacion/models.py}: cinco modelos que definen la estructura editable de un formulario. El ciclo de vida de \texttt{Formulario} (\texttt{publicar}/\texttt{cerrar}/\texttt{reabrir}/\texttt{despublicar}/\texttt{publicar\_revision}) se detalla en el listado \hyperref[lst:formulario_states]{``Backend --- Ciclo de vida de Formulario''}.
+
+\begin{Verbatim}[fontsize=\small, frame=single]
+class Formulario(TimeStampedModel):
+    class Estado(models.TextChoices):
+        BORRADOR  = "BORRADOR",  "Borrador"
+        PUBLICADO = "PUBLICADO", "Publicado"
+        CERRADO   = "CERRADO",   "Cerrado"
+
+    titulo       = models.CharField(max_length=255)
+    descripcion  = models.TextField(blank=True)
+    periodo      = models.ForeignKey("catalogos.Periodo",
+                                     on_delete=models.PROTECT,
+                                     related_name="formularios")
+    estado       = models.CharField(max_length=10, choices=Estado.choices,
+                                    default=Estado.BORRADOR)
+    version      = models.PositiveIntegerField(default=1)   # +1 en publicar_revision
+    una_respuesta_por_profesor = models.BooleanField(default=True)
+    created_by   = models.ForeignKey("accounts.Usuario",
+                                     on_delete=models.SET_NULL,
+                                     null=True, blank=True, related_name="+")
+    published_at = models.DateTimeField(null=True, blank=True)
+    closed_at    = models.DateTimeField(null=True, blank=True)
+
+
+class Seccion(models.Model):
+    formulario  = models.ForeignKey(Formulario, on_delete=models.CASCADE,
+                                    related_name="secciones")
+    titulo      = models.CharField(max_length=255)
+    descripcion = models.TextField(blank=True)
+    orden       = models.PositiveSmallIntegerField(default=0)
+    # La suma de pesos de las secciones de un formulario debe ser 100 % (±0.01)
+    # para poder publicarlo.
+    peso        = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+
+
+class Pregunta(models.Model):
+    class Tipo(models.TextChoices):
+        TEXTO_CORTO       = "TEXTO_CORTO",       "Texto corto"
+        TEXTO_LARGO       = "TEXTO_LARGO",       "Texto largo"
+        OPCION_UNICA      = "OPCION_UNICA",      "Opción única"
+        CASILLAS          = "CASILLAS",          "Casillas de verificación"
+        SI_NO             = "SI_NO",             "Sí / No"
+        ESCALA_LINEAL     = "ESCALA_LINEAL",     "Escala lineal"
+        LISTA_DESPLEGABLE = "LISTA_DESPLEGABLE", "Lista desplegable"
+        CUADRICULA        = "CUADRICULA",        "Cuadrícula de opciones"
+
+    # Estas se ignoran en el scoring (respuesta cualitativa abierta).
+    TIPOS_NO_PUNTABLES = {"TEXTO_CORTO", "TEXTO_LARGO"}
+
+    formulario  = models.ForeignKey(Formulario, on_delete=models.CASCADE,
+                                    related_name="preguntas")
+    seccion     = models.ForeignKey(Seccion, on_delete=models.SET_NULL,
+                                    null=True, blank=True, related_name="preguntas")
+    tipo        = models.CharField(max_length=20, choices=Tipo.choices)
+    texto       = models.TextField()
+    ayuda       = models.CharField(max_length=500, blank=True)
+    obligatoria = models.BooleanField(default=True)
+    orden       = models.PositiveSmallIntegerField(default=0)
+    # JSON dependiente del tipo:
+    #   ESCALA_LINEAL -> {min, max, label_min, label_max, puntos_factor}
+    #   SI_NO         -> {puntos_si, puntos_no}
+    config      = models.JSONField(default=dict, blank=True)
+
+
+class OpcionPregunta(models.Model):
+    pregunta = models.ForeignKey(Pregunta, on_delete=models.CASCADE,
+                                 related_name="opciones")
+    texto    = models.CharField(max_length=255)
+    valor    = models.CharField(max_length=100, blank=True)
+    puntos   = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    orden    = models.PositiveSmallIntegerField(default=0)
+
+
+class FilaCuadricula(models.Model):
+    # Las filas de una CUADRICULA. Sus columnas reutilizan OpcionPregunta.
+    pregunta = models.ForeignKey(Pregunta, on_delete=models.CASCADE,
+                                 related_name="filas")
+    texto    = models.CharField(max_length=255)
+    orden    = models.PositiveSmallIntegerField(default=0)
+\end{Verbatim}
+
+\subsection{Backend --- Captura de respuestas y baremo}\label{lst:modelos_respuesta}
+
+Fragmento de \texttt{backend/autoevaluacion/models.py}: modelos que persisten cada envío del profesor y el baremo (\texttt{NivelDesempeno}) contra el que se evalúa. El algoritmo que rellena \texttt{puntaje\_obtenido}, \texttt{porcentaje}, \texttt{nivel\_desempeno} y crea un \texttt{RespuestaSeccion} por sección se muestra en el listado \hyperref[lst:scoring]{``Backend --- Scoring ponderado de autoevaluación''}. El campo \texttt{RespuestaSeccion.peso} es un \emph{snapshot} del peso vigente al enviar, precisamente para que el desglose histórico permanezca estable si el administrador reajusta pesos y publica una revisión.
+
+\begin{Verbatim}[fontsize=\small, frame=single]
+class NivelDesempeno(models.Model):
+    formulario     = models.ForeignKey(Formulario, on_delete=models.CASCADE,
+                                       related_name="niveles")
+    nombre         = models.CharField(max_length=100)
+    porcentaje_min = models.DecimalField(max_digits=5, decimal_places=2)
+    porcentaje_max = models.DecimalField(max_digits=5, decimal_places=2)
+    observacion    = models.TextField()
+    # Clave para la UI: green | blue | yellow | red | gray
+    color          = models.CharField(max_length=20, default="gray")
+    orden          = models.PositiveSmallIntegerField(default=0)
+
+
+class Respuesta(TimeStampedModel):
+    class Estado(models.TextChoices):
+        BORRADOR = "BORRADOR", "Borrador"
+        ENVIADO  = "ENVIADO",  "Enviado"
+
+    formulario         = models.ForeignKey(Formulario, on_delete=models.PROTECT,
+                                           related_name="respuestas")
+    profesor           = models.ForeignKey("accounts.Profesor",
+                                           on_delete=models.PROTECT,
+                                           related_name="respuestas_formulario")
+    # Copia de Formulario.version al iniciar; permite volver a responder tras
+    # publicar_revision sin violar la unicidad compuesta de abajo.
+    version_formulario = models.PositiveIntegerField(default=1)
+    estado             = models.CharField(max_length=10, choices=Estado.choices,
+                                          default=Estado.BORRADOR)
+    enviado_at         = models.DateTimeField(null=True, blank=True)
+    puntaje_obtenido   = models.DecimalField(max_digits=7, decimal_places=2,
+                                             null=True, blank=True)
+    puntaje_maximo     = models.DecimalField(max_digits=7, decimal_places=2,
+                                             null=True, blank=True)
+    porcentaje         = models.DecimalField(max_digits=5, decimal_places=2,
+                                             null=True, blank=True)
+    nivel_desempeno    = models.ForeignKey(NivelDesempeno,
+                                           on_delete=models.SET_NULL,
+                                           null=True, blank=True,
+                                           related_name="respuestas")
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["formulario", "profesor", "version_formulario"],
+                name="unique_respuesta_formulario_profesor_version",
+            )
+        ]
+
+
+class RespuestaPregunta(models.Model):
+    respuesta              = models.ForeignKey(Respuesta,
+                                               on_delete=models.CASCADE,
+                                               related_name="items")
+    pregunta               = models.ForeignKey(Pregunta,
+                                               on_delete=models.PROTECT,
+                                               related_name="respuestas_recibidas")
+    valor_texto            = models.TextField(blank=True)
+    opciones_seleccionadas = models.ManyToManyField(OpcionPregunta, blank=True,
+                                                    related_name="selecciones")
+
+    class Meta:
+        unique_together = [["respuesta", "pregunta"]]
+
+
+class RespuestaSeccion(models.Model):
+    # Snapshot por sección al enviar: preserva el peso vigente para el desglose.
+    respuesta        = models.ForeignKey(Respuesta, on_delete=models.CASCADE,
+                                         related_name="secciones_resultado")
+    seccion          = models.ForeignKey(Seccion, on_delete=models.PROTECT,
+                                         related_name="resultados")
+    peso             = models.DecimalField(max_digits=5, decimal_places=2)
+    puntaje_obtenido = models.DecimalField(max_digits=7, decimal_places=2)
+    puntaje_maximo   = models.DecimalField(max_digits=7, decimal_places=2)
+    porcentaje       = models.DecimalField(max_digits=5, decimal_places=2,
+                                           default=0)
+
+    class Meta:
+        unique_together = [["respuesta", "seccion"]]
 \end{Verbatim}
 
 \subsection{Backend --- Scoring ponderado de autoevaluacion}\label{lst:scoring}
