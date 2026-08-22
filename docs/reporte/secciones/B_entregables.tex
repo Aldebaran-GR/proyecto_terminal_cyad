@@ -34,7 +34,7 @@ La Tabla~\ref{tab:entregablesReales} replica el calendario de actividades compro
     \midrule
     9 & Prueba y corrección de errores & 8 & \textbf{Completo}. $\approx$4\,186 líneas de tests + \emph{smoke test} end-to-end. Historial git con \emph{fixes} rastreables (por ejemplo \emph{fix(seguridad)}, \emph{fix(autoevaluacion)}, \emph{fix(catalogos)}). \\
     \midrule
-    10 & Documentación para usuarios & 10 & \textbf{Completo}. \texttt{docs/manuales/usuario.tex} y \texttt{docs/manuales/instalacion.tex}. \\
+    10 & Documentación para usuarios & 10 & \textbf{Completo}. Fuentes en \texttt{docs/reporte/manuales/usuario/main.tex} y \texttt{docs/reporte/manuales/instalacion/main.tex}; embebidos como Subsecciones~\ref{apx:manual-instalacion} y \ref{apx:manual-usuario}. \\
     \midrule
     11 & Redacción del reporte final del proyecto & 15 & \textbf{Completo}. Este documento (\texttt{docs/reporte/main.pdf}) con nueve secciones, dos anexos, índices y bibliografía. \\
     \midrule
@@ -50,19 +50,18 @@ La Tabla~\ref{tab:entregablesReales} replica el calendario de actividades compro
     \bottomrule
 \end{longtable}
 
-Los manuales de instalación y de usuario, que originalmente se distribuían como PDFs independientes, se integran en este mismo documento como parte de este anexo: la Subsección~\ref{apx:manual-instalacion} reproduce el \emph{Manual de instalación} y la Subsección~\ref{apx:manual-usuario} el \emph{Manual de usuario}. Adicionalmente, la carpeta digital de entrega a la Coordinación de Estudios contiene los siguientes artefactos:
+Los manuales de instalación y de usuario se integran en este mismo documento como parte de este anexo: la Subsección~\ref{apx:manual-instalacion} reproduce el \emph{Manual de instalación} y la Subsección~\ref{apx:manual-usuario} el \emph{Manual de usuario}. Adicionalmente, la carpeta digital de entrega a la Coordinación de Estudios contiene los siguientes artefactos:
 
 \begin{itemize}
-    \item \texttt{reporte\_final.pdf} --- compilación íntegra de este documento (incluye los manuales embebidos como subsecciones de este anexo), sin restricciones.
+    \item \texttt{reporte\_final.pdf} --- compilación íntegra de este documento, con los manuales embebidos como subsecciones de este anexo; entregable único, sin restricciones.
     \item \texttt{codigo\_fuente.zip} --- generado con \texttt{git archive HEAD}, descomprimible sin contraseña.
-    \item \texttt{manual\_instalacion.pdf} y \texttt{manual\_usuario.pdf} --- copias sueltas de los mismos manuales incluidos como subsecciones, útiles cuando se requiera consultarlos aislados del reporte.
     \item \texttt{cobertura/} --- reporte HTML de cobertura de tests generado con \texttt{pytest --cov}.
 \end{itemize}
 
 \subsection{Manual de instalación}\label{apx:manual-instalacion}
-\includepdf[pages=2-, pagecommand={\thispagestyle{fancy}}]{../manuales/instalacion/main.pdf}
+\includepdf[pages=2-, pagecommand={\thispagestyle{fancy}}]{manuales/instalacion/main.pdf}
 
 \subsection{Manual de usuario}\label{apx:manual-usuario}
-\includepdf[pages=2-, pagecommand={\thispagestyle{fancy}}]{../manuales/usuario/main.pdf}
+\includepdf[pages=2-, pagecommand={\thispagestyle{fancy}}]{manuales/usuario/main.pdf}
 
 \newpage

@@ -34,7 +34,7 @@ La Figura~\ref{fig:arquitectura} muestra el diagrama de arquitectura y la Figura
 \begin{itemize}
     \item \texttt{backend/}: proyecto Django. Contiene la configuración global (\texttt{config/}), las seis apps (\texttt{core}, \texttt{accounts}, \texttt{catalogos}, \texttt{documentos}, \texttt{autoevaluacion}, \texttt{reportes}), \emph{scripts} operativos (\texttt{scripts/}), suite de pruebas (\texttt{tests/}), \texttt{conftest.py} con \emph{fixtures} globales de \emph{pytest} y \texttt{requirements.txt}.
     \item \texttt{frontend/}: aplicación React + Vite. Contiene \texttt{src/pages/} (por rol: \texttt{admin/}, \texttt{profesor/}, \texttt{publico/}), \texttt{src/components/ui/} (componentes reutilizables), \texttt{src/api/} (clientes HTTP), \texttt{src/auth/} (contexto de sesión y \emph{guards}), \texttt{src/layouts/} y \texttt{src/utils/}.
-    \item \texttt{docs/}: documentación complementaria; contiene este reporte (\texttt{docs/reporte/}) y los manuales (\texttt{docs/manuales/}).
+    \item \texttt{docs/}: documentación complementaria; contiene este reporte (\texttt{docs/reporte/}) con los manuales embebidos como subsecciones del anexo B (fuentes en \texttt{docs/reporte/manuales/}).
 \end{itemize}
 
 \subsection{Metodología y evolución del desarrollo}\label{subsec:metodologia-desarrollo}
