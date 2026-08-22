@@ -47,6 +47,27 @@ En Windows se recomienda utilizar \emph{Git Bash} o \emph{PowerShell}. En Linux/
 
 \textbf{Nota importante para Windows:} el instalador oficial de PostgreSQL no agrega \texttt{psql} al \texttt{PATH} del sistema. Si al escribir \texttt{psql --version} obtiene ``command not found'', agregue manualmente la carpeta \texttt{C:\textbackslash Program Files\textbackslash PostgreSQL\textbackslash 17\textbackslash bin} (ajuste al número de versión que tenga) a la variable de entorno \texttt{Path} de Windows, o invoque \texttt{psql} por ruta completa.
 
+\subsection{Requisitos mínimos de hardware}
+
+Las siguientes cifras se derivan de la reprueba de despliegue documentada en \texttt{hallazgos\_despliegue.pdf}: el proceso de Django consume aproximadamente 120~MB de RAM en reposo, PostgreSQL alrededor de 80~MB con la carga de demostración, y el \emph{build} del frontend (\texttt{npm run build}) alcanza un pico de \textasciitilde 250~MB durante la compilación (no en tiempo de ejecución).
+
+\begin{longtable}{p{0.30\textwidth} p{0.20\textwidth} p{0.20\textwidth} p{0.22\textwidth}}
+    \toprule
+    \textbf{Escenario} & \textbf{RAM mínima} & \textbf{RAM recomendada} & \textbf{Disco} \\
+    \midrule
+    \endhead
+    Desarrollo local (una sola persona) & 4~GB & 8~GB & 5~GB libres \\
+    \midrule
+    Servidor pequeño (\textless\,50 profesores, un solo periodo activo) & 2~GB & 4~GB & 10~GB libres \\
+    \midrule
+    Servidor CyAD completo (\textgreater\,300 profesores, histórico multi-periodo) & 4~GB & 8~GB & 20~GB libres \\
+    \bottomrule
+\end{longtable}
+
+Sobre CPU: cualquier procesador x86-64 de doble núcleo publicado en la última década es suficiente para el runtime; el cuello de botella es la memoria durante \texttt{npm run build}, que sólo ocurre al desplegar una nueva versión, no en operación diaria. En un servidor dedicado bastan \emph{dos vCPU}; para desarrollo local la máquina que edita el código suele tener recursos de sobra.
+
+Ancho de banda: al ser una aplicación de tipo formulario, el consumo por sesión es del orden de decenas de KB por interacción. Cualquier enlace institucional (\textgreater\,10~Mbps) resulta holgado.
+
 \section{Clonado del repositorio}
 
 \begin{quote}
@@ -179,6 +200,38 @@ Al finalizar, existirán las siguientes cuentas:
 
 Estas contraseñas deben cambiarse antes del despliegue a producción.
 
+\section{Instalación mínima sin datos de demo}
+\label{sec:install-limpia}
+
+Para un despliegue institucional real (donde el administrador cargará sus propios departamentos, licenciaturas, UEAs y profesores) no se debe ejecutar \texttt{seed\_demo.py}: ese \emph{script} crea un profesor de prueba, un formulario ya publicado y respuestas ficticias que ensucian la base de datos productiva. La ruta correcta es:
+
+\begin{enumerate}
+    \item \textbf{Crear la base de datos vacía} (con \texttt{scripts/create\_db.py} o manualmente con \texttt{psql}, según la sección anterior).
+    \item \textbf{Aplicar migraciones}:
+    \begin{quote}\ttfamily python manage.py migrate\end{quote}
+    \item \textbf{Crear la primera cuenta de administrador} con el comando interactivo de Django:
+    \begin{quote}\ttfamily python manage.py createsuperuser\end{quote}
+    Se pedirán correo, nombre y contraseña. Este usuario tendrá rol \texttt{ADMIN} y podrá crear el resto de cuentas desde la interfaz web.
+    \item \textbf{Cargar los catálogos institucionales base} desde los \emph{fixtures} versionados en el repositorio:
+    \begin{quote}
+    \ttfamily
+    python manage.py loaddata catalogos/fixtures/departamentos.json \\
+    python manage.py loaddata catalogos/fixtures/licenciaturas.json \\
+    python manage.py loaddata catalogos/fixtures/posgrados.json \\
+    python manage.py loaddata catalogos/fixtures/areas.json \\
+    python manage.py loaddata catalogos/fixtures/periodos.json
+    \end{quote}
+    Estos JSON contienen la estructura oficial de CyAD (nueve departamentos, tres licenciaturas, posgrados vigentes y áreas por licenciatura) y son idempotentes: pueden re-ejecutarse sin duplicar registros.
+    \item \textbf{Cargar las UEAs} desde el CSV maestro que mantiene coordinación académica (formato: clave, nombre, licenciatura, tipo, créditos, etc.):
+    \begin{quote}\ttfamily python manage.py cargar\_catalogos\_csv <ruta/al/uea.csv>\end{quote}
+    El comando valida claves duplicadas y reporta las filas rechazadas. Si aún no se dispone del CSV, las UEAs pueden crearse una por una desde \texttt{Catálogos $\to$ UEA} en la interfaz.
+    \item \textbf{Iniciar sesión} con el superuser creado en el paso 3 y, desde el constructor de formularios, generar el primer formulario de autoevaluación institucional.
+\end{enumerate}
+
+\textbf{Advertencia:} \emph{no} ejecute \texttt{python scripts/seed\_demo.py} en un ambiente productivo. Está diseñado exclusivamente para el flujo de desarrollo local y crea datos ficticios que después será tedioso eliminar. El \emph{script} \texttt{scripts/bootstrap.ps1} descrito arriba tampoco es apropiado para producción porque incluye el paso de \emph{seed}; en producción se corre cada paso por separado como se muestra en esta sección.
+
+Los usuarios de profesor se crean posteriormente desde \texttt{Profesores $\to$ Nuevo profesor} en la interfaz de administrador; cada creación genera un correo + contraseña temporal que el administrador entrega personalmente al docente.
+
 \subsection{Servidor de desarrollo del backend}
 
 \begin{quote}
@@ -236,6 +289,261 @@ VITE_API_URL=http://tu-servidor:8000/api/v1
     \texttt{npm run build} (frontend) & Compilar producción estática (dist/). \\
     \bottomrule
 \end{longtable}
+
+\section{Despliegue en servidor de producción}
+\label{sec:despliegue-produccion}
+
+Esta sección describe el despliegue en un servidor Linux (Ubuntu 22.04 LTS o Debian 12) que atienda las peticiones institucionales. El manual asume que ya se cumplen los prerrequisitos (Sección~\ref{sec:install-limpia} inclusive: base limpia, superuser creado, catálogos cargados).
+
+\subsection{Topología recomendada}
+
+\begin{Verbatim}[fontsize=\small, frame=single]
+        Internet (HTTPS 443)
+                |
+                v
+     +--------------------+
+     |       Nginx        |    Sirve /  -> frontend/dist  (SPA estático)
+     | (proxy inverso +   |    /api/    -> gunicorn (socket UNIX)
+     |  archivos estát.)  |    /admin/  -> gunicorn (socket UNIX)
+     +---------+----------+    /static/ -> backend/staticfiles
+               |
+               v (unix:/run/cyad.sock)
+     +--------------------+
+     |  gunicorn (3 wk)   |    Django / DRF
+     |  config.wsgi:app   |
+     +---------+----------+
+               |
+               v (TCP 5432)
+     +--------------------+
+     |    PostgreSQL 17   |    Usuario dedicado cyad_prod
+     +--------------------+
+\end{Verbatim}
+
+Todos los servicios corren en la misma máquina en el caso más simple; se pueden separar la BD y el \emph{app server} sin cambios en el código, ajustando \texttt{DB\_HOST} en el \texttt{.env}.
+
+\subsection{Variables de entorno de producción}
+
+El archivo \texttt{backend/.env} para producción difiere del de desarrollo en cinco campos críticos:
+
+\begin{Verbatim}[fontsize=\small, frame=single]
+DEBUG=False
+SECRET_KEY=<clave-larga-generada-abajo>
+ALLOWED_HOSTS=cyad.uam.mx
+CORS_ALLOWED_ORIGINS=https://cyad.uam.mx
+DB_NAME=cyad_prod
+DB_USER=cyad_prod
+DB_PASSWORD=<password-fuerte>
+DB_HOST=localhost
+DB_PORT=5432
+JWT_ACCESS_MINUTES=15
+JWT_REFRESH_DAYS=1
+\end{Verbatim}
+
+Generación de \texttt{SECRET\_KEY}:
+
+\begin{quote}\ttfamily
+python -c "from django.core.management.utils import get\_random\_secret\_key; \\
+print(get\_random\_secret\_key())"
+\end{quote}
+
+La ventana de \texttt{JWT\_ACCESS\_MINUTES=15} y \texttt{JWT\_REFRESH\_DAYS=1} reduce el impacto de un token filtrado; el frontend refresca el \emph{access token} automáticamente en segundo plano mientras el \emph{refresh} siga vigente.
+
+El archivo \texttt{.env} debe tener permisos restrictivos:
+
+\begin{quote}\ttfamily
+chmod 600 backend/.env \\
+chown www-data:www-data backend/.env
+\end{quote}
+
+\subsection{Base de datos en producción}
+
+Crear un rol \emph{no-superuser} dedicado y una base propiedad de ese rol:
+
+\begin{quote}\ttfamily
+sudo -u postgres psql \\
+CREATE USER cyad\_prod WITH PASSWORD '\textless password-fuerte\textgreater'; \\
+CREATE DATABASE cyad\_prod OWNER cyad\_prod; \\
+\textbackslash q
+\end{quote}
+
+Endurecer \texttt{pg\_hba.conf} para permitir sólo conexiones locales autenticadas por contraseña al usuario \texttt{cyad\_prod} (no permita accesos remotos al usuario \texttt{postgres}).
+
+Respaldo diario recomendado vía \emph{cron}:
+
+\begin{Verbatim}[fontsize=\small, frame=single]
+# /etc/cron.d/cyad-backup
+0 3 * * * postgres pg_dump -Fc cyad_prod \
+  > /var/backups/cyad/cyad_$(date +\%Y\%m\%d).dump
+\end{Verbatim}
+
+Rotar respaldos con \texttt{logrotate} o un simple \texttt{find /var/backups/cyad -mtime +30 -delete}.
+
+\subsection{Backend con gunicorn + systemd}
+
+Instalar gunicorn en el mismo entorno virtual:
+
+\begin{quote}\ttfamily
+pip install gunicorn
+\end{quote}
+
+Crear la unidad \texttt{/etc/systemd/system/cyad-backend.service}:
+
+\begin{Verbatim}[fontsize=\small, frame=single]
+[Unit]
+Description=CyAD Django backend (gunicorn)
+After=network.target postgresql.service
+Requires=postgresql.service
+
+[Service]
+Type=notify
+User=www-data
+Group=www-data
+WorkingDirectory=/srv/cyad/proyecto_terminal_cyad/backend
+Environment="PATH=/srv/cyad/proyecto_terminal_cyad/backend/.venv/bin"
+ExecStart=/srv/cyad/proyecto_terminal_cyad/backend/.venv/bin/gunicorn \
+    config.wsgi:application \
+    --workers 3 \
+    --bind unix:/run/cyad.sock \
+    --access-logfile /var/log/cyad/access.log \
+    --error-logfile /var/log/cyad/error.log
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+\end{Verbatim}
+
+Habilitar y arrancar:
+
+\begin{quote}\ttfamily
+sudo mkdir -p /var/log/cyad \\
+sudo chown www-data:www-data /var/log/cyad \\
+sudo systemctl daemon-reload \\
+sudo systemctl enable --now cyad-backend \\
+sudo systemctl status cyad-backend
+\end{quote}
+
+\subsection{Archivos estáticos del backend}
+
+El Django admin y \texttt{drf-spectacular} sirven CSS/JS estáticos que Nginx debe entregar directamente. Recolectarlos en \texttt{backend/staticfiles/} (ruta ya definida como \texttt{STATIC\_ROOT} en \texttt{config/settings.py}):
+
+\begin{quote}\ttfamily
+python manage.py collectstatic --noinput
+\end{quote}
+
+Debe re-ejecutarse en cada actualización que añada estáticos nuevos.
+
+\subsection{Frontend en producción}
+
+Compilar los estáticos del SPA:
+
+\begin{quote}\ttfamily
+cd frontend \\
+npm ci \\
+npm run build
+\end{quote}
+
+\texttt{npm ci} respeta \texttt{package-lock.json} exactamente y es más rápido que \texttt{npm install} para despliegues reproducibles. El resultado queda en \texttt{frontend/dist/}, que Nginx servirá como archivos estáticos.
+
+Antes de compilar, crear \texttt{frontend/.env.production} con la URL pública de la API:
+
+\begin{Verbatim}[fontsize=\small, frame=single]
+VITE_API_URL=https://cyad.uam.mx/api/v1
+\end{Verbatim}
+
+\subsection{Nginx como reverse proxy}
+
+Crear \texttt{/etc/nginx/sites-available/cyad.conf}:
+
+\begin{Verbatim}[fontsize=\small, frame=single]
+server {
+    listen 80;
+    server_name cyad.uam.mx;
+
+    # SPA: sirve archivos estáticos y hace fallback a index.html
+    root /srv/cyad/proyecto_terminal_cyad/frontend/dist;
+    index index.html;
+
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    # Backend (API + admin) via socket UNIX
+    location /api/ {
+        proxy_pass http://unix:/run/cyad.sock;
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location /admin/ {
+        proxy_pass http://unix:/run/cyad.sock;
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # Estáticos del backend (Django admin, drf-spectacular)
+    location /static/ {
+        alias /srv/cyad/proyecto_terminal_cyad/backend/staticfiles/;
+        expires 30d;
+    }
+
+    client_max_body_size 10M;
+}
+\end{Verbatim}
+
+Habilitar y recargar:
+
+\begin{quote}\ttfamily
+sudo ln -s /etc/nginx/sites-available/cyad.conf \\
+\ \ \ \ \ \ /etc/nginx/sites-enabled/ \\
+sudo nginx -t \\
+sudo systemctl reload nginx
+\end{quote}
+
+\subsection{HTTPS con Let's Encrypt}
+
+Con \emph{certbot} instalado (\texttt{sudo apt install certbot python3-certbot-nginx}):
+
+\begin{quote}\ttfamily
+sudo certbot --nginx -d cyad.uam.mx
+\end{quote}
+
+Certbot modifica el bloque de Nginx anterior para añadir escucha en \texttt{:443} con el certificado emitido y una redirección \texttt{80 $\to$ 443}. La renovación se instala automáticamente vía \emph{systemd timer}; verificar con \texttt{sudo systemctl status certbot.timer}.
+
+\subsection{Actualizaciones (redeploy)}
+
+Cada nueva versión del código se despliega con:
+
+\begin{quote}\ttfamily
+cd /srv/cyad/proyecto\_terminal\_cyad \\
+git pull \\
+cd backend \\
+source .venv/bin/activate \\
+pip install -r requirements.txt \\
+python manage.py migrate \\
+python manage.py collectstatic --noinput \\
+cd ../frontend \\
+npm ci \\
+npm run build \\
+sudo systemctl restart cyad-backend \\
+sudo systemctl reload nginx
+\end{quote}
+
+Es recomendable hacer \texttt{pg\_dump} antes de cada \texttt{migrate} en producción.
+
+\subsection{Nota para despliegues en Windows Server}
+
+Si el hosting institucional obliga a usar Windows Server, gunicorn no está disponible. La alternativa recomendada es \emph{waitress}:
+
+\begin{quote}\ttfamily
+pip install waitress \\
+waitress-serve --port=8000 config.wsgi:application
+\end{quote}
+
+Como \emph{reverse proxy} se usa IIS con el módulo \emph{URL Rewrite} + \emph{Application Request Routing}, o bien \emph{Nginx for Windows} con una configuración equivalente a la mostrada arriba. El servicio se registra con \texttt{sc.exe create} o mediante \emph{NSSM}. El resto de la configuración (\texttt{.env}, base de datos, \texttt{collectstatic}, \texttt{npm run build}) es idéntica.
 
 \section{Solución de problemas}
 
