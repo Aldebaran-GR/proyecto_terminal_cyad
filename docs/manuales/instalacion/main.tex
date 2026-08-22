@@ -130,6 +130,19 @@ Para producción se debe establecer \texttt{DEBUG=False}, definir \texttt{ALLOWE
 python manage.py migrate
 \end{quote}
 
+\subsection{Bootstrap unificado (Windows PowerShell)}
+
+Como atajo, el repositorio incluye \texttt{scripts/bootstrap.ps1} que orquesta \emph{creación de BD}, \emph{migraciones} y \emph{siembra de datos de demo} en un único comando. Debe ejecutarse desde la raíz del repositorio, con el \texttt{.venv} ya activo y \texttt{backend/.env} configurado:
+
+\begin{quote}
+\ttfamily
+.\textbackslash scripts\textbackslash bootstrap.ps1
+\end{quote}
+
+El script imprime tres pasos numerados (\texttt{[1/3]} crear BD, \texttt{[2/3]} migrar, \texttt{[3/3]} seed) y al finalizar recuerda cómo arrancar el backend y el frontend en dos terminales distintas. Falla temprano si falta \texttt{backend/.env} o si el árbol del repositorio no está completo.
+
+Para Linux o macOS, ejecute los tres pasos por separado siguiendo la siguiente sección.
+
 \subsection{Datos iniciales}
 
 La forma más rápida de dejar el sistema listo para usar es ejecutar el \emph{seed} de demostración, que es idempotente y crea catálogos, UEAs, usuarios de prueba, periodo activo y el formulario de autoevaluación en un solo comando:

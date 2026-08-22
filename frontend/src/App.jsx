@@ -1,56 +1,59 @@
+import { lazy, Suspense } from 'react'
 import { Route, Routes } from 'react-router-dom'
 import ProtectedRoute from './auth/ProtectedRoute'
 import RoleRoute from './auth/RoleRoute'
 import AdminLayout from './layouts/AdminLayout'
 import ProfesorLayout from './layouts/ProfesorLayout'
-import HomePage from './pages/HomePage'
-import LoginPage from './pages/LoginPage'
-import NotFoundPage from './pages/NotFoundPage'
-import ComingSoonPage from './pages/ComingSoonPage'
-import AdminDashboardPage from './pages/admin/DashboardPage'
-import ProfesorDashboardPage from './pages/profesor/DashboardPage'
+import Loading from './components/ui/Loading'
+
+const HomePage = lazy(() => import('./pages/HomePage'))
+const LoginPage = lazy(() => import('./pages/LoginPage'))
+const NotFoundPage = lazy(() => import('./pages/NotFoundPage'))
+const ComingSoonPage = lazy(() => import('./pages/ComingSoonPage'))
+const AdminDashboardPage = lazy(() => import('./pages/admin/DashboardPage'))
+const ProfesorDashboardPage = lazy(() => import('./pages/profesor/DashboardPage'))
 
 // M8 — Admin: Catálogos
-import DepartamentosPage from './pages/admin/catalogos/DepartamentosPage'
-import LicenciaturasPage from './pages/admin/catalogos/LicenciaturasPage'
-import PosgradosPage from './pages/admin/catalogos/PosgradosPage'
-import AreasPage from './pages/admin/catalogos/AreasPage'
-import UEAPage from './pages/admin/catalogos/UEAPage'
-import PeriodosPage from './pages/admin/catalogos/PeriodosPage'
+const DepartamentosPage = lazy(() => import('./pages/admin/catalogos/DepartamentosPage'))
+const LicenciaturasPage = lazy(() => import('./pages/admin/catalogos/LicenciaturasPage'))
+const PosgradosPage = lazy(() => import('./pages/admin/catalogos/PosgradosPage'))
+const AreasPage = lazy(() => import('./pages/admin/catalogos/AreasPage'))
+const UEAPage = lazy(() => import('./pages/admin/catalogos/UEAPage'))
+const PeriodosPage = lazy(() => import('./pages/admin/catalogos/PeriodosPage'))
 
 // M8 — Admin: Profesores
-import ProfesoresPage from './pages/admin/profesores/ProfesoresPage'
+const ProfesoresPage = lazy(() => import('./pages/admin/profesores/ProfesoresPage'))
 
 // M8 — Admin: Documentos
-import CartasAdminPage from './pages/admin/documentos/CartasAdminPage'
-import RequisitosAdminPage from './pages/admin/documentos/RequisitosAdminPage'
+const CartasAdminPage = lazy(() => import('./pages/admin/documentos/CartasAdminPage'))
+const RequisitosAdminPage = lazy(() => import('./pages/admin/documentos/RequisitosAdminPage'))
 
 // M8 — Admin: Autoevaluación
-import AutoevaluacionAdminPage from './pages/admin/autoevaluacion/AutoevaluacionAdminPage'
-import FormularioBuilderPage from './pages/admin/autoevaluacion/FormularioBuilderPage'
-import FormularioPreviewPage from './pages/admin/autoevaluacion/FormularioPreviewPage'
+const AutoevaluacionAdminPage = lazy(() => import('./pages/admin/autoevaluacion/AutoevaluacionAdminPage'))
+const FormularioBuilderPage = lazy(() => import('./pages/admin/autoevaluacion/FormularioBuilderPage'))
+const FormularioPreviewPage = lazy(() => import('./pages/admin/autoevaluacion/FormularioPreviewPage'))
 
 // M8 — Admin: Reportes
-import ReportesPage from './pages/admin/reportes/ReportesPage'
+const ReportesPage = lazy(() => import('./pages/admin/reportes/ReportesPage'))
 
 // M7 — Profesor: Cartas Temáticas
-import CartasListPage from './pages/profesor/cartas/CartasListPage'
-import CartaFormPage from './pages/profesor/cartas/CartaFormPage'
-import CartaPreviewPage from './pages/profesor/cartas/CartaPreviewPage'
+const CartasListPage = lazy(() => import('./pages/profesor/cartas/CartasListPage'))
+const CartaFormPage = lazy(() => import('./pages/profesor/cartas/CartaFormPage'))
+const CartaPreviewPage = lazy(() => import('./pages/profesor/cartas/CartaPreviewPage'))
 
 // M7 — Profesor: Requisitos de Recuperación
-import RequisitosListPage from './pages/profesor/requisitos/RequisitosListPage'
-import RequisitoFormPage from './pages/profesor/requisitos/RequisitoFormPage'
-import RequisitoPreviewPage from './pages/profesor/requisitos/RequisitoPreviewPage'
+const RequisitosListPage = lazy(() => import('./pages/profesor/requisitos/RequisitosListPage'))
+const RequisitoFormPage = lazy(() => import('./pages/profesor/requisitos/RequisitoFormPage'))
+const RequisitoPreviewPage = lazy(() => import('./pages/profesor/requisitos/RequisitoPreviewPage'))
 
 // M7 — Profesor: Autoevaluación
-import AutoevaluacionListPage from './pages/profesor/autoevaluacion/AutoevaluacionListPage'
-import AutoevaluacionFormPage from './pages/profesor/autoevaluacion/AutoevaluacionFormPage'
+const AutoevaluacionListPage = lazy(() => import('./pages/profesor/autoevaluacion/AutoevaluacionListPage'))
+const AutoevaluacionFormPage = lazy(() => import('./pages/profesor/autoevaluacion/AutoevaluacionFormPage'))
 
 // Vistas públicas (sin auth)
-import ExplorarPage from './pages/publico/ExplorarPage'
-import PublicCartaPage from './pages/publico/PublicCartaPage'
-import PublicRequisitoPage from './pages/publico/PublicRequisitoPage'
+const ExplorarPage = lazy(() => import('./pages/publico/ExplorarPage'))
+const PublicCartaPage = lazy(() => import('./pages/publico/PublicCartaPage'))
+const PublicRequisitoPage = lazy(() => import('./pages/publico/PublicRequisitoPage'))
 
 /* ─── Wrapper helper ─────────────────────────────────────── */
 function AdminRoute({ children }) {
@@ -71,81 +74,83 @@ function ProfesorRoute({ children }) {
 
 export default function App() {
   return (
-    <Routes>
-      {/* Públicas (sin login) */}
-      <Route path="/" element={<HomePage />} />
-      <Route path="/login" element={<LoginPage />} />
+    <Suspense fallback={<Loading fullscreen />}>
+      <Routes>
+        {/* Públicas (sin login) */}
+        <Route path="/" element={<HomePage />} />
+        <Route path="/login" element={<LoginPage />} />
 
-      {/* Vistas públicas de documentos publicados (sin login) */}
-      <Route path="/publico/explorar/:tipo" element={<ExplorarPage />} />
-      <Route path="/publico/cartas/:id" element={<PublicCartaPage />} />
-      <Route path="/publico/requisitos/:id" element={<PublicRequisitoPage />} />
+        {/* Vistas públicas de documentos publicados (sin login) */}
+        <Route path="/publico/explorar/:tipo" element={<ExplorarPage />} />
+        <Route path="/publico/cartas/:id" element={<PublicCartaPage />} />
+        <Route path="/publico/requisitos/:id" element={<PublicRequisitoPage />} />
 
-      {/* ── Admin ──────────────────────────────────────────── */}
-      <Route
-        path="/admin"
-        element={
-          <AdminRoute>
-            <AdminLayout />
-          </AdminRoute>
-        }
-      >
-        <Route index element={<AdminDashboardPage />} />
+        {/* ── Admin ──────────────────────────────────────────── */}
+        <Route
+          path="/admin"
+          element={
+            <AdminRoute>
+              <AdminLayout />
+            </AdminRoute>
+          }
+        >
+          <Route index element={<AdminDashboardPage />} />
 
-        {/* Profesores */}
-        <Route path="profesores" element={<ProfesoresPage />} />
+          {/* Profesores */}
+          <Route path="profesores" element={<ProfesoresPage />} />
 
-        {/* Catálogos */}
-        <Route path="catalogos/departamentos" element={<DepartamentosPage />} />
-        <Route path="catalogos/licenciaturas" element={<LicenciaturasPage />} />
-        <Route path="catalogos/posgrados" element={<PosgradosPage />} />
-        <Route path="catalogos/areas" element={<AreasPage />} />
-        <Route path="catalogos/uea" element={<UEAPage />} />
-        <Route path="catalogos/periodos" element={<PeriodosPage />} />
+          {/* Catálogos */}
+          <Route path="catalogos/departamentos" element={<DepartamentosPage />} />
+          <Route path="catalogos/licenciaturas" element={<LicenciaturasPage />} />
+          <Route path="catalogos/posgrados" element={<PosgradosPage />} />
+          <Route path="catalogos/areas" element={<AreasPage />} />
+          <Route path="catalogos/uea" element={<UEAPage />} />
+          <Route path="catalogos/periodos" element={<PeriodosPage />} />
 
-        {/* Documentos */}
-        <Route path="documentos/cartas" element={<CartasAdminPage />} />
-        <Route path="documentos/requisitos" element={<RequisitosAdminPage />} />
+          {/* Documentos */}
+          <Route path="documentos/cartas" element={<CartasAdminPage />} />
+          <Route path="documentos/requisitos" element={<RequisitosAdminPage />} />
 
-        {/* Autoevaluación */}
-        <Route path="autoevaluacion" element={<AutoevaluacionAdminPage />} />
-        <Route path="autoevaluacion/:id" element={<FormularioBuilderPage />} />
-        <Route path="autoevaluacion/:id/preview" element={<FormularioPreviewPage />} />
+          {/* Autoevaluación */}
+          <Route path="autoevaluacion" element={<AutoevaluacionAdminPage />} />
+          <Route path="autoevaluacion/:id" element={<FormularioBuilderPage />} />
+          <Route path="autoevaluacion/:id/preview" element={<FormularioPreviewPage />} />
 
-        {/* Reportes */}
-        <Route path="reportes" element={<ReportesPage />} />
-      </Route>
+          {/* Reportes */}
+          <Route path="reportes" element={<ReportesPage />} />
+        </Route>
 
-      {/* ── Profesor ───────────────────────────────────────── */}
-      <Route
-        path="/profesor"
-        element={
-          <ProfesorRoute>
-            <ProfesorLayout />
-          </ProfesorRoute>
-        }
-      >
-        <Route index element={<ProfesorDashboardPage />} />
+        {/* ── Profesor ───────────────────────────────────────── */}
+        <Route
+          path="/profesor"
+          element={
+            <ProfesorRoute>
+              <ProfesorLayout />
+            </ProfesorRoute>
+          }
+        >
+          <Route index element={<ProfesorDashboardPage />} />
 
-        {/* Cartas Temáticas */}
-        <Route path="cartas" element={<CartasListPage />} />
-        <Route path="cartas/nueva" element={<CartaFormPage />} />
-        <Route path="cartas/:id" element={<CartaFormPage />} />
-        <Route path="cartas/:id/preview" element={<CartaPreviewPage />} />
+          {/* Cartas Temáticas */}
+          <Route path="cartas" element={<CartasListPage />} />
+          <Route path="cartas/nueva" element={<CartaFormPage />} />
+          <Route path="cartas/:id" element={<CartaFormPage />} />
+          <Route path="cartas/:id/preview" element={<CartaPreviewPage />} />
 
-        {/* Requisitos de Recuperación */}
-        <Route path="requisitos" element={<RequisitosListPage />} />
-        <Route path="requisitos/nuevo" element={<RequisitoFormPage />} />
-        <Route path="requisitos/:id" element={<RequisitoFormPage />} />
-        <Route path="requisitos/:id/preview" element={<RequisitoPreviewPage />} />
+          {/* Requisitos de Recuperación */}
+          <Route path="requisitos" element={<RequisitosListPage />} />
+          <Route path="requisitos/nuevo" element={<RequisitoFormPage />} />
+          <Route path="requisitos/:id" element={<RequisitoFormPage />} />
+          <Route path="requisitos/:id/preview" element={<RequisitoPreviewPage />} />
 
-        {/* Autoevaluación */}
-        <Route path="autoevaluacion" element={<AutoevaluacionListPage />} />
-        <Route path="autoevaluacion/:id" element={<AutoevaluacionFormPage />} />
-      </Route>
+          {/* Autoevaluación */}
+          <Route path="autoevaluacion" element={<AutoevaluacionListPage />} />
+          <Route path="autoevaluacion/:id" element={<AutoevaluacionFormPage />} />
+        </Route>
 
-      {/* 404 */}
-      <Route path="*" element={<NotFoundPage />} />
-    </Routes>
+        {/* 404 */}
+        <Route path="*" element={<NotFoundPage />} />
+      </Routes>
+    </Suspense>
   )
 }

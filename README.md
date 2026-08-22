@@ -80,15 +80,22 @@ python -m venv .venv
 source .venv/bin/activate
 
 pip install -r requirements.txt
+cd ..
+```
 
-# Crea la base de datos si no existe
+**Camino corto (Windows PowerShell)** — crea la BD, aplica migraciones y siembra los datos de demo en un solo comando:
+
+```powershell
+.\scripts\bootstrap.ps1
+```
+
+**Camino manual** — equivalente paso a paso (Windows/Linux/macOS):
+
+```bash
+cd backend
 python scripts/create_db.py
-
-# Migraciones + carga de catálogos base
 python manage.py migrate
-python manage.py loaddata catalogos/fixtures/departamentos.json
-python manage.py loaddata catalogos/fixtures/licenciaturas.json
-python manage.py loaddata catalogos/fixtures/periodos.json
+python scripts/seed_demo.py    # o loaddata + seed_users.py, ver §4
 ```
 
 ### 3.3 Frontend
