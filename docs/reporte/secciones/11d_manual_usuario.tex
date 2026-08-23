@@ -2,146 +2,204 @@
 \justifying
 
 \subsubsection{Introducción}
-Este manual está dirigido a los tres tipos de usuario del sistema: el \textbf{profesor}, el \textbf{administrador de la División de CyAD} y el \textbf{visitante público} (cualquier persona con acceso a la URL institucional). Cada rol dispone de un \emph{dashboard} propio con las funciones que le corresponden.
+Este manual está dirigido a los tres tipos de usuario del sistema: el \textbf{visitante público} (cualquier persona con acceso a la URL institucional), el \textbf{profesor} y el \textbf{administrador de la División de CyAD}. Se recorre cada rol siguiendo el flujo natural de uso, con capturas de todas las pantallas involucradas.
 
-Todas las capturas de este manual corresponden a la versión desplegada durante la reprueba de despliegue documentada en el manual de instalación (commit \texttt{a2b8123}). Los correos, nombres y contenidos mostrados son datos de demostración; ningún dato personal real aparece en este documento.
+Las capturas se tomaron con el sistema ejecutándose contra la base de datos de demostración (\texttt{python scripts/seed\_demo.py}); los correos, nombres y contenidos mostrados son datos de ejemplo. La URL institucional final la comunicará la División de CyAD; en los ejemplos de este manual se utiliza el marcador \texttt{https://cyad.uam.mx}.
 
-La URL institucional final la comunicará la División de CyAD; en los ejemplos de este manual se utiliza el marcador \texttt{https://cyad.uam.mx}.
+% ═══════════════════════════════════════════════════════════════
+\subsubsection{Uso — Vista pública (sin iniciar sesión)}\label{apx:manual-user:publico}
 
-\subsubsection{Acceso al sistema}
+La vista pública es la primera experiencia al abrir la URL del sistema y no requiere credenciales. Está pensada para que estudiantes, personal y visitantes puedan consultar cartas temáticas y requisitos de recuperación publicados por los profesores.
 
-Para iniciar sesión, ingrese a la URL del sistema (por ejemplo, \texttt{https://cyad.uam.mx}) y utilice el enlace ``Iniciar sesión''. La Figura~\ref{fig:m-login} muestra la pantalla de acceso.
+\paragraph{Página principal}\mbox{}\\
+Al ingresar a la URL raíz se muestra la portada con las dos opciones de consulta (Figura~\ref{fig:m-publico-home}): \emph{Carta Temática} y \emph{Evaluación de Recuperación}. Un enlace en la esquina superior derecha (``Iniciar sesión'') permite pasar al formulario de acceso reservado a profesores y administradores.
 
 \begin{figure}[!ht]
     \centering
-    \captura[0.75\textwidth]{manuales/login}
+    \captura[0.9\textwidth]{screenshots/publico_home}
+    \caption{Portada pública: elección del tipo de documento a consultar.}
+    \label{fig:m-publico-home}
+\end{figure}
+
+\paragraph{Paso 1 — Elegir el tipo de documento y el periodo}\mbox{}\\
+Al hacer clic en \textbf{``Consultar''} sobre cualquiera de las dos tarjetas, el sistema abre la vista \emph{Explorar} correspondiente y muestra el primer paso de la cascada: seleccionar el trimestre (Figura~\ref{fig:m-publico-explorar-inicial}). Sólo aparecen periodos que tienen al menos un documento publicado del tipo elegido, para no ofrecer opciones vacías.
+
+\begin{figure}[!ht]
+    \centering
+    \captura[0.9\textwidth]{screenshots/publico_explorar_cartas_inicial}
+    \caption{Vista pública ``Explorar Carta Temática'', paso 1: selección de periodo.}
+    \label{fig:m-publico-explorar-inicial}
+\end{figure}
+
+\paragraph{Paso 2 — Elegir un programa académico}\mbox{}\\
+Al seleccionar el periodo aparecen los pasos 2 y 3: seleccionar una licenciatura o un posgrado, y luego expandir la UEA para ver los documentos publicados en ella (Figura~\ref{fig:m-publico-explorar-cartas}). El árbol de UEA se agrupa por trimestre curricular; sólo se listan las UEA con al menos un documento publicado del tipo elegido en ese periodo. Cada tarjeta interior corresponde a un grupo específico e incluye profesor, horario, modalidad y fecha de publicación.
+
+\begin{figure}[!ht]
+    \centering
+    \captura[0.9\textwidth]{screenshots/publico_explorar_cartas_seleccion}
+    \caption{Consulta pública de Cartas Temáticas: periodo y licenciatura seleccionados, UEA con documento expandido.}
+    \label{fig:m-publico-explorar-cartas}
+\end{figure}
+
+El mismo flujo aplica a Evaluación de Recuperación (Figura~\ref{fig:m-publico-explorar-req}); cambia el tipo de tarjeta y los textos, pero la cascada periodo~$\to$~programa~$\to$~UEA~$\to$~documento es idéntica.
+
+\begin{figure}[!ht]
+    \centering
+    \captura[0.9\textwidth]{screenshots/publico_explorar_requisitos_seleccion}
+    \caption{Consulta pública de Evaluaciones de Recuperación con UEA expandida.}
+    \label{fig:m-publico-explorar-req}
+\end{figure}
+
+\paragraph{Detalle imprimible del documento}\mbox{}\\
+Al hacer clic en \emph{``Ver documento''} se abre la vista pública del documento (Figura~\ref{fig:m-publico-carta}), con encabezado institucional, datos del grupo y campos de contenido. Un botón \textbf{``Imprimir''} lanza el diálogo de impresión del navegador; el estilo de impresión oculta la barra superior y el pie para producir un PDF limpio.
+
+\begin{figure}[!ht]
+    \centering
+    \captura[0.9\textwidth]{screenshots/publico_carta}
+    \caption{Vista pública imprimible de una carta temática publicada.}
+    \label{fig:m-publico-carta}
+\end{figure}
+
+Cada carta y cada requisito publicados tienen una URL propia y estable, apta para citarse en un plan de estudios, un correo o un temario:
+
+\begin{itemize}
+    \item Cartas temáticas: \texttt{https://cyad.uam.mx/publico/cartas/\textless id\textgreater}
+    \item Requisitos de recuperación: \texttt{https://cyad.uam.mx/publico/requisitos/\textless id\textgreater}
+\end{itemize}
+
+% ═══════════════════════════════════════════════════════════════
+\subsubsection{Acceso al sistema}\label{apx:manual-user:acceso}
+
+Para iniciar sesión se ingresa a la URL del sistema y se utiliza el enlace ``Iniciar sesión'' de la esquina superior derecha; también es posible entrar directamente a la ruta \texttt{/login}. La Figura~\ref{fig:m-login} muestra la pantalla de acceso.
+
+\begin{figure}[!ht]
+    \centering
+    \captura[0.75\textwidth]{screenshots/login}
     \caption{Pantalla de inicio de sesión.}
     \label{fig:m-login}
 \end{figure}
 
-Ingrese su correo institucional (\texttt{usuario@uam.mx} o similar) y la contraseña proporcionada por el administrador. Tras iniciar sesión el sistema lo dirigirá automáticamente al \emph{dashboard} correspondiente según su rol.
+Se ingresa el correo institucional (\texttt{usuario@uam.mx} o similar) y la contraseña proporcionada por el administrador. Tras iniciar sesión, el sistema redirige automáticamente al \emph{dashboard} correspondiente según el rol de la cuenta (Administrador o Profesor).
 
 \textbf{Notas de seguridad:}
 \begin{itemize}
-    \item Se permiten hasta 5 intentos de inicio de sesión por minuto. Si se excede, deberá esperar un minuto.
-    \item La sesión expira automáticamente por inactividad; el sistema renueva el \emph{token} de acceso en segundo plano mientras haya actividad.
-    \item Para restablecer una contraseña olvidada, contacte al administrador.
+    \item Se permiten hasta 5 intentos de inicio de sesión por minuto por dirección IP. Si se excede el límite, es necesario esperar un minuto.
+    \item La sesión expira automáticamente por inactividad; el sistema renueva el \emph{token} de acceso en segundo plano mientras haya actividad del usuario.
+    \item Para restablecer una contraseña olvidada, es necesario contactar al administrador (véase Subsubsección~\ref{apx:manual-user:admin-profesores}).
 \end{itemize}
 
-\subsubsection{Primer acceso}
+\textbf{Primer acceso.} Cuando el administrador crea una cuenta de profesor, entrega personalmente al docente su correo institucional (que también funciona como \emph{nombre de usuario}) y una contraseña temporal generada por el sistema. En el primer inicio de sesión esa contraseña temporal se utiliza como definitiva. Esta versión del sistema no ofrece una pantalla propia de ``cambiar mi contraseña'' para el profesor: si desea que su contraseña personal sustituya a la temporal, deberá solicitar al administrador que la restablezca por una nueva de su elección.
 
-Cuando el administrador crea una cuenta de profesor, entrega personalmente al docente:
+% ═══════════════════════════════════════════════════════════════
+\subsubsection{Uso — rol Administrador}\label{apx:manual-user:admin}
 
-\begin{itemize}
-    \item su correo institucional (que también funciona como \emph{nombre de usuario}), y
-    \item una contraseña temporal generada por el sistema.
-\end{itemize}
+El rol Administrador tiene acceso al menú lateral izquierdo con \emph{Dashboard}, \emph{Profesores}, la sección \emph{Catálogos} (Departamentos, Licenciaturas, Posgrados, Áreas, UEA, Periodos), la sección \emph{Documentos} (Cartas Temáticas, Requisitos de Recuperación), la sección \emph{Autoevaluación} y \emph{Reportes}.
 
-En el primer inicio de sesión el sistema utiliza esa contraseña temporal como si fuera la definitiva. Esta versión del sistema \emph{no ofrece} una pantalla propia de ``cambiar mi contraseña'' para el profesor. Si desea que su contraseña personal sustituya a la temporal, solicite al administrador que la restablezca por una nueva de su elección; el administrador dispone del flujo ``Restablecer contraseña'' descrito en la Subsubsección~\ref{apx:manual-user:admin-profesores} y le entregará la nueva clave por el mismo canal seguro. Esta limitación queda registrada como trabajo futuro en la bitácora del proyecto.
-
-\subsubsection{Uso — rol Profesor}
-
-Al iniciar sesión como profesor se muestra el \emph{dashboard} personal (Figura~\ref{fig:m-docente-dash}), con:
-\begin{itemize}
-    \item Tarjetas de resumen del trimestre en curso.
-    \item Listas agrupadas por periodo (colapsables) de sus cartas temáticas, requisitos y autoevaluaciones.
-    \item Menú lateral con acceso directo a los tres módulos.
-\end{itemize}
+\paragraph{Dashboard}\mbox{}\\
+Tras iniciar sesión el sistema muestra el \emph{dashboard} del administrador (Figura~\ref{fig:m-admin-dash}), con indicadores globales del sistema: total de profesores activos, número de cartas y requisitos publicados en el periodo activo, formularios de autoevaluación publicados, y tarjetas de cumplimiento por departamento para cada uno de los tres recursos.
 
 \begin{figure}[!ht]
     \centering
-    \captura[0.9\textwidth]{manuales/docente_dashboard}
-    \caption{Dashboard del profesor.}
-    \label{fig:m-docente-dash}
-\end{figure}
-
-\paragraph{Cartas temáticas}\mbox{}\\
-Desde la sección ``Cartas Temáticas'' (Figura~\ref{fig:m-cartas-lista}) puede crear, editar, publicar y consultar la vista pública de cada carta.
-
-\begin{figure}[!ht]
-    \centering
-    \captura[0.9\textwidth]{manuales/docente_cartas_lista}
-    \caption{Lista de cartas temáticas del profesor.}
-    \label{fig:m-cartas-lista}
-\end{figure}
-
-\textit{Crear una carta temática:}
-\begin{enumerate}
-    \item Haga clic en \textbf{``Nueva carta temática''}.
-    \item Busque la UEA por clave o nombre; seleccione una opción del autocompletado.
-    \item El sistema asigna automáticamente el periodo activo para cartas.
-    \item Complete los campos del grupo (nombre, ID, horario, modalidad).
-    \item Complete el contenido: descripción, objetivos, contenidos, evaluación, bibliografía. Todos son texto libre; los que deje vacíos no aparecerán en la vista pública.
-    \item Presione \textbf{``Guardar''} para conservar como \emph{borrador} o \textbf{``Publicar''} para que sea visible en la vista pública.
-\end{enumerate}
-
-\begin{figure}[!ht]
-    \centering
-    \captura[0.9\textwidth]{manuales/docente_carta_form}
-    \caption{Formulario de creación/edición de carta temática.}
-    \label{fig:m-carta-form}
-\end{figure}
-
-Una carta publicada puede ser \emph{despublicada} y editada nuevamente; el historial se conserva en la base de datos.
-
-\paragraph{Requisitos de recuperación}\mbox{}\\
-El flujo es análogo al de cartas temáticas. Desde ``Requisitos de Rec.'' \textbf{→ ``Nuevo requisito''} se abre el formulario correspondiente (Figura~\ref{fig:m-req-form}).
-
-\begin{figure}[!ht]
-    \centering
-    \captura[0.9\textwidth]{manuales/docente_requisito_form}
-    \caption{Formulario de requisitos de recuperación.}
-    \label{fig:m-req-form}
-\end{figure}
-
-\paragraph{Autoevaluación docente}\mbox{}\\
-Cuando el administrador abre un periodo de autoevaluación, aparece en la sección ``Autoevaluación'' el formulario correspondiente (Figura~\ref{fig:m-autoeval}). El formulario admite ocho tipos de pregunta:
-
-\begin{itemize}
-    \item Texto corto, texto largo.
-    \item Opción única (radios), casillas (múltiple).
-    \item Sí/No, escala lineal.
-    \item Lista desplegable, cuadrícula.
-\end{itemize}
-
-\begin{figure}[!ht]
-    \centering
-    \captura[0.9\textwidth]{manuales/docente_autoevaluacion}
-    \caption{Formulario de autoevaluación con renderizado dinámico.}
-    \label{fig:m-autoeval}
-\end{figure}
-
-Puede guardar respuestas parciales (\emph{en progreso}) y regresar más tarde. Al terminar, presione \textbf{``Enviar''}; el sistema calcula automáticamente el puntaje ponderado y le muestra el nivel de desempeño alcanzado. Una vez enviada, la autoevaluación no puede modificarse.
-
-\subsubsection{Uso — rol Administrador}
-
-El \emph{dashboard} del administrador (Figura~\ref{fig:m-admin-dash}) muestra indicadores globales: total de profesores, cumplimiento por departamento, autoevaluaciones enviadas, etc.
-
-\begin{figure}[!ht]
-    \centering
-    \captura[0.9\textwidth]{manuales/admin_dashboard}
-    \caption{Dashboard del administrador.}
+    \captura[0.9\textwidth]{screenshots/admin_dashboard}
+    \caption{Dashboard del administrador con KPIs globales y cumplimiento por departamento.}
     \label{fig:m-admin-dash}
 \end{figure}
 
 \paragraph{Gestión de profesores}\label{apx:manual-user:admin-profesores}\mbox{}\\
-Desde ``Profesores'' (Figura~\ref{fig:m-admin-prof}) puede:
-\begin{itemize}
-    \item Crear un profesor con correo, nombre y departamento.
-    \item Editar los datos del perfil.
-    \item Restablecer la contraseña (se genera una temporal que debe entregarle al profesor).
-    \item Desactivar cuentas.
-\end{itemize}
+Desde el menú \textbf{``Profesores''} se accede a la lista de docentes registrados (Figura~\ref{fig:m-admin-prof-lista}). La tabla muestra nombre, número económico, departamento, correo de acceso y estado (activo/inactivo). Un buscador filtra por nombre, correo o número económico. Cada fila tiene tres acciones: \emph{Editar}, \emph{Contraseña} y \emph{Eliminar}.
 
 \begin{figure}[!ht]
     \centering
-    \captura[0.9\textwidth]{manuales/admin_profesores}
-    \caption{Gestión de profesores.}
-    \label{fig:m-admin-prof}
+    \captura[0.9\textwidth]{screenshots/admin_profesores_lista}
+    \caption{Lista de profesores registrados.}
+    \label{fig:m-admin-prof-lista}
 \end{figure}
 
-\paragraph{Gestión de periodos y banderas por recurso}\label{apx:manual-user:admin-periodos}\mbox{}\\
-Desde ``Catálogos $\to$ Periodos'' se crean los trimestres del calendario académico (clave, fecha de inicio, fecha de fin). Cada periodo tiene tres banderas independientes, representadas como \emph{chips} clicables:
+\textit{Crear un profesor.} El botón \textbf{``+ Nuevo Profesor''} abre una modal con dos secciones: \emph{Datos del profesor} (nombre, número económico y departamento) y \emph{Cuenta de acceso} (correo institucional y contraseña temporal), como se muestra en la Figura~\ref{fig:m-admin-prof-nuevo}. La contraseña se muestra en claro para que el administrador la copie y la entregue al profesor por el canal seguro que la División utilice.
+
+\begin{figure}[!ht]
+    \centering
+    \captura[0.9\textwidth]{screenshots/admin_profesor_nuevo}
+    \caption{Modal ``Nuevo Profesor'' con datos de ejemplo listos para guardar.}
+    \label{fig:m-admin-prof-nuevo}
+\end{figure}
+
+\textit{Editar un profesor.} El botón \emph{Editar} en cada fila abre la modal de edición (Figura~\ref{fig:m-admin-prof-editar}) con los mismos campos que la creación más una casilla \textit{Cuenta activa}, que permite deshabilitar temporalmente el acceso sin borrar la cuenta ni los documentos asociados.
+
+\begin{figure}[!ht]
+    \centering
+    \captura[0.9\textwidth]{screenshots/admin_profesor_editar}
+    \caption{Modal ``Editar Perfil del Profesor''.}
+    \label{fig:m-admin-prof-editar}
+\end{figure}
+
+\textit{Restablecer contraseña.} El botón \emph{Contraseña} abre la modal de restablecimiento (Figura~\ref{fig:m-admin-prof-pass}): el administrador escribe la nueva contraseña, la valida y se la entrega al docente. El campo se muestra en claro para que se pueda verificar la captura antes de guardar.
+
+\begin{figure}[!ht]
+    \centering
+    \captura[0.9\textwidth]{screenshots/admin_profesor_contrasena}
+    \caption{Modal ``Restablecer contraseña'' de un profesor.}
+    \label{fig:m-admin-prof-pass}
+\end{figure}
+
+\paragraph{Catálogos institucionales}\label{apx:manual-user:admin-catalogos}\mbox{}\\
+La sección \textbf{Catálogos} agrupa las entidades estables del sistema: departamentos, licenciaturas, posgrados, áreas, UEA y periodos. Cada catálogo sigue el mismo patrón: tabla + botón ``+~Nuevo''. Al pulsar el botón se abre una modal con los campos correspondientes.
+
+\begin{figure}[!ht]
+    \centering
+    \captura[0.9\textwidth]{screenshots/admin_catalogo_departamento_nuevo}
+    \caption{Nuevo departamento: clave y nombre.}
+    \label{fig:m-admin-cat-depto}
+\end{figure}
+
+\begin{figure}[!ht]
+    \centering
+    \captura[0.9\textwidth]{screenshots/admin_catalogo_licenciatura_nuevo}
+    \caption{Nueva licenciatura: clave, nombre y departamento.}
+    \label{fig:m-admin-cat-lic}
+\end{figure}
+
+\begin{figure}[!ht]
+    \centering
+    \captura[0.9\textwidth]{screenshots/admin_catalogo_posgrado_nuevo}
+    \caption{Nuevo posgrado: clave, nombre y departamento.}
+    \label{fig:m-admin-cat-pos}
+\end{figure}
+
+\begin{figure}[!ht]
+    \centering
+    \captura[0.9\textwidth]{screenshots/admin_catalogo_area_nuevo}
+    \caption{Nueva área: nombre y descripción (permite distinguir áreas homónimas).}
+    \label{fig:m-admin-cat-area}
+\end{figure}
+
+\textit{UEA — carga individual y carga masiva.} La sección de UEA es la que administra más registros (más de 600 en el catálogo oficial), por lo que ofrece dos flujos: alta individual y carga masiva por CSV. La Figura~\ref{fig:m-admin-cat-uea-nuevo} muestra la modal de alta individual (programa, clave, nombre, tipo, trimestre, créditos, área y liga), y la Figura~\ref{fig:m-admin-cat-uea-csv} muestra la modal de importación por CSV, con la descripción del formato aceptado y el selector de archivo.
+
+\begin{figure}[!ht]
+    \centering
+    \captura[0.9\textwidth]{screenshots/admin_catalogo_uea_nuevo}
+    \caption{Alta individual de una UEA.}
+    \label{fig:m-admin-cat-uea-nuevo}
+\end{figure}
+
+\begin{figure}[!ht]
+    \centering
+    \captura[0.9\textwidth]{screenshots/admin_catalogo_uea_csv}
+    \caption{Importación masiva de UEA desde un archivo CSV.}
+    \label{fig:m-admin-cat-uea-csv}
+\end{figure}
+
+\paragraph{Periodos y banderas por recurso}\label{apx:manual-user:admin-periodos}\mbox{}\\
+Desde \textbf{``Catálogos $\to$ Periodos''} se crean los trimestres del calendario académico (Figura~\ref{fig:m-admin-cat-periodo}) indicando clave, fecha de inicio, fecha de fin y las banderas de activación por recurso.
+
+\begin{figure}[!ht]
+    \centering
+    \captura[0.9\textwidth]{screenshots/admin_catalogo_periodo_nuevo}
+    \caption{Gestión de periodos: tabla con los \emph{chips} de banderas por recurso y modal de alta.}
+    \label{fig:m-admin-cat-periodo}
+\end{figure}
+
+Cada periodo tiene tres banderas independientes, representadas como \emph{chips} clicables en la tabla:
 
 \begin{itemize}
     \item \textbf{Cartas activas} — habilita a los profesores a capturar y publicar cartas temáticas para ese trimestre.
@@ -153,77 +211,136 @@ Un \emph{chip} verde con círculo relleno ($\bullet$) indica bandera activa; gri
 
 Los periodos con datos históricos (respuestas de autoevaluación, cartas publicadas) no pueden borrarse; el diálogo de eliminación muestra una \emph{vista previa} de qué se perdería antes de confirmar.
 
-\paragraph{Constructor de formularios de autoevaluación}\mbox{}\\
-El constructor (Figura~\ref{fig:m-admin-builder}) permite crear formularios versionados. Cada formulario se compone de \emph{secciones}, cada sección de \emph{preguntas}, y algunas preguntas de \emph{opciones}.
+\paragraph{Constructor de formularios de autoevaluación}\label{apx:manual-user:admin-autoeval}\mbox{}\\
+La sección \textbf{Autoevaluación} lista los formularios existentes con su estado (\emph{Borrador} o \emph{Publicado}), periodo, número de preguntas y número de respuestas recibidas (Figura~\ref{fig:m-admin-autoeval-lista}). Un formulario en Borrador puede editarse libremente; uno Publicado se conserva versionado y sus respuestas quedan asociadas a esa versión concreta.
 
 \begin{figure}[!ht]
     \centering
-    \captura[0.9\textwidth]{manuales/admin_formulario_builder}
-    \caption{Constructor de formularios (form-builder).}
-    \label{fig:m-admin-builder}
+    \captura[0.9\textwidth]{screenshots/admin_autoevaluacion_lista}
+    \caption{Lista de formularios de autoevaluación con estado, periodo, preguntas y respuestas.}
+    \label{fig:m-admin-autoeval-lista}
 \end{figure}
 
-\textbf{Reglas de validación:} la suma de los pesos de las secciones debe ser exactamente 100~\%. El sistema no permite publicar un formulario que no cumpla esta regla.
-
-\textbf{Vista previa antes de publicar:} en la parte superior del constructor existe la opción ``Vista previa'' que abre el formulario tal como lo verá el profesor (sin permitir enviar), útil para revisar el orden de secciones, la redacción de preguntas y el aspecto de las cuadrículas antes de publicar. La vista previa no se ve afectada por respuestas de prueba, pues es de sólo lectura.
-
-Un formulario sólo aparece ante los profesores cuando (a) se ``publica'' desde el constructor y (b) el periodo correspondiente tiene la bandera ``Autoevaluación activa'' encendida (véase Subsubsección~\ref{apx:manual-user:admin-periodos}).
-
-\paragraph{Reportes}\mbox{}\\
-Desde ``Reportes'' (Figura~\ref{fig:m-admin-rep}) puede consultar cumplimiento por departamento, licenciatura, profesor o periodo.
+El botón \textbf{``+ Nuevo Formulario''} abre la modal de creación (Figura~\ref{fig:m-admin-autoeval-nueva}), donde se define el título, una descripción opcional y el periodo destino. Un periodo sólo aparece en el selector cuando aún no tiene un formulario asignado, para evitar conflictos de versionado.
 
 \begin{figure}[!ht]
     \centering
-    \captura[0.9\textwidth]{manuales/admin_reportes}
-    \caption{Panel de reportes.}
+    \captura[0.9\textwidth]{screenshots/admin_autoevaluacion_nueva}
+    \caption{Modal ``Nuevo Formulario de Autoevaluación''.}
+    \label{fig:m-admin-autoeval-nueva}
+\end{figure}
+
+Una vez creado el formulario, se accede al \emph{constructor} — una vista dividida en tres pestañas: \emph{Preguntas}, \emph{Niveles de Desempeño} y \emph{Estadísticas}.
+
+\textit{Preguntas.} La pestaña \emph{Preguntas} (Figura~\ref{fig:m-admin-autoeval-preg}) permite añadir secciones (con un peso porcentual que debe sumar 100~\% entre todas) y, dentro de cada sección, preguntas. Se soportan ocho tipos de pregunta: texto corto, texto largo, opción única (radios), casillas (múltiple), sí/no, escala lineal, lista desplegable y cuadrícula. Cada pregunta tiene su peso propio dentro de la sección y sus opciones tienen puntajes individuales usados para el cálculo del resultado.
+
+\begin{figure}[!ht]
+    \centering
+    \captura[0.9\textwidth]{screenshots/admin_autoevaluacion_preguntas}
+    \caption{Constructor de formularios: pestaña ``Preguntas'' con secciones plegables y pesos.}
+    \label{fig:m-admin-autoeval-preg}
+\end{figure}
+
+\textbf{Regla de validación:} la suma de los pesos de las secciones debe ser exactamente 100~\%. El sistema no permite publicar un formulario que no cumpla esta regla.
+
+\textit{Niveles de desempeño.} La pestaña \emph{Niveles de Desempeño} (Figura~\ref{fig:m-admin-autoeval-niv}) define los rangos de puntaje que traducen el porcentaje obtenido en una etiqueta cualitativa (por ejemplo, \emph{Desempeño deficiente}, \emph{Desempeño regular}, \emph{Buen desempeño}, \emph{Sobresaliente}). Cada nivel define un umbral mínimo y opcionalmente un color.
+
+\begin{figure}[!ht]
+    \centering
+    \captura[0.9\textwidth]{screenshots/admin_autoevaluacion_niveles}
+    \caption{Constructor de formularios: pestaña ``Niveles de Desempeño''.}
+    \label{fig:m-admin-autoeval-niv}
+\end{figure}
+
+\textit{Estadísticas.} La pestaña \emph{Estadísticas} (Figura~\ref{fig:m-admin-autoeval-stats}) resume las respuestas recibidas mientras el formulario está publicado: número de respuestas, promedio general, promedio por sección, distribución por nivel de desempeño y porcentajes por pregunta. Es una \emph{fotografía} calculada al abrir la vista; para tener datos frescos hay que recargar.
+
+\begin{figure}[!ht]
+    \centering
+    \captura[0.9\textwidth]{screenshots/admin_autoevaluacion_estadisticas}
+    \caption{Constructor de formularios: pestaña ``Estadísticas'' con las respuestas ya enviadas.}
+    \label{fig:m-admin-autoeval-stats}
+\end{figure}
+
+Un formulario sólo aparece ante los profesores cuando (a) se \textbf{publica} desde el constructor y (b) el periodo correspondiente tiene la bandera ``Autoevaluación activa'' encendida (véase Subsubsección~\ref{apx:manual-user:admin-periodos}).
+
+\paragraph{Reportes}\label{apx:manual-user:admin-reportes}\mbox{}\\
+Desde el menú \textbf{Reportes} (Figura~\ref{fig:m-admin-rep}) el administrador puede descargar hojas de cálculo Excel con el estado del cumplimiento por tipo de documento y por periodo. El formulario permite elegir tipo de documento (Cartas, Requisitos, Autoevaluación), periodo (o \textit{Todos los periodos}) y opcionalmente el departamento del profesor.
+
+\begin{figure}[!ht]
+    \centering
+    \captura[0.9\textwidth]{screenshots/admin_reportes}
+    \caption{Panel de reportes con selección de tipo, periodo y departamento.}
     \label{fig:m-admin-rep}
 \end{figure}
 
-\textbf{Descarga a Excel:} cada tarjeta de reporte incluye un botón ``Descargar XLSX'' que exporta la tabla actualmente visible (con los filtros aplicados: periodo, departamento, etc.) a un archivo \texttt{.xlsx} compatible con Microsoft Excel y con LibreOffice Calc. El nombre del archivo incluye el tipo de reporte y la fecha de exportación (por ejemplo, \texttt{cumplimiento\_depto\_2026-P.xlsx}).
+Si se elige ``Todos los periodos'', el archivo generado contiene una hoja por cada periodo con datos, para poder comparar trimestres desde el mismo documento. El nombre del archivo incluye el tipo de reporte y la fecha de exportación (por ejemplo, \texttt{cumplimiento\_cartas\_2026-08-23.xlsx}).
 
-\textbf{Momento de cálculo:} los reportes se calculan al momento de la consulta contra la base de datos actual, no a partir de un \emph{job} diferido. Cualquier autoevaluación enviada, carta publicada o requisito capturado en los segundos previos se reflejará al recargar la vista. En cambio, un archivo XLSX descargado es una \emph{fotografía} en ese instante; para tener datos frescos hay que descargarlo de nuevo.
+\textbf{Momento de cálculo:} los reportes se generan al momento de la descarga contra la base de datos actual, no a partir de un \emph{job} diferido. Cualquier autoevaluación enviada, carta publicada o requisito capturado en los segundos previos se refleja en el archivo. Un XLSX descargado es una \emph{fotografía} en ese instante; para tener datos frescos hay que volver a descargarlo.
 
-\paragraph{Catálogos institucionales}\mbox{}\\
-Desde el menú ``Catálogos'' se administran: departamentos, licenciaturas, posgrados, áreas, UEAs y periodos. Cada periodo tiene banderas por recurso (cartas, requisitos, autoevaluación) que determinan qué se puede capturar en ese trimestre.
+% ═══════════════════════════════════════════════════════════════
+\subsubsection{Uso — rol Profesor}\label{apx:manual-user:profesor}
 
-\subsubsection{Uso — Vista pública}
+Al iniciar sesión como profesor se muestra el \emph{dashboard} personal (Figura~\ref{fig:m-docente-dash}), con: tarjetas de resumen del periodo activo para cada uno de los tres recursos (Cartas Temáticas, Requisitos de Recuperación y Formularios de Autoevaluación pendientes), listas recientes agrupadas por periodo, y un menú lateral con acceso directo a los tres módulos.
 
-La vista pública ``Explorar'' (Figura~\ref{fig:m-publico}) está disponible sin iniciar sesión. Presenta una cascada:
+\begin{figure}[!ht]
+    \centering
+    \captura[0.9\textwidth]{screenshots/docente_dashboard}
+    \caption{Dashboard del profesor.}
+    \label{fig:m-docente-dash}
+\end{figure}
+
+\paragraph{Crear una Carta Temática}\mbox{}\\
+Desde ``Cartas Temáticas $\to$ Nueva'' se abre el formulario de creación (Figura~\ref{fig:m-docente-carta}). Los pasos son:
 
 \begin{enumerate}
-    \item Selección de periodo (trimestre).
-    \item Selección de programa (licenciatura o posgrado).
-    \item Selección de UEA.
-    \item Listado de cartas y requisitos publicados para esa UEA en ese periodo.
+    \item Buscar la UEA por clave o nombre y seleccionar una opción del autocompletado.
+    \item El sistema asigna automáticamente el periodo cuya bandera ``Cartas'' esté activa; el profesor no lo elige.
+    \item Completar los datos del grupo (nombre, ID, horario, modalidad).
+    \item Completar el contenido: descripción, objetivos, contenidos, evaluación, bibliografía. Todos los campos son de texto libre; los que se dejen vacíos no aparecerán en la vista pública.
+    \item Presionar \textbf{Guardar} para conservar como \emph{borrador} o \textbf{Publicar} para que sea visible en la vista pública.
 \end{enumerate}
 
 \begin{figure}[!ht]
     \centering
-    \captura[0.9\textwidth]{manuales/publico_explorar}
-    \caption{Vista pública ``Explorar''.}
-    \label{fig:m-publico}
+    \captura[0.9\textwidth]{screenshots/docente_carta_form}
+    \caption{Formulario de creación de carta temática.}
+    \label{fig:m-docente-carta}
 \end{figure}
 
-Al hacer clic en un documento, se abre en una nueva pestaña con formato imprimible.
+Una carta publicada puede ser \emph{despublicada} y editada nuevamente; el historial se conserva en la base de datos y la URL pública se mantiene tras cada re-publicación.
 
-Cada carta y cada requisito publicados tienen una URL propia y estable, apta para citarse en un plan de estudios, un correo o un temario:
+\paragraph{Crear una Evaluación de Recuperación}\mbox{}\\
+El flujo es análogo al de cartas temáticas. Desde ``Requisitos de Rec. $\to$ Nuevo'' se abre el formulario correspondiente (Figura~\ref{fig:m-docente-req}), con búsqueda de UEA, asignación automática de periodo y campos específicos del documento (requisitos, lugar, fecha y recursos para la evaluación).
 
-\begin{itemize}
-    \item Cartas temáticas: \texttt{https://cyad.uam.mx/publico/cartas/\textless id\textgreater}
-    \item Requisitos de recuperación: \texttt{https://cyad.uam.mx/publico/requisitos/\textless id\textgreater}
-\end{itemize}
+\begin{figure}[!ht]
+    \centering
+    \captura[0.9\textwidth]{screenshots/docente_requisito_form}
+    \caption{Formulario de creación de evaluación de recuperación.}
+    \label{fig:m-docente-req}
+\end{figure}
 
-Ambas páginas aplican un estilo optimizado para impresión: los menús, botones y elementos de navegación quedan ocultos al enviar a impresora o al ``Guardar como PDF'' del navegador.
+\paragraph{Contestar la autoevaluación docente}\mbox{}\\
+Cuando el administrador abre un periodo de autoevaluación, el formulario correspondiente aparece en la sección \textbf{Autoevaluación} del profesor. Al hacer clic en \emph{Responder} se abre el formulario dinámico (Figura~\ref{fig:m-docente-autoeval}), renderizado a partir de las secciones, preguntas y opciones definidas por el administrador.
 
+\begin{figure}[!ht]
+    \centering
+    \captura[0.9\textwidth]{screenshots/docente_autoevaluacion_contestar}
+    \caption{Formulario de autoevaluación renderizado dinámicamente para el profesor.}
+    \label{fig:m-docente-autoeval}
+\end{figure}
+
+Se pueden guardar respuestas parciales (\emph{en progreso}) y regresar más tarde. Al terminar se presiona \textbf{Enviar}; el sistema calcula automáticamente el puntaje ponderado y muestra el nivel de desempeño alcanzado. Una vez enviada, la autoevaluación no puede modificarse desde la interfaz.
+
+% ═══════════════════════════════════════════════════════════════
 \subsubsection{Preguntas frecuentes}
 
 \begin{description}
-    \item[¿Qué pasa si publico una carta con errores?] Puede despublicarla, corregirla y volver a publicarla; la URL pública se mantiene.
+    \item[¿Qué pasa si publico una carta con errores?] Puede despublicarse, corregirla y volver a publicarla; la URL pública se mantiene.
     \item[¿Puedo tener varias cartas para la misma UEA en el mismo trimestre?] Sí, si son grupos distintos (identificados por \emph{Nombre del grupo} + \emph{ID del grupo}).
     \item[¿Se puede reabrir una autoevaluación ya enviada?] No desde la interfaz. El administrador puede reabrirla desde la base de datos si es estrictamente necesario.
-    \item[¿Cómo se calcula el puntaje?] Cada pregunta tiene un peso; el peso de la sección multiplica al de sus preguntas; la suma final da el porcentaje total. Los niveles de desempeño (por ejemplo, \emph{Insuficiente}, \emph{Suficiente}, \emph{Satisfactorio}, \emph{Sobresaliente}) se definen por rangos configurables por el administrador.
+    \item[¿Cómo se calcula el puntaje?] Cada pregunta tiene un peso; el peso de la sección multiplica al de sus preguntas; la suma final da el porcentaje total. Los niveles de desempeño (\emph{Desempeño deficiente}, \emph{Regular}, \emph{Bueno}, \emph{Sobresaliente}) se definen por rangos configurables por el administrador.
     \item[¿La vista pública muestra los datos personales del profesor?] No. Muestra el nombre público (que el administrador puede editar), la UEA y el contenido académico. Datos como correo o matrícula quedan privados.
-    \item[¿Cómo exporto los reportes a Excel?] Desde ``Reportes'', cada tarjeta tiene un botón ``Descargar XLSX'' que exporta la tabla visible con los filtros aplicados. El archivo es compatible con Excel y LibreOffice, e incluye la fecha de exportación en el nombre.
-    \item[¿Cómo activo la autoevaluación para un trimestre?] Desde ``Catálogos $\to$ Periodos'', localice el periodo en la tabla y haga clic sobre el \emph{chip} ``Autoevaluación'' hasta ponerlo en verde ($\bullet$). Se apagará automáticamente en el periodo que la tuviera antes, garantizando que sólo un trimestre esté activo a la vez.
-    \item[¿Puedo cambiar mi propia contraseña como profesor?] En esta versión del sistema no. Solicite al administrador que se la restablezca por una de su elección; el administrador podrá hacerlo desde ``Profesores $\to$ Restablecer contraseña''.
+    \item[¿Cómo exporto los reportes a Excel?] Desde ``Reportes'', se selecciona tipo, periodo y opcionalmente departamento, y se pulsa \emph{Descargar Excel}. El archivo es compatible con Microsoft Excel y con LibreOffice Calc, y su nombre incluye la fecha de exportación.
+    \item[¿Cómo activo la autoevaluación para un trimestre?] Desde ``Catálogos $\to$ Periodos'', se localiza el periodo en la tabla y se hace clic sobre el \emph{chip} ``Autoevaluación'' hasta ponerlo en verde ($\bullet$). Se apagará automáticamente en el periodo que la tuviera antes, garantizando que sólo un trimestre esté activo a la vez.
+    \item[¿Puedo cambiar mi propia contraseña como profesor?] En esta versión del sistema no. Es necesario solicitar al administrador que la restablezca por una de su elección desde ``Profesores $\to$ Restablecer contraseña''.
 \end{description}

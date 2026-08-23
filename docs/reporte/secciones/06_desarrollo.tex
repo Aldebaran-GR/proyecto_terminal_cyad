@@ -206,7 +206,14 @@ La misma tabla ofrece dos acciones adicionales por fila:
     \item \textbf{Activar / desactivar}: \texttt{POST} \code{/api/v1/usuarios/{id}/toggle-activo/} conmuta \texttt{is\_active}. Al desactivar, el usuario queda con sesión expirada al vencer su \emph{access token} actual (máximo 60~minutos) y no podrá refrescar ni iniciar sesión de nuevo.
 \end{itemize}
 
-\emph{Imagen sugerida}: [IMAGEN PENDIENTE: captura de la modal ``Crear profesor'' desde \texttt{/admin/profesores} mostrando los campos \emph{nombre}, \emph{correo institucional}, \emph{número económico}, \emph{departamento} y \emph{contraseña}. Ubicar en \texttt{Imagenes/screenshots/admin\_crear\_profesor.png} y referenciarla como \texttt{fig:admin\_crear\_profesor}.]
+La Figura~\ref{fig:admin_crear_profesor} muestra la modal ``Nuevo Profesor'' con los campos que consume el formulario descrito arriba.
+
+\begin{figure}[!ht]
+    \centering
+    \captura[0.9\textwidth]{screenshots/admin_profesor_nuevo}
+    \caption{Modal ``Nuevo Profesor'' desde \texttt{/admin/profesores}.}
+    \label{fig:admin_crear_profesor}
+\end{figure}
 
 \subsubsection{Roles y permisos}
 
@@ -262,7 +269,14 @@ El modelo \texttt{UEA} refuerza dos reglas del dominio como \emph{constraints} d
 
 Estas reglas se validan además en el \emph{serializer} para producir mensajes de error legibles.
 
-\emph{Imagen sugerida}: [IMAGEN PENDIENTE: captura de \texttt{/admin/catalogos/uea} mostrando la tabla de UEAs, el buscador y el botón \emph{Importar CSV}. Ubicar en \texttt{Imagenes/screenshots/admin\_uea.png} y referenciarla como \texttt{fig:admin\_uea}.]
+La Figura~\ref{fig:admin_uea} ilustra la modal de importación de UEAs desde CSV en \texttt{/admin/catalogos/uea}, con el formato de columnas aceptado.
+
+\begin{figure}[!ht]
+    \centering
+    \captura[0.9\textwidth]{screenshots/admin_catalogo_uea_csv}
+    \caption{Importación masiva de UEAs desde CSV en \texttt{/admin/catalogos/uea}.}
+    \label{fig:admin_uea}
+\end{figure}
 
 \subsection{Módulo 3: habilitación de periodos por recurso}
 
@@ -304,7 +318,14 @@ Como \texttt{Periodo} es referenciado por múltiples entidades con FK \texttt{PR
     \item Si el usuario confirma, \texttt{perform\_destroy} realiza una cascada manual dentro de una transacción atómica en el orden \emph{Respuesta} $\rightarrow$ \emph{Formulario} $\rightarrow$ \emph{CartaTematica} $\rightarrow$ \emph{RequisitoRecuperacion} $\rightarrow$ \emph{Periodo}.
 \end{enumerate}
 
-\emph{Imagen sugerida}: [IMAGEN PENDIENTE: captura de \texttt{/admin/catalogos/periodos} con tres \emph{chips} por fila (Cartas, Requisitos, Autoevaluación) mostrando el estado activo/inactivo. Ubicar en \texttt{Imagenes/screenshots/admin\_periodos.png} y referenciarla como \texttt{fig:admin\_periodos}.]
+La Figura~\ref{fig:admin_periodos} muestra la tabla de periodos con los tres \emph{chips} por fila (Cartas, Requisitos, Autoevaluación) que reflejan el estado activo/inactivo, junto con el modal de alta.
+
+\begin{figure}[!ht]
+    \centering
+    \captura[0.9\textwidth]{screenshots/admin_catalogo_periodo_nuevo}
+    \caption{\texttt{/admin/catalogos/periodos}: tabla con \emph{chips} de banderas por recurso y modal ``Nuevo periodo''.}
+    \label{fig:admin_periodos}
+\end{figure}
 
 \subsection{Módulo 4: cartas temáticas y requisitos de recuperación}
 
@@ -324,7 +345,7 @@ El flujo operativo del profesor es el siguiente:
 
 Al crearse el documento, el \emph{ViewSet} llena automáticamente los campos \texttt{profesor\_nombre} y \texttt{profesor\_correo} como \emph{snapshots} de identidad (\S~\ref{subsec:versionado}), extraídos del perfil del profesor autenticado. Estos \emph{snapshots} sobreviven a la eventual desactivación o eliminación del usuario.
 
-Las evidencias visuales del listado del menú principal del profesor y del formulario de creación de documentos se muestran en las Figuras~\ref{fig:docente_cartas_lista}, \ref{fig:docente_carta_form} y \ref{fig:docente_requisito_form} de la Sección~\ref{sec:resultados}.
+Las evidencias visuales del dashboard del profesor y de los formularios de creación de documentos se muestran en las Figuras~\ref{fig:docente_dashboard}, \ref{fig:docente_carta_form} y \ref{fig:docente_requisito_form} de la Sección~\ref{sec:resultados}.
 
 \subsubsection{Reglas de propiedad y ediciones fuera de tiempo}
 
@@ -425,7 +446,21 @@ El sistema separa dos \emph{serializers} de \texttt{OpcionPregunta}: \texttt{Opc
     \item Al éxito, se muestra un \emph{ResultCard} con el puntaje obtenido, el porcentaje global, el nivel de desempeño asignado, la observación textual del nivel y el \textbf{desglose por sección} (porcentaje de la sección y aporte al total).
 \end{enumerate}
 
-\emph{Imágenes sugeridas}: además de la Figura~\ref{fig:admin_formulario_builder} y la Figura~\ref{fig:docente_autoevaluacion} de la Sección~\ref{sec:resultados}, [IMAGEN PENDIENTE: captura del panel de \emph{Niveles de desempeño} con los rangos y sus colores. Ubicar en \texttt{Imagenes/screenshots/admin\_niveles\_desempeno.png} como \texttt{fig:admin\_niveles\_desempeno}] y [IMAGEN PENDIENTE: captura del \emph{ResultCard} tras enviar la autoevaluación, mostrando puntaje, porcentaje, nivel y desglose por sección. Ubicar en \texttt{Imagenes/screenshots/profesor\_resultado\_autoeval.png} como \texttt{fig:profesor\_resultado\_autoeval}].
+Además del constructor completo (Figura~\ref{fig:admin_formulario_builder}) y del formulario contestado por el profesor (Figura~\ref{fig:docente_autoevaluacion}) que se muestran en la Sección~\ref{sec:resultados}, la Figura~\ref{fig:admin_niveles_desempeno} presenta el panel de \emph{Niveles de Desempeño} con los rangos configurables por el administrador, y las estadísticas agregadas por formulario se ilustran en la Figura~\ref{fig:admin_estadisticas_autoeval} más adelante en esta sección.
+
+\begin{figure}[!ht]
+    \centering
+    \captura[0.9\textwidth]{screenshots/admin_autoevaluacion_niveles}
+    \caption{Panel ``Niveles de Desempeño'' del constructor de autoevaluaciones.}
+    \label{fig:admin_niveles_desempeno}
+\end{figure}
+
+\begin{figure}[!ht]
+    \centering
+    \captura[0.9\textwidth]{screenshots/admin_autoevaluacion_estadisticas}
+    \caption{Pestaña ``Estadísticas'' del constructor con las respuestas ya enviadas: promedio general, porcentaje por sección, distribución por nivel de desempeño y por pregunta.}
+    \label{fig:admin_estadisticas_autoeval}
+\end{figure}
 
 \subsection{Módulo 6: reportes de cumplimiento y descargas XLSX}\label{subsec:modulo6-reportes}
 
@@ -481,7 +516,7 @@ Al hacer clic sobre un documento, la aplicación abre \texttt{/publico/cartas/\{
 
 Un cliente axios separado (\texttt{publicClient} en \texttt{src/api/publico.js}) \textbf{sin} interceptores de JWT sirve estos endpoints, para evitar enviar \texttt{Authorization} cuando el usuario está autenticado en otra pestaña. El backend igualmente ignoraría el token porque los endpoints públicos usan \texttt{AllowAny}, pero el aislamiento simplifica el razonamiento.
 
-La evidencia visual está en la Figura~\ref{fig:publico_explorar} de la Sección~\ref{sec:resultados}. La vista de detalle imprimible (\texttt{fig:publico\_carta}) está pendiente de captura: [IMAGEN PENDIENTE: captura de \texttt{/publico/cartas/\{id\}} con \emph{banner} del documento, campos de contenido y botón \emph{Imprimir}. Ubicar en \texttt{Imagenes/screenshots/publico\_carta.png}].
+La evidencia visual está en la Figura~\ref{fig:publico_explorar} de la Sección~\ref{sec:resultados}, y la vista de detalle imprimible se muestra en la Figura~\ref{fig:publico_carta}.
 
 \subsection{Aspectos transversales}
 
