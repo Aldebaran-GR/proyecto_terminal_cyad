@@ -1,30 +1,10 @@
-\documentclass{computacion}
-\titulo{Manual de Instalación --- Sistema CyAD}
-\tipo{Proyecto Tecnológico}
-\version{Manual de Instalación}
-\trimestre{2026-Primavera}
-\alumno{[TU NOMBRE]}
-\matricula{[MATRÍCULA]}
+\subsection{Manual de instalación}\label{apx:manual-instalacion}
+\justifying
 
-\asesor{[Grado. Nombres Apellidos del Asesor]}
-\categoria{[Profesor Titular/Asociado/Asistente]}
-\departamento{[Departamento de Sistemas]}
-\correo{[correo@azc.uam.mx]}
-
-\coasesor{}
-\categoriacoasesor{}
-\departamentocoasesor{}
-\correocoasesor{}
-
-\begin{document}
-\portada
-\setcounter{page}{1}
-\pagestyle{fancy}
-
-\section{Introducción}
+\subsubsection{Introducción}
 Este manual describe cómo instalar y ejecutar el \emph{Sistema para la gestión de formularios sobre los cursos y autoevaluaciones docentes} de la División de Ciencias y Artes para el Diseño (CyAD) en un entorno de desarrollo local. La instalación en producción sigue los mismos pasos, cambiando únicamente el archivo \texttt{.env} y el modo de servido (\emph{gunicorn} + \emph{Nginx}).
 
-\section{Prerrequisitos}
+\subsubsection{Prerrequisitos}
 
 \begin{longtable}{p{0.30\textwidth} p{0.20\textwidth} p{0.42\textwidth}}
     \toprule
@@ -47,9 +27,8 @@ En Windows se recomienda utilizar \emph{Git Bash} o \emph{PowerShell}. En Linux/
 
 \textbf{Nota importante para Windows:} el instalador oficial de PostgreSQL no agrega \texttt{psql} al \texttt{PATH} del sistema. Si al escribir \texttt{psql --version} obtiene ``command not found'', agregue manualmente la carpeta \texttt{C:\textbackslash Program Files\textbackslash PostgreSQL\textbackslash 17\textbackslash bin} (ajuste al número de versión que tenga) a la variable de entorno \texttt{Path} de Windows, o invoque \texttt{psql} por ruta completa.
 
-\subsection{Requisitos mínimos de hardware}
-
-Las siguientes cifras se derivan de la reprueba de despliegue documentada en \texttt{hallazgos\_despliegue.pdf}: el proceso de Django consume aproximadamente 120~MB de RAM en reposo, PostgreSQL alrededor de 80~MB con la carga de demostración, y el \emph{build} del frontend (\texttt{npm run build}) alcanza un pico de \textasciitilde 250~MB durante la compilación (no en tiempo de ejecución).
+\paragraph{Requisitos mínimos de hardware}\mbox{}\\
+Las siguientes cifras se derivan de la reprueba de despliegue realizada durante el desarrollo del proyecto: el proceso de Django consume aproximadamente 120~MB de RAM en reposo, PostgreSQL alrededor de 80~MB con la carga de demostración, y el \emph{build} del frontend (\texttt{npm run build}) alcanza un pico de \textasciitilde 250~MB durante la compilación (no en tiempo de ejecución).
 
 \begin{longtable}{p{0.30\textwidth} p{0.20\textwidth} p{0.20\textwidth} p{0.22\textwidth}}
     \toprule
@@ -68,7 +47,7 @@ Sobre CPU: cualquier procesador x86-64 de doble núcleo publicado en la última 
 
 Ancho de banda: al ser una aplicación de tipo formulario, el consumo por sesión es del orden de decenas de KB por interacción. Cualquier enlace institucional (\textgreater\,10~Mbps) resulta holgado.
 
-\section{Clonado del repositorio}
+\subsubsection{Clonado del repositorio}
 
 \begin{quote}
 \ttfamily
@@ -76,10 +55,9 @@ git clone \textless URL\_del\_repositorio\textgreater\ proyecto\_terminal\_cyad 
 cd proyecto\_terminal\_cyad
 \end{quote}
 
-\section{Configuración del backend}
+\subsubsection{Configuración del backend}
 
-\subsection{Entorno virtual}
-
+\paragraph{Entorno virtual}\mbox{}\\
 \begin{quote}
 \ttfamily
 cd backend \\
@@ -89,8 +67,7 @@ source .venv/bin/activate\ \ \# Linux/macOS \\
 pip install -r requirements.txt
 \end{quote}
 
-\subsection{Base de datos}
-
+\paragraph{Base de datos}\mbox{}\\
 El proyecto utiliza por defecto el usuario \texttt{postgres} y una base de datos llamada \texttt{proyecto\_terminal\_cyad} (ver \texttt{backend/.env.example}). La forma recomendada es dejar que el script auxiliar cree la base de datos automáticamente después de configurar el archivo \texttt{.env} (siguiente sección):
 
 \begin{quote}
@@ -114,8 +91,7 @@ CREATE USER cyad\_user WITH PASSWORD 'cyad\_pass'; \\
 GRANT ALL PRIVILEGES ON DATABASE proyecto\_terminal\_cyad TO cyad\_user;
 \end{quote}
 
-\subsection{Archivo \texttt{.env}}
-
+\paragraph{Archivo \texttt{.env}}\mbox{}\\
 \textbf{Ubicación:} el archivo \texttt{.env} que Django lee debe estar en la carpeta \texttt{backend/} (donde vive \texttt{manage.py}), \emph{no} en la raíz del repositorio. El repositorio incluye \texttt{backend/.env.example} como plantilla; cópielo y ajuste los valores:
 
 \begin{quote}
@@ -144,15 +120,13 @@ CORS_ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
 
 Para producción se debe establecer \texttt{DEBUG=False}, definir \texttt{ALLOWED\_HOSTS} con el dominio real y generar una \texttt{SECRET\_KEY} con \texttt{python -c "from django.core.management.utils import get\_random\_secret\_key; print(get\_random\_secret\_key())"}.
 
-\subsection{Migraciones}
-
+\paragraph{Migraciones}\mbox{}\\
 \begin{quote}
 \ttfamily
 python manage.py migrate
 \end{quote}
 
-\subsection{Bootstrap unificado (Windows PowerShell)}
-
+\paragraph{Bootstrap unificado (Windows PowerShell)}\mbox{}\\
 Como atajo, el repositorio incluye \texttt{scripts/bootstrap.ps1} que orquesta \emph{creación de BD}, \emph{migraciones} y \emph{siembra de datos de demo} en un único comando. Debe ejecutarse desde la raíz del repositorio, con el \texttt{.venv} ya activo y \texttt{backend/.env} configurado:
 
 \begin{quote}
@@ -164,8 +138,7 @@ El script imprime tres pasos numerados (\texttt{[1/3]} crear BD, \texttt{[2/3]} 
 
 Para Linux o macOS, ejecute los tres pasos por separado siguiendo la siguiente sección.
 
-\subsection{Datos iniciales}
-
+\paragraph{Datos iniciales}\mbox{}\\
 La forma más rápida de dejar el sistema listo para usar es ejecutar el \emph{seed} de demostración, que es idempotente y crea catálogos, UEAs, usuarios de prueba, periodo activo y el formulario de autoevaluación en un solo comando:
 
 \begin{quote}
@@ -200,8 +173,8 @@ Al finalizar, existirán las siguientes cuentas:
 
 Estas contraseñas deben cambiarse antes del despliegue a producción.
 
-\section{Instalación mínima sin datos de demo}
-\label{sec:install-limpia}
+\subsubsection{Instalación mínima sin datos de demo}
+\label{apx:manual-inst:install-limpia}
 
 Para un despliegue institucional real (donde el administrador cargará sus propios departamentos, licenciaturas, UEAs y profesores) no se debe ejecutar \texttt{seed\_demo.py}: ese \emph{script} crea un profesor de prueba, un formulario ya publicado y respuestas ficticias que ensucian la base de datos productiva. La ruta correcta es:
 
@@ -232,8 +205,7 @@ Para un despliegue institucional real (donde el administrador cargará sus propi
 
 Los usuarios de profesor se crean posteriormente desde \texttt{Profesores $\to$ Nuevo profesor} en la interfaz de administrador; cada creación genera un correo + contraseña temporal que el administrador entrega personalmente al docente.
 
-\subsection{Servidor de desarrollo del backend}
-
+\paragraph{Servidor de desarrollo del backend}\mbox{}\\
 \begin{quote}
 \ttfamily
 python manage.py runserver 8000
@@ -241,7 +213,7 @@ python manage.py runserver 8000
 
 El backend queda disponible en \texttt{http://localhost:8000}. La documentación interactiva de la API está en \texttt{http://localhost:8000/api/docs/}.
 
-\section{Configuración del frontend}
+\subsubsection{Configuración del frontend}
 
 En una terminal aparte:
 
@@ -262,7 +234,7 @@ VITE_API_URL=http://tu-servidor:8000/api/v1
 
 \textbf{Nota:} el nombre correcto de la variable es \texttt{VITE\_API\_URL} (verificable en \texttt{frontend/src/api/client.js}).
 
-\section{Verificación}
+\subsubsection{Verificación}
 
 \begin{enumerate}
     \item Abra \texttt{http://localhost:5173/} — debe mostrarse la vista pública ``Explorar''.
@@ -271,7 +243,7 @@ VITE_API_URL=http://tu-servidor:8000/api/v1
     \item Ejecute la suite de pruebas: \texttt{pytest} desde \texttt{backend/}. Todas deben pasar.
 \end{enumerate}
 
-\section{Comandos administrativos útiles}
+\subsubsection{Comandos administrativos útiles}
 
 \begin{longtable}{p{0.50\textwidth} p{0.42\textwidth}}
     \toprule
@@ -290,13 +262,12 @@ VITE_API_URL=http://tu-servidor:8000/api/v1
     \bottomrule
 \end{longtable}
 
-\section{Despliegue en servidor de producción}
-\label{sec:despliegue-produccion}
+\subsubsection{Despliegue en servidor de producción}
+\label{apx:manual-inst:despliegue-produccion}
 
-Esta sección describe el despliegue en un servidor Linux (Ubuntu 22.04 LTS o Debian 12) que atienda las peticiones institucionales. El manual asume que ya se cumplen los prerrequisitos (Sección~\ref{sec:install-limpia} inclusive: base limpia, superuser creado, catálogos cargados).
+Esta subsubsección describe el despliegue en un servidor Linux (Ubuntu 22.04 LTS o Debian 12) que atienda las peticiones institucionales. El manual asume que ya se cumplen los prerrequisitos (Subsubsección~\ref{apx:manual-inst:install-limpia} inclusive: base limpia, superuser creado, catálogos cargados).
 
-\subsection{Topología recomendada}
-
+\paragraph{Topología recomendada}\mbox{}\\
 \begin{Verbatim}[fontsize=\small, frame=single]
         Internet (HTTPS 443)
                 |
@@ -321,8 +292,7 @@ Esta sección describe el despliegue en un servidor Linux (Ubuntu 22.04 LTS o De
 
 Todos los servicios corren en la misma máquina en el caso más simple; se pueden separar la BD y el \emph{app server} sin cambios en el código, ajustando \texttt{DB\_HOST} en el \texttt{.env}.
 
-\subsection{Variables de entorno de producción}
-
+\paragraph{Variables de entorno de producción}\mbox{}\\
 El archivo \texttt{backend/.env} para producción difiere del de desarrollo en cinco campos críticos:
 
 \begin{Verbatim}[fontsize=\small, frame=single]
@@ -355,8 +325,7 @@ chmod 600 backend/.env \\
 chown www-data:www-data backend/.env
 \end{quote}
 
-\subsection{Base de datos en producción}
-
+\paragraph{Base de datos en producción}\mbox{}\\
 Crear un rol \emph{no-superuser} dedicado y una base propiedad de ese rol:
 
 \begin{quote}\ttfamily
@@ -378,8 +347,7 @@ Respaldo diario recomendado vía \emph{cron}:
 
 Rotar respaldos con \texttt{logrotate} o un simple \texttt{find /var/backups/cyad -mtime +30 -delete}.
 
-\subsection{Backend con gunicorn + systemd}
-
+\paragraph{Backend con gunicorn + systemd}\mbox{}\\
 Instalar gunicorn en el mismo entorno virtual:
 
 \begin{quote}\ttfamily
@@ -422,8 +390,7 @@ sudo systemctl enable --now cyad-backend \\
 sudo systemctl status cyad-backend
 \end{quote}
 
-\subsection{Archivos estáticos del backend}
-
+\paragraph{Archivos estáticos del backend}\mbox{}\\
 El Django admin y \texttt{drf-spectacular} sirven CSS/JS estáticos que Nginx debe entregar directamente. Recolectarlos en \texttt{backend/staticfiles/} (ruta ya definida como \texttt{STATIC\_ROOT} en \texttt{config/settings.py}):
 
 \begin{quote}\ttfamily
@@ -432,8 +399,7 @@ python manage.py collectstatic --noinput
 
 Debe re-ejecutarse en cada actualización que añada estáticos nuevos.
 
-\subsection{Frontend en producción}
-
+\paragraph{Frontend en producción}\mbox{}\\
 Compilar los estáticos del SPA:
 
 \begin{quote}\ttfamily
@@ -450,8 +416,7 @@ Antes de compilar, crear \texttt{frontend/.env.production} con la URL pública d
 VITE_API_URL=https://cyad.uam.mx/api/v1
 \end{Verbatim}
 
-\subsection{Nginx como reverse proxy}
-
+\paragraph{Nginx como reverse proxy}\mbox{}\\
 Crear \texttt{/etc/nginx/sites-available/cyad.conf}:
 
 \begin{Verbatim}[fontsize=\small, frame=single]
@@ -503,8 +468,7 @@ sudo nginx -t \\
 sudo systemctl reload nginx
 \end{quote}
 
-\subsection{HTTPS con Let's Encrypt}
-
+\paragraph{HTTPS con Let's Encrypt}\mbox{}\\
 Con \emph{certbot} instalado (\texttt{sudo apt install certbot python3-certbot-nginx}):
 
 \begin{quote}\ttfamily
@@ -513,8 +477,7 @@ sudo certbot --nginx -d cyad.uam.mx
 
 Certbot modifica el bloque de Nginx anterior para añadir escucha en \texttt{:443} con el certificado emitido y una redirección \texttt{80 $\to$ 443}. La renovación se instala automáticamente vía \emph{systemd timer}; verificar con \texttt{sudo systemctl status certbot.timer}.
 
-\subsection{Actualizaciones (redeploy)}
-
+\paragraph{Actualizaciones (redeploy)}\mbox{}\\
 Cada nueva versión del código se despliega con:
 
 \begin{quote}\ttfamily
@@ -534,8 +497,7 @@ sudo systemctl reload nginx
 
 Es recomendable hacer \texttt{pg\_dump} antes de cada \texttt{migrate} en producción.
 
-\subsection{Nota para despliegues en Windows Server}
-
+\paragraph{Nota para despliegues en Windows Server}\mbox{}\\
 Si el hosting institucional obliga a usar Windows Server, gunicorn no está disponible. La alternativa recomendada es \emph{waitress}:
 
 \begin{quote}\ttfamily
@@ -545,15 +507,13 @@ waitress-serve --port=8000 config.wsgi:application
 
 Como \emph{reverse proxy} se usa IIS con el módulo \emph{URL Rewrite} + \emph{Application Request Routing}, o bien \emph{Nginx for Windows} con una configuración equivalente a la mostrada arriba. El servicio se registra con \texttt{sc.exe create} o mediante \emph{NSSM}. El resto de la configuración (\texttt{.env}, base de datos, \texttt{collectstatic}, \texttt{npm run build}) es idéntica.
 
-\section{Solución de problemas}
+\subsubsection{Solución de problemas}
 
 \begin{itemize}
     \item \textbf{Error \texttt{FATAL: password authentication failed}}: verifique \texttt{DB\_USER} y \texttt{DB\_PASSWORD} en \texttt{.env} y que el usuario tenga permisos sobre la base de datos.
     \item \textbf{Error CORS al iniciar sesión desde el frontend}: verifique que \texttt{CORS\_ALLOWED\_ORIGINS} incluya \texttt{http://localhost:5173}.
     \item \textbf{\texttt{429 Too Many Requests} al iniciar sesión}: se activó el \emph{rate limiting} (5 intentos por minuto). Espere 60 segundos y reintente.
     \item \textbf{Puerto 5173 ocupado}: Vite usará automáticamente el siguiente puerto libre; verifique la URL impresa al inicio.
-    \item \textbf{\texttt{seed\_demo.py} falla con ``La suma de pesos de las secciones debe ser 100\,\%'' }: en algunas versiones del script las secciones se crean sin \texttt{peso}, lo que hace fallar la publicación del formulario. Como \emph{workaround} temporal, edite \texttt{backend/scripts/seed\_demo.py} y añada \texttt{peso=Decimal("50")} a la creación de cada una de las dos \texttt{Seccion.objects.create(\ldots)}, luego ejecute \texttt{python manage.py flush --noinput} y vuelva a lanzar el seed. Ver \texttt{hallazgos\_despliegue.pdf} para detalles.
+    \item \textbf{\texttt{seed\_demo.py} falla con ``La suma de pesos de las secciones debe ser 100\,\%''}: en algunas versiones del script las secciones se crean sin \texttt{peso}, lo que hace fallar la publicación del formulario. Como \emph{workaround} temporal, edite \texttt{backend/scripts/seed\_demo.py} y añada \texttt{peso=Decimal("50")} a la creación de cada una de las dos \texttt{Seccion.objects.create(\ldots)}, luego ejecute \texttt{python manage.py flush --noinput} y vuelva a lanzar el seed.
     \item \textbf{\texttt{psql: command not found} en Windows}: agregue \texttt{C:\textbackslash Program Files\textbackslash PostgreSQL\textbackslash<versión>\textbackslash bin} al \texttt{PATH}, o llame a \texttt{psql} por ruta completa. Alternativamente, use \emph{pgAdmin} o el script \texttt{scripts/create\_db.py}, que utiliza el driver Python y no requiere \texttt{psql} en el PATH.
 \end{itemize}
-
-\end{document}

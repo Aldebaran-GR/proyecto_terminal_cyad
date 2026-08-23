@@ -34,7 +34,7 @@ La Figura~\ref{fig:arquitectura} muestra el diagrama de arquitectura y la Figura
 \begin{itemize}
     \item \texttt{backend/}: proyecto Django. Contiene la configuración global (\texttt{config/}), las seis apps (\texttt{core}, \texttt{accounts}, \texttt{catalogos}, \texttt{documentos}, \texttt{autoevaluacion}, \texttt{reportes}), \emph{scripts} operativos (\texttt{scripts/}), suite de pruebas (\texttt{tests/}), \texttt{conftest.py} con \emph{fixtures} globales de \emph{pytest} y \texttt{requirements.txt}.
     \item \texttt{frontend/}: aplicación React + Vite. Contiene \texttt{src/pages/} (por rol: \texttt{admin/}, \texttt{profesor/}, \texttt{publico/}), \texttt{src/components/ui/} (componentes reutilizables), \texttt{src/api/} (clientes HTTP), \texttt{src/auth/} (contexto de sesión y \emph{guards}), \texttt{src/layouts/} y \texttt{src/utils/}.
-    \item \texttt{docs/}: documentación complementaria; contiene este reporte (\texttt{docs/reporte/}) con los manuales embebidos como subsecciones del anexo B (fuentes en \texttt{docs/reporte/manuales/}).
+    \item \texttt{docs/}: documentación complementaria; contiene este reporte (\texttt{docs/reporte/}) con los manuales de instalación y de usuario integrados como subsecciones nativas del Apéndice~\ref{sec:apendices}.
 \end{itemize}
 
 \subsection{Metodología y evolución del desarrollo}\label{subsec:metodologia-desarrollo}
@@ -97,7 +97,7 @@ Fragmentos del código de estos modelos se recogen en el Apéndice~\ref{apx:codi
     \item[\texttt{Posgrado}] Programa de posgrado (maestría, especialidad o doctorado). Mismos campos que \texttt{Licenciatura}.
     \item[\texttt{Area}] Área curricular a la que pertenece una UEA (troncal, optativa de concentración, etc.). Campos: \texttt{nombre}, \texttt{descripcion}, con \texttt{unique\_together=(nombre, descripcion)}.
     \item[\texttt{UEA}] Unidad de Enseñanza-Aprendizaje. Campos: \texttt{clave} (normalizada a mayúsculas en \texttt{save()}), \texttt{nombre}, \texttt{trimestre} (entero 1--12 o cadena romana ``VII-XII'' para optativas), \texttt{tipo} $\in$ \{\emph{OBL}, \emph{OPT}, \emph{OTRO}\}, \texttt{creditos}, \texttt{liga} (URL oficial de la UEA). FKs con \texttt{on\_delete=PROTECT}: a \texttt{Licenciatura}, \texttt{Posgrado} y \texttt{Area}, todas opcionales. Tres \emph{constraints} declarativos: \texttt{CheckConstraint} \texttt{uea\_xor\_licenciatura\_posgrado} (exactamente uno de los dos programas está poblado); y dos \texttt{UniqueConstraint} parciales sobre (\texttt{clave}, \texttt{licenciatura}) y (\texttt{clave}, \texttt{posgrado}).
-    \item[\texttt{Periodo}] Periodo trimestral (por ejemplo, ``25-O''). Campos: \texttt{clave} (única), \texttt{fecha\_inicio}, \texttt{fecha\_fin}, tres booleanos independientes de habilitación por recurso (\texttt{activo\_cartas}, \texttt{activo\_requisitos}, \texttt{activo\_autoevaluacion}), un booleano derivado \texttt{activo} (OR de los tres, sincronizado en \texttt{save()}) y \texttt{estado} (habilitación general). El \texttt{save()} sobreescrito garantiza la invariante \emph{``a lo sumo un periodo activo por recurso''} apagando el \emph{flag} correspondiente en los demás periodos dentro de la misma transacción.
+    \item[\texttt{Periodo}] Periodo trimestral (por ejemplo, ``26-P''). Campos: \texttt{clave} (única), \texttt{fecha\_inicio}, \texttt{fecha\_fin}, tres booleanos independientes de habilitación por recurso (\texttt{activo\_cartas}, \texttt{activo\_requisitos}, \texttt{activo\_autoevaluacion}), un booleano derivado \texttt{activo} (OR de los tres, sincronizado en \texttt{save()}) y \texttt{estado} (habilitación general). El \texttt{save()} sobreescrito garantiza la invariante \emph{``a lo sumo un periodo activo por recurso''} apagando el \emph{flag} correspondiente en los demás periodos dentro de la misma transacción.
 \end{description}
 
 \emph{Relaciones}:
@@ -237,7 +237,7 @@ python manage.py loaddata \
     catalogos/fixtures/periodos.json
 \end{Verbatim}
 
-Las rutas indicadas son relativas a \texttt{backend/}. El comando \texttt{loaddata} es idempotente (usa la clave primaria de cada registro), por lo que se puede re-ejecutar sin duplicar datos: si un registro ya existe, lo actualiza. Esto reduce el tiempo de puesta en marcha del sistema a minutos, sin capturar manualmente los mismos datos. La creación del entorno virtual (\texttt{python -m venv .venv}), la instalación de dependencias y la configuración del archivo \texttt{.env} se documentan en el manual de instalación.
+Las rutas indicadas son relativas a \texttt{backend/}. El comando \texttt{loaddata} es idempotente (usa la clave primaria de cada registro), por lo que se puede re-ejecutar sin duplicar datos: si un registro ya existe, lo actualiza. Esto reduce el tiempo de puesta en marcha del sistema a minutos, sin capturar manualmente los mismos datos. La creación del entorno virtual (\texttt{python -m venv .venv}), la instalación de dependencias y la configuración del archivo \texttt{.env} se documentan en el manual de instalación (Apéndice~\ref{apx:manual-instalacion}, \hyperref[apx:manual-instalacion]{``Manual de instalación''}).
 
 \subsubsection{Importación masiva de UEAs desde CSV}
 
@@ -254,7 +254,7 @@ El modelo \texttt{UEA} refuerza dos reglas del dominio como \emph{constraints} d
 
 \begin{itemize}
     \item \texttt{uea\_xor\_licenciatura\_posgrado}: una UEA pertenece a una licenciatura \emph{o} a un posgrado, nunca a ambos ni a ninguno (\S~\ref{subsec:constraints}).
-    \item Dos \texttt{UniqueConstraint} parciales que hacen la clave única por programa: la clave ``11XY99'' puede coexistir en una licenciatura y en un posgrado, pero no repetirse dentro del mismo programa.
+    \item Dos \texttt{UniqueConstraint} parciales que hacen la clave única por programa: la clave ``1400027'' puede coexistir en una licenciatura y en un posgrado, pero no repetirse dentro del mismo programa.
 \end{itemize}
 
 Estas reglas se validan además en el \emph{serializer} para producir mensajes de error legibles.

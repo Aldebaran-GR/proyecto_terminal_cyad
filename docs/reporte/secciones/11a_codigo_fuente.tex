@@ -1,9 +1,9 @@
-\section{Código fuente}\label{apx:codigo}
+\subsection{Código fuente}\label{apx:codigo}
 \justifying
 
 Este apéndice presenta \emph{fragmentos curados} del código fuente que ilustran las decisiones de diseño más importantes. El código fuente completo (backend, frontend, tests, scripts y fixtures) se entrega en el archivo \texttt{codigo\_fuente.zip} de la carpeta de entrega, generado con \texttt{git archive HEAD}.
 
-\subsection{Estructura del repositorio}
+\subsubsection{Estructura del repositorio}
 
 \begin{Verbatim}[fontsize=\small, frame=single]
 proyecto_terminal_cyad/
@@ -40,7 +40,7 @@ proyecto_terminal_cyad/
 `-- README.md
 \end{Verbatim}
 
-\subsection{Backend --- Modelo de Usuario con roles}
+\subsubsection{Backend --- Modelo de Usuario con roles}
 
 Fragmento de \texttt{backend/accounts/models.py}: modelo de usuario personalizado con dos roles.
 
@@ -62,7 +62,7 @@ class Usuario(AbstractBaseUser, PermissionsMixin):
     objects = UsuarioManager()
 \end{Verbatim}
 
-\subsection{Backend --- Perfil de Profesor y Periodo}\label{lst:modelos_perfil_periodo}
+\subsubsection{Backend --- Perfil de Profesor y Periodo}\label{lst:modelos_perfil_periodo}
 
 Fragmento de \texttt{backend/accounts/models.py} y \texttt{backend/catalogos/models.py}: el perfil \texttt{Profesor} sincroniza \texttt{Usuario.is\_active} con \texttt{Profesor.estado} para que desactivar el perfil bloquee el inicio de sesión, y el modelo \texttt{Periodo} garantiza en \texttt{save()} la invariante ``a lo sumo un periodo activo por recurso''.
 
@@ -124,7 +124,7 @@ class Periodo(TimeStampedModel):
         super().save(*args, **kwargs)
 \end{Verbatim}
 
-\subsection{Backend --- JWT y throttling}
+\subsubsection{Backend --- JWT y throttling}
 
 Fragmento de \texttt{backend/config/settings.py}.
 
@@ -153,7 +153,7 @@ SIMPLE_JWT = {
 }
 \end{Verbatim}
 
-\subsection{Backend --- Documento academico base}
+\subsubsection{Backend --- Documento academico base}
 
 Fragmento de \texttt{backend/documentos/models.py}. Clase abstracta con campos comunes y \emph{snapshot} de identidad del profesor.
 
@@ -188,7 +188,7 @@ class DocumentoAcademicoBase(TimeStampedModel):
         abstract = True
 \end{Verbatim}
 
-\subsection{Backend --- Modelos del \emph{form-builder}}\label{lst:modelos_form_builder}
+\subsubsection{Backend --- Modelos del \emph{form-builder}}\label{lst:modelos_form_builder}
 
 Fragmento de \texttt{backend/autoevaluacion/models.py}: cinco modelos que definen la estructura editable de un formulario. El ciclo de vida de \texttt{Formulario} (\texttt{publicar}/\texttt{cerrar}/\texttt{reabrir}/\texttt{despublicar}/\texttt{publicar\_revision}) se detalla en el listado \hyperref[lst:formulario_states]{``Backend --- Ciclo de vida de Formulario''}.
 
@@ -272,7 +272,7 @@ class FilaCuadricula(models.Model):
     orden    = models.PositiveSmallIntegerField(default=0)
 \end{Verbatim}
 
-\subsection{Backend --- Captura de respuestas y baremo}\label{lst:modelos_respuesta}
+\subsubsection{Backend --- Captura de respuestas y baremo}\label{lst:modelos_respuesta}
 
 Fragmento de \texttt{backend/autoevaluacion/models.py}: modelos que persisten cada envío del profesor y el baremo (\texttt{NivelDesempeno}) contra el que se evalúa. El algoritmo que rellena \texttt{puntaje\_obtenido}, \texttt{porcentaje}, \texttt{nivel\_desempeno} y crea un \texttt{RespuestaSeccion} por sección se muestra en el listado \hyperref[lst:scoring]{``Backend --- Scoring ponderado de autoevaluación''}. El campo \texttt{RespuestaSeccion.peso} es un \emph{snapshot} del peso vigente al enviar, precisamente para que el desglose histórico permanezca estable si el administrador reajusta pesos y publica una revisión.
 
@@ -356,7 +356,7 @@ class RespuestaSeccion(models.Model):
         unique_together = [["respuesta", "seccion"]]
 \end{Verbatim}
 
-\subsection{Backend --- Scoring ponderado de autoevaluacion}\label{lst:scoring}
+\subsubsection{Backend --- Scoring ponderado de autoevaluacion}\label{lst:scoring}
 
 Fragmento simplificado de \texttt{backend/autoevaluacion/views.py}: calculo del puntaje ponderado por seccion, con manejo por tipo de pregunta y \emph{snapshot} del peso en \texttt{RespuestaSeccion}.
 
@@ -414,7 +414,7 @@ def _calcular_puntaje(respuesta):
             )
 \end{Verbatim}
 
-\subsection{Backend --- Permisos por rol}\label{lst:permissions}
+\subsubsection{Backend --- Permisos por rol}\label{lst:permissions}
 
 Fragmento del sistema de permisos que garantiza que cada profesor solo edite sus documentos.
 
@@ -429,7 +429,7 @@ class IsOwnerProfesorOrAdminReadOnly(permissions.BasePermission):
         return obj.profesor and obj.profesor.usuario_id == request.user.id
 \end{Verbatim}
 
-\subsection{Frontend --- Cliente HTTP con refresh automatico de JWT}\label{lst:jwt-refresh}
+\subsubsection{Frontend --- Cliente HTTP con refresh automatico de JWT}\label{lst:jwt-refresh}
 
 Fragmento de \texttt{frontend/src/api/client.js}.
 
@@ -464,7 +464,7 @@ client.interceptors.response.use(
 );
 \end{Verbatim}
 
-\subsection{Frontend --- Guard de rutas por rol}\label{lst:role-route}
+\subsubsection{Frontend --- Guard de rutas por rol}\label{lst:role-route}
 
 Fragmento de \texttt{frontend/src/auth/RoleRoute.jsx}.
 
@@ -483,7 +483,7 @@ export const ProfesorRoute = ({ children }) =>
   <RoleRoute role="PROFESOR" >{children}</RoleRoute>;
 \end{Verbatim}
 
-\subsection{Frontend --- Renderizador dinamico de preguntas}\label{lst:renderer_preguntas}
+\subsubsection{Frontend --- Renderizador dinamico de preguntas}\label{lst:renderer_preguntas}
 
 Fragmento de \code{frontend/src/pages/profesor/autoevaluacion/AutoevaluacionFormPage.jsx} que despacha por tipo de pregunta.
 
@@ -503,7 +503,7 @@ function PreguntaRenderer({ pregunta, value, onChange }) {
 }
 \end{Verbatim}
 
-\subsection{Backend --- Comando de importacion CSV para UEA}\label{lst:import_csv}
+\subsubsection{Backend --- Comando de importacion CSV para UEA}\label{lst:import_csv}
 
 Comando de gestion \texttt{python manage.py cargar\_catalogos\_csv} para carga masiva idempotente. Fragmento simplificado.
 
@@ -530,7 +530,7 @@ class Command(BaseCommand):
                 )
 \end{Verbatim}
 
-\subsection{Backend --- Constraint XOR y unicidad parcial de UEA}\label{lst:uea_constraints}
+\subsubsection{Backend --- Constraint XOR y unicidad parcial de UEA}\label{lst:uea_constraints}
 
 Fragmento de \texttt{backend/catalogos/models.py}: reglas de integridad declarativas que fuerzan que una UEA pertenezca a licenciatura \emph{o} a posgrado (nunca a ambos ni a ninguno), y que la clave sea unica dentro de cada programa.
 
@@ -557,7 +557,7 @@ class Meta:
     ]
 \end{Verbatim}
 
-\subsection{Backend --- Ciclo de vida de Formulario}\label{lst:formulario_states}
+\subsubsection{Backend --- Ciclo de vida de Formulario}\label{lst:formulario_states}
 
 Fragmento de \texttt{backend/autoevaluacion/models.py}: validacion de estructura y transiciones de la maquina de estados \texttt{BORRADOR} $\leftrightarrow$ \texttt{PUBLICADO} $\leftrightarrow$ \texttt{CERRADO}.
 
@@ -603,7 +603,7 @@ def publicar_revision(self):
     self.save()
 \end{Verbatim}
 
-\subsection{Backend --- Login con distincion de cuenta desactivada}\label{lst:login_diff}
+\subsubsection{Backend --- Login con distincion de cuenta desactivada}\label{lst:login_diff}
 
 Fragmento de \texttt{backend/accounts/serializers.py}. El \emph{serializer} personalizado distingue \emph{credenciales invalidas} de \emph{cuenta desactivada} devolviendo un codigo \texttt{account\_disabled} sin filtrar la existencia del correo.
 
@@ -627,7 +627,7 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         return data
 \end{Verbatim}
 
-\subsection{Frontend --- Generacion de XLSX por periodo}\label{lst:xlsx_por_periodo}
+\subsubsection{Frontend --- Generacion de XLSX por periodo}\label{lst:xlsx_por_periodo}
 
 Fragmento simplificado de \code{frontend/src/pages/admin/reportes/ReportesPage.jsx}: descarga en el navegador con \emph{SheetJS}, agrupando las filas por periodo en hojas separadas del mismo libro.
 
@@ -662,7 +662,7 @@ async function descargarDocumento(publicPath, fetcher) {
 }
 \end{Verbatim}
 
-\subsection{Nota sobre el listado completo}
+\subsubsection{Nota sobre el listado completo}
 
 Los archivos aquí incluidos son una selección representativa de los fragmentos más ilustrativos. El código fuente completo (backend, frontend, \emph{tests}, scripts y fixtures) se entrega en el archivo \texttt{codigo\_fuente.zip}. Para regenerarlo desde el repositorio se ejecuta desde la raíz del proyecto:
 
