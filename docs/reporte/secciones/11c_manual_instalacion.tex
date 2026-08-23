@@ -62,7 +62,7 @@ Al finalizar imprime una tabla legible en la consola y deja el detalle en \textt
 
 \begin{quote}
 \ttfamily
-git clone \textless URL\_del\_repositorio\textgreater\ proyecto\_terminal\_cyad \\
+git clone --depth 1 \textless URL\_del\_repositorio\textgreater\ proyecto\_terminal\_cyad \\
 cd proyecto\_terminal\_cyad
 \end{quote}
 
@@ -224,6 +224,8 @@ El \emph{seed} es idempotente y crea catálogos, UEAs, usuarios de prueba, perio
     Administrador & admin@cyad.uam.mx & Admin1234! \\
     \midrule
     Profesor & profesor@cyad.uam.mx & Profesor1234! \\
+    \midrule
+    Profesor (segundo) & profesor2@cyad.uam.mx & Profesor1234! \\
     \bottomrule
 \end{longtable}
 
@@ -257,6 +259,7 @@ VITE_API_URL=http://tu-servidor:8000/api/v1
     \item Inicie sesión con el superuser creado en el paso 5 de la Subsubsección~\ref{apx:manual-inst:install-limpia} (o, si sembró la demo, con \texttt{admin@cyad.uam.mx / Admin1234!}). Debe redirigir al \emph{dashboard} de administrador.
     \item Si sembró la demo, cierre sesión e inicie con \texttt{profesor@cyad.uam.mx / Profesor1234!}. Debe redirigir al \emph{dashboard} de profesor.
     \item Ejecute la suite de pruebas: \texttt{pytest} desde \texttt{backend/}. Todas deben pasar.
+    \item \emph{Opcional}: con el backend corriendo y el seed cargado, ejecute \texttt{python scripts/smoke\_test.py} desde \texttt{backend/}. Verifica de extremo a extremo, vía HTTP, el \emph{login} de \texttt{admin} y \texttt{profesor}, \texttt{/auth/me}, catálogos, formularios disponibles, creación de respuesta, creación de carta temática y los reportes de administrador.
 \end{enumerate}
 
 \subsubsection{Comandos administrativos útiles}
@@ -534,4 +537,5 @@ Como \emph{reverse proxy} se usa IIS con el módulo \emph{URL Rewrite} + \emph{A
     \item \textbf{Puerto 5173 ocupado}: Vite usará automáticamente el siguiente puerto libre; verifique la URL impresa al inicio.
     \item \textbf{\texttt{cargar\_catalogos\_csv} reporta áreas no encontradas}: significa que el CSV trae un par \texttt{(area\_nombre, area\_descripcion)} que no está precargado en \texttt{areas.json}. Agregue el área faltante (ya sea editando \texttt{areas.json} y volviendo a hacer \texttt{loaddata}, o desde \texttt{/admin/catalogos/areas} en la UI) y vuelva a ejecutar el comando; las UEAs afectadas se actualizarán con el área correcta.
     \item \textbf{\texttt{psql: command not found} en Windows}: agregue \texttt{C:\textbackslash Program Files\textbackslash PostgreSQL\textbackslash<versión>\textbackslash bin} al \texttt{PATH}, o llame a \texttt{psql} por ruta completa. Alternativamente, use \emph{pgAdmin} o el script \texttt{scripts/create\_db.py}, que utiliza el driver Python y no requiere \texttt{psql} en el PATH.
+    \item \textbf{\texttt{scripts/create\_db.py} responde \texttt{'utf-8' codec can't decode byte \dots: invalid continuation byte}}: es una traducción cifrada de un fallo de conexión de \emph{libpq} cuyo mensaje viene en la codificación regional de Windows (\emph{cp1252}) y no en \emph{utf-8}. La causa típica es autenticación fallida contra PostgreSQL: revise \texttt{DB\_USER} y \texttt{DB\_PASSWORD} en \texttt{backend/.env} y confirme que ese rol pueda conectarse a la base \texttt{postgres} (\texttt{psql -U <usuario> -d postgres}). El mismo síntoma aparece si el servicio de PostgreSQL no está corriendo.
 \end{itemize}
