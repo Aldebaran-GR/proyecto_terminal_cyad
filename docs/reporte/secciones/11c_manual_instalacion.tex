@@ -2,7 +2,7 @@
 \justifying
 
 \subsubsection{Introducción}
-Este manual describe cómo instalar y ejecutar el \emph{Sistema para la gestión de formularios sobre los cursos y autoevaluaciones docentes} de la División de Ciencias y Artes para el Diseño (CyAD) en un entorno de desarrollo local. La instalación en producción sigue los mismos pasos, cambiando únicamente el archivo \texttt{.env} y el modo de servido (\emph{gunicorn} + \emph{Nginx}).
+Este manual describe cómo instalar y ejecutar el \emph{Sistema para la gestión de formularios sobre los cursos y autoevaluaciones docentes} de la División de Ciencias y Artes para el Diseño (CyAD) en un entorno de desarrollo local. La instalación en producción sigue los mismos pasos, cambiando únicamente el archivo \texttt{.env} y el modo de servido (\emph{gunicorn} + \emph{Nginx}, ver Subsubsección~\ref{apx:manual-inst:despliegue-produccion}).
 
 \subsubsection{Prerrequisitos}
 
@@ -28,7 +28,7 @@ En Windows se recomienda utilizar \emph{Git Bash} o \emph{PowerShell}. En Linux/
 \textbf{Nota importante para Windows:} el instalador oficial de PostgreSQL no agrega \texttt{psql} al \texttt{PATH} del sistema. Si al escribir \texttt{psql --version} obtiene ``command not found'', agregue manualmente la carpeta \texttt{C:\textbackslash Program Files\textbackslash PostgreSQL\textbackslash 17\textbackslash bin} (ajuste al número de versión que tenga) a la variable de entorno \texttt{Path} de Windows, o invoque \texttt{psql} por ruta completa.
 
 \paragraph{Requisitos mínimos de hardware}\mbox{}\\
-Las siguientes cifras se derivan de la reprueba de despliegue realizada durante el desarrollo del proyecto: el proceso de Django consume aproximadamente 120~MB de RAM en reposo, PostgreSQL alrededor de 80~MB con la carga de demostración, y el \emph{build} del frontend (\texttt{npm run build}) alcanza un pico de \textasciitilde 250~MB durante la compilación (no en tiempo de ejecución).
+Las siguientes cifras se derivan de mediciones sobre un entorno con \texttt{seed\_demo} cargado, ejecutando \texttt{backend/scripts/medir\_hardware.py} (descrito al final de este apartado): el proceso de Django consume aproximadamente 120~MB de RAM en reposo, PostgreSQL alrededor de 80~MB con la carga de demostración, y el \emph{build} del frontend (\texttt{npm run build}) alcanza un pico de \textasciitilde 250~MB durante la compilación (no en tiempo de ejecución).
 
 \begin{longtable}{p{0.30\textwidth} p{0.20\textwidth} p{0.20\textwidth} p{0.22\textwidth}}
     \toprule
@@ -47,6 +47,17 @@ Sobre CPU: cualquier procesador x86-64 de doble núcleo publicado en la última 
 
 Ancho de banda: al ser una aplicación de tipo formulario, el consumo por sesión es del orden de decenas de KB por interacción. Cualquier enlace institucional (\textgreater\,10~Mbps) resulta holgado.
 
+\paragraph{Reproducibilidad de las cifras}\mbox{}\\
+Las tres cifras anteriores (Django en reposo, PostgreSQL con demo, pico de \texttt{npm run build}) se pueden reproducir sobre cualquier host ejecutando el \emph{script} versionado \texttt{backend/scripts/medir\_hardware.py}. El \emph{script}:
+
+\begin{itemize}
+    \item arranca \texttt{manage.py runserver --noreload} en un subproceso, sirve una petición a \texttt{/api/schema/} para forzar la inicialización de la app y muestrea el \texttt{RSS} del proceso con \texttt{psutil};
+    \item enumera todos los procesos \texttt{postgres} visibles al usuario y suma su \texttt{RSS} (refleja la carga vigente de la base; ideal medirlo después de correr \texttt{python scripts/seed\_demo.py});
+    \item ejecuta \texttt{npm run build} en \texttt{frontend/} y muestrea el RSS del árbol de procesos cada 200~ms hasta que termina, guardando el máximo.
+\end{itemize}
+
+Al finalizar imprime una tabla legible en la consola y deja el detalle en \texttt{backend/scripts/medir\_hardware.out.json}, con la marca de tiempo y el hardware del host (\texttt{platform.uname()}, RAM total, vCPU). Requiere \texttt{psutil} (incluido en \texttt{backend/requirements.txt}) y que \texttt{frontend/node\_modules/} exista (correr \texttt{npm install} antes).
+
 \subsubsection{Clonado del repositorio}
 
 \begin{quote}
@@ -55,9 +66,12 @@ git clone \textless URL\_del\_repositorio\textgreater\ proyecto\_terminal\_cyad 
 cd proyecto\_terminal\_cyad
 \end{quote}
 
-\subsubsection{Configuración del backend}
+\subsubsection{Instalación mínima sin datos de demo}
+\label{apx:manual-inst:install-limpia}
 
-\paragraph{Entorno virtual}\mbox{}\\
+Esta es la ruta recomendada para un despliegue institucional real. Deja el sistema con los catálogos oficiales de CyAD (departamentos, licenciaturas, posgrados, áreas y UEAs) y una única cuenta de administrador; no crea profesores de prueba, formularios ficticios ni respuestas simuladas. Es la única ruta apropiada para producción; el flujo con datos de demostración se documenta después (Subsubsección~\ref{apx:manual-inst:datos-demo}) y no debe ejecutarse en un ambiente productivo.
+
+\paragraph{1. Entorno virtual y dependencias del backend}\mbox{}\\
 \begin{quote}
 \ttfamily
 cd backend \\
@@ -67,37 +81,12 @@ source .venv/bin/activate\ \ \# Linux/macOS \\
 pip install -r requirements.txt
 \end{quote}
 
-\paragraph{Base de datos}\mbox{}\\
-El proyecto utiliza por defecto el usuario \texttt{postgres} y una base de datos llamada \texttt{proyecto\_terminal\_cyad} (ver \texttt{backend/.env.example}). La forma recomendada es dejar que el script auxiliar cree la base de datos automáticamente después de configurar el archivo \texttt{.env} (siguiente sección):
-
-\begin{quote}
-\ttfamily
-python scripts/create\_db.py
-\end{quote}
-
-Si prefiere crearla manualmente con \texttt{psql}:
-
-\begin{quote}
-\ttfamily
-psql -U postgres \\
-CREATE DATABASE proyecto\_terminal\_cyad;
-\end{quote}
-
-También puede definir un usuario dedicado con permisos limitados (recomendado en despliegues compartidos) y ajustar \texttt{DB\_USER}/\texttt{DB\_PASSWORD} en el archivo \texttt{.env} en consecuencia:
-
-\begin{quote}
-\ttfamily
-CREATE USER cyad\_user WITH PASSWORD 'cyad\_pass'; \\
-GRANT ALL PRIVILEGES ON DATABASE proyecto\_terminal\_cyad TO cyad\_user;
-\end{quote}
-
-\paragraph{Archivo \texttt{.env}}\mbox{}\\
+\paragraph{2. Archivo \texttt{.env} del backend}\mbox{}\\
 \textbf{Ubicación:} el archivo \texttt{.env} que Django lee debe estar en la carpeta \texttt{backend/} (donde vive \texttt{manage.py}), \emph{no} en la raíz del repositorio. El repositorio incluye \texttt{backend/.env.example} como plantilla; cópielo y ajuste los valores:
 
 \begin{quote}
 \ttfamily
-cd backend \\
-cp .env.example .env
+cp .env.example .env\ \ \# desde backend/
 \end{quote}
 
 Contenido esperado (valores por defecto de la plantilla; ajuste \texttt{DB\_PASSWORD} y \texttt{SECRET\_KEY} a su entorno):
@@ -116,15 +105,96 @@ JWT_REFRESH_DAYS=7
 CORS_ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
 \end{Verbatim}
 
-\textbf{Nota:} existe también un archivo \texttt{.env.example} en la raíz del repositorio; \emph{no} es el que lee Django y su esquema de variables JWT (\texttt{ACCESS\_TOKEN\_LIFETIME}, \texttt{REFRESH\_TOKEN\_LIFETIME}) no coincide con lo que espera \texttt{backend/config/settings.py}. Utilice siempre \texttt{backend/.env.example}.
+Para producción se debe establecer \texttt{DEBUG=False}, definir \texttt{ALLOWED\_HOSTS} con el dominio real y generar una \texttt{SECRET\_KEY} con \texttt{python -c "from django.core.management.utils import get\_random\_secret\_key; print(get\_random\_secret\_key())"} (más detalle en Subsubsección~\ref{apx:manual-inst:despliegue-produccion}).
 
-Para producción se debe establecer \texttt{DEBUG=False}, definir \texttt{ALLOWED\_HOSTS} con el dominio real y generar una \texttt{SECRET\_KEY} con \texttt{python -c "from django.core.management.utils import get\_random\_secret\_key; print(get\_random\_secret\_key())"}.
+\paragraph{3. Crear la base de datos vacía}\mbox{}\\
+El proyecto utiliza por defecto el usuario \texttt{postgres} y una base de datos llamada \texttt{proyecto\_terminal\_cyad} (ver \texttt{backend/.env.example}). La forma recomendada es dejar que el script auxiliar cree la base automáticamente:
 
-\paragraph{Migraciones}\mbox{}\\
+\begin{quote}
+\ttfamily
+python scripts/create\_db.py
+\end{quote}
+
+Si prefiere crearla manualmente con \texttt{psql}:
+
+\begin{quote}
+\ttfamily
+psql -U postgres \\
+CREATE DATABASE proyecto\_terminal\_cyad;
+\end{quote}
+
+También puede definir un usuario dedicado con permisos limitados (recomendado en despliegues compartidos) y ajustar \texttt{DB\_USER}/\texttt{DB\_PASSWORD} en \texttt{.env} en consecuencia:
+
+\begin{quote}
+\ttfamily
+CREATE USER cyad\_user WITH PASSWORD 'cyad\_pass'; \\
+GRANT ALL PRIVILEGES ON DATABASE proyecto\_terminal\_cyad TO cyad\_user;
+\end{quote}
+
+\paragraph{4. Aplicar migraciones}\mbox{}\\
 \begin{quote}
 \ttfamily
 python manage.py migrate
 \end{quote}
+
+\paragraph{5. Crear la primera cuenta de administrador}\mbox{}\\
+Con el comando interactivo de Django:
+
+\begin{quote}
+\ttfamily
+python manage.py createsuperuser
+\end{quote}
+
+Se pedirán correo, nombre y contraseña. Este usuario tendrá rol \texttt{ADMIN} y podrá crear el resto de cuentas desde la interfaz web.
+
+\paragraph{6. Cargar los catálogos base (fixtures JSON versionados)}\mbox{}\\
+Departamentos, licenciaturas, posgrados y áreas están precargados en fixtures JSON dentro del repositorio, y se aplican con el comando \texttt{loaddata} de Django. Ejecutar en el orden que dictan las claves foráneas:
+
+\begin{quote}
+\ttfamily
+python manage.py loaddata catalogos/fixtures/departamentos.json \\
+python manage.py loaddata catalogos/fixtures/licenciaturas.json \\
+python manage.py loaddata catalogos/fixtures/posgrados.json \\
+python manage.py loaddata catalogos/fixtures/areas.json
+\end{quote}
+
+Los fixtures son idempotentes (usan clave primaria explícita): se pueden re-ejecutar sin duplicar registros.
+
+\paragraph{7. Cargar las UEAs oficiales}\mbox{}\\
+Los CSV oficiales de coordinación académica (\texttt{ueas\_licenciatura.csv} con las UEAs de DCG, ARQ, DI y DiPS; \texttt{ueas\_posgrado.csv} con las UEAs de PPCDA, PDB y PDEU) viven versionados en \texttt{backend/catalogos/fixtures/}. Se cargan con el comando de gestión \texttt{cargar\_catalogos\_csv}:
+
+\begin{quote}
+\ttfamily
+python manage.py cargar\_catalogos\_csv \\
+\ \ --ueas-csv catalogos/fixtures/ueas\_licenciatura.csv \\
+python manage.py cargar\_catalogos\_csv \\
+\ \ --ueas-csv catalogos/fixtures/ueas\_posgrado.csv
+\end{quote}
+
+El comando valida claves duplicadas, reporta filas rechazadas y resuelve el área de cada UEA contra los pares \texttt{(nombre, descripción)} de \texttt{areas.json}; las áreas que no encuentre las lista como \emph{warning} y la UEA queda con \texttt{area = NULL} (nunca se crea un área nueva de forma silenciosa). La carga es idempotente por el \texttt{update\_or\_create} interno.
+
+Si coordinación entrega en el futuro un CSV incremental (por ejemplo cuando cambie un plan de estudios), se carga con el mismo comando apuntando \texttt{--ueas-csv} a la nueva ruta; el efecto es un \emph{upsert} por \texttt{(clave, programa)}.
+
+\paragraph{8. Crear el periodo académico vigente}\mbox{}\\
+Los periodos (25-P, 26-I, …) \emph{no} se precargan como fixture porque son datos temporales que envejecen mal (un fixture con periodos históricos quedaría obsoleto tras unos meses). El primer administrador los captura desde la interfaz una vez que el sistema está corriendo, en \texttt{/admin/catalogos/periodos}: se ingresa clave, fecha de inicio, fecha de fin y se activan los \emph{flags} por recurso (\texttt{activo\_cartas}, \texttt{activo\_requisitos}, \texttt{activo\_autoevaluacion}) según la ventana de captura vigente. Ver §~``Módulo 3: habilitación de periodos por recurso'' del capítulo de Desarrollo (\S~\ref{sec:desarrollo}) para el detalle de estos \emph{flags}.
+
+\paragraph{9. Arrancar el servidor de desarrollo del backend}\mbox{}\\
+\begin{quote}
+\ttfamily
+python manage.py runserver 8000
+\end{quote}
+
+El backend queda disponible en \texttt{http://localhost:8000}. La documentación interactiva de la API está en \texttt{http://localhost:8000/api/docs/}.
+
+\paragraph{10. Crear el formulario de autoevaluación institucional}\mbox{}\\
+Con el backend corriendo, iniciar sesión con el superuser del paso 5 y, desde \texttt{Autoevaluación $\to$ Nuevo formulario}, construir el formulario del periodo vigente (secciones, preguntas, opciones puntuables y niveles de desempeño). Publicarlo cuando la suma de pesos de las secciones alcance 100~\%.
+
+Los usuarios de profesor se crean posteriormente desde \texttt{Profesores $\to$ Nuevo profesor} en la interfaz de administrador; cada creación genera un correo + contraseña temporal que el administrador entrega personalmente al docente.
+
+\subsubsection{Datos de demostración (opcional)}
+\label{apx:manual-inst:datos-demo}
+
+\textbf{Advertencia:} este bloque es exclusivo del \emph{desarrollo local} y de la evaluación en escritorio; \emph{no debe ejecutarse en un ambiente productivo}. Crea un profesor de prueba, un formulario ya publicado y respuestas ficticias que después será tedioso eliminar.
 
 \paragraph{Bootstrap unificado (Windows PowerShell)}\mbox{}\\
 Como atajo, el repositorio incluye \texttt{scripts/bootstrap.ps1} que orquesta \emph{creación de BD}, \emph{migraciones} y \emph{siembra de datos de demo} en un único comando. Debe ejecutarse desde la raíz del repositorio, con el \texttt{.venv} ya activo y \texttt{backend/.env} configurado:
@@ -136,29 +206,15 @@ Como atajo, el repositorio incluye \texttt{scripts/bootstrap.ps1} que orquesta \
 
 El script imprime tres pasos numerados (\texttt{[1/3]} crear BD, \texttt{[2/3]} migrar, \texttt{[3/3]} seed) y al finalizar recuerda cómo arrancar el backend y el frontend en dos terminales distintas. Falla temprano si falta \texttt{backend/.env} o si el árbol del repositorio no está completo.
 
-Para Linux o macOS, ejecute los tres pasos por separado siguiendo la siguiente sección.
-
-\paragraph{Datos iniciales}\mbox{}\\
-La forma más rápida de dejar el sistema listo para usar es ejecutar el \emph{seed} de demostración, que es idempotente y crea catálogos, UEAs, usuarios de prueba, periodo activo y el formulario de autoevaluación en un solo comando:
+\paragraph{Seed manual (Linux, macOS, o alternativa a Bootstrap)}\mbox{}\\
+Con la base de datos ya creada y las migraciones aplicadas (pasos 3 y 4 de la Subsubsección~\ref{apx:manual-inst:install-limpia}), ejecute:
 
 \begin{quote}
 \ttfamily
 python scripts/seed\_demo.py
 \end{quote}
 
-De forma alternativa, se pueden cargar los catálogos base y los usuarios mínimos por separado (útil cuando ya existen datos):
-
-\begin{quote}
-\ttfamily
-python manage.py loaddata catalogos/fixtures/departamentos.json \\
-python manage.py loaddata catalogos/fixtures/licenciaturas.json \\
-python manage.py loaddata catalogos/fixtures/posgrados.json \\
-python manage.py loaddata catalogos/fixtures/areas.json \\
-python manage.py loaddata catalogos/fixtures/periodos.json \\
-python scripts/seed\_users.py
-\end{quote}
-
-Al finalizar, existirán las siguientes cuentas:
+El \emph{seed} es idempotente y crea catálogos, UEAs, usuarios de prueba, periodo activo (\texttt{26-I}) y el formulario de autoevaluación en un solo comando. Al finalizar, existirán las siguientes cuentas:
 
 \begin{longtable}{p{0.30\textwidth} p{0.35\textwidth} p{0.30\textwidth}}
     \toprule
@@ -171,47 +227,7 @@ Al finalizar, existirán las siguientes cuentas:
     \bottomrule
 \end{longtable}
 
-Estas contraseñas deben cambiarse antes del despliegue a producción.
-
-\subsubsection{Instalación mínima sin datos de demo}
-\label{apx:manual-inst:install-limpia}
-
-Para un despliegue institucional real (donde el administrador cargará sus propios departamentos, licenciaturas, UEAs y profesores) no se debe ejecutar \texttt{seed\_demo.py}: ese \emph{script} crea un profesor de prueba, un formulario ya publicado y respuestas ficticias que ensucian la base de datos productiva. La ruta correcta es:
-
-\begin{enumerate}
-    \item \textbf{Crear la base de datos vacía} (con \texttt{scripts/create\_db.py} o manualmente con \texttt{psql}, según la sección anterior).
-    \item \textbf{Aplicar migraciones}:
-    \begin{quote}\ttfamily python manage.py migrate\end{quote}
-    \item \textbf{Crear la primera cuenta de administrador} con el comando interactivo de Django:
-    \begin{quote}\ttfamily python manage.py createsuperuser\end{quote}
-    Se pedirán correo, nombre y contraseña. Este usuario tendrá rol \texttt{ADMIN} y podrá crear el resto de cuentas desde la interfaz web.
-    \item \textbf{Cargar los catálogos institucionales base} desde los \emph{fixtures} versionados en el repositorio:
-    \begin{quote}
-    \ttfamily
-    python manage.py loaddata catalogos/fixtures/departamentos.json \\
-    python manage.py loaddata catalogos/fixtures/licenciaturas.json \\
-    python manage.py loaddata catalogos/fixtures/posgrados.json \\
-    python manage.py loaddata catalogos/fixtures/areas.json \\
-    python manage.py loaddata catalogos/fixtures/periodos.json
-    \end{quote}
-    Estos JSON contienen la estructura oficial de CyAD (nueve departamentos, tres licenciaturas, posgrados vigentes y áreas por licenciatura) y son idempotentes: pueden re-ejecutarse sin duplicar registros.
-    \item \textbf{Cargar las UEAs} desde el CSV maestro que mantiene coordinación académica (formato: clave, nombre, licenciatura, tipo, créditos, etc.):
-    \begin{quote}\ttfamily python manage.py cargar\_catalogos\_csv <ruta/al/uea.csv>\end{quote}
-    El comando valida claves duplicadas y reporta las filas rechazadas. Si aún no se dispone del CSV, las UEAs pueden crearse una por una desde \texttt{Catálogos $\to$ UEA} en la interfaz.
-    \item \textbf{Iniciar sesión} con el superuser creado en el paso 3 y, desde el constructor de formularios, generar el primer formulario de autoevaluación institucional.
-\end{enumerate}
-
-\textbf{Advertencia:} \emph{no} ejecute \texttt{python scripts/seed\_demo.py} en un ambiente productivo. Está diseñado exclusivamente para el flujo de desarrollo local y crea datos ficticios que después será tedioso eliminar. El \emph{script} \texttt{scripts/bootstrap.ps1} descrito arriba tampoco es apropiado para producción porque incluye el paso de \emph{seed}; en producción se corre cada paso por separado como se muestra en esta sección.
-
-Los usuarios de profesor se crean posteriormente desde \texttt{Profesores $\to$ Nuevo profesor} en la interfaz de administrador; cada creación genera un correo + contraseña temporal que el administrador entrega personalmente al docente.
-
-\paragraph{Servidor de desarrollo del backend}\mbox{}\\
-\begin{quote}
-\ttfamily
-python manage.py runserver 8000
-\end{quote}
-
-El backend queda disponible en \texttt{http://localhost:8000}. La documentación interactiva de la API está en \texttt{http://localhost:8000/api/docs/}.
+Estas contraseñas deben cambiarse antes del despliegue a producción (y, de hecho, la base entera debería recrearse limpia siguiendo la Subsubsección~\ref{apx:manual-inst:install-limpia}).
 
 \subsubsection{Configuración del frontend}
 
@@ -238,27 +254,29 @@ VITE_API_URL=http://tu-servidor:8000/api/v1
 
 \begin{enumerate}
     \item Abra \texttt{http://localhost:5173/} — debe mostrarse la vista pública ``Explorar''.
-    \item Inicie sesión con \texttt{admin@cyad.uam.mx}. Debe redirigir al \emph{dashboard} de administrador.
-    \item Cierre sesión, inicie con \texttt{profesor@cyad.uam.mx}. Debe redirigir al \emph{dashboard} de profesor.
+    \item Inicie sesión con el superuser creado en el paso 5 de la Subsubsección~\ref{apx:manual-inst:install-limpia} (o, si sembró la demo, con \texttt{admin@cyad.uam.mx / Admin1234!}). Debe redirigir al \emph{dashboard} de administrador.
+    \item Si sembró la demo, cierre sesión e inicie con \texttt{profesor@cyad.uam.mx / Profesor1234!}. Debe redirigir al \emph{dashboard} de profesor.
     \item Ejecute la suite de pruebas: \texttt{pytest} desde \texttt{backend/}. Todas deben pasar.
 \end{enumerate}
 
 \subsubsection{Comandos administrativos útiles}
 
-\begin{longtable}{p{0.50\textwidth} p{0.42\textwidth}}
+\begin{longtable}{p{0.55\textwidth} p{0.38\textwidth}}
     \toprule
     \textbf{Comando} & \textbf{Uso} \\
     \midrule
     \endhead
-    \texttt{python manage.py cargar\_catalogos\_csv <archivo>} & Importar catálogos desde CSV. \\
+    \texttt{python manage.py cargar\_catalogos\_csv --ueas-csv <archivo>} & Importar UEAs adicionales desde CSV. \\
     \midrule
     \texttt{python manage.py createsuperuser} & Crear cuenta administradora adicional. \\
     \midrule
     \texttt{python manage.py dumpdata <app>} & Exportar datos a JSON. \\
     \midrule
+    \texttt{python scripts/medir\_hardware.py} & Medir RAM de Django, PostgreSQL y pico de \texttt{npm run build}. \\
+    \midrule
     \texttt{pytest --cov=. --cov-report=html} & Ejecutar pruebas con cobertura. \\
     \midrule
-    \texttt{npm run build} (frontend) & Compilar producción estática (dist/). \\
+    \texttt{npm run build} (frontend) & Compilar producción estática (\texttt{dist/}). \\
     \bottomrule
 \end{longtable}
 
@@ -514,6 +532,6 @@ Como \emph{reverse proxy} se usa IIS con el módulo \emph{URL Rewrite} + \emph{A
     \item \textbf{Error CORS al iniciar sesión desde el frontend}: verifique que \texttt{CORS\_ALLOWED\_ORIGINS} incluya \texttt{http://localhost:5173}.
     \item \textbf{\texttt{429 Too Many Requests} al iniciar sesión}: se activó el \emph{rate limiting} (5 intentos por minuto). Espere 60 segundos y reintente.
     \item \textbf{Puerto 5173 ocupado}: Vite usará automáticamente el siguiente puerto libre; verifique la URL impresa al inicio.
-    \item \textbf{\texttt{seed\_demo.py} falla con ``La suma de pesos de las secciones debe ser 100\,\%''}: en algunas versiones del script las secciones se crean sin \texttt{peso}, lo que hace fallar la publicación del formulario. Como \emph{workaround} temporal, edite \texttt{backend/scripts/seed\_demo.py} y añada \texttt{peso=Decimal("50")} a la creación de cada una de las dos \texttt{Seccion.objects.create(\ldots)}, luego ejecute \texttt{python manage.py flush --noinput} y vuelva a lanzar el seed.
+    \item \textbf{\texttt{cargar\_catalogos\_csv} reporta áreas no encontradas}: significa que el CSV trae un par \texttt{(area\_nombre, area\_descripcion)} que no está precargado en \texttt{areas.json}. Agregue el área faltante (ya sea editando \texttt{areas.json} y volviendo a hacer \texttt{loaddata}, o desde \texttt{/admin/catalogos/areas} en la UI) y vuelva a ejecutar el comando; las UEAs afectadas se actualizarán con el área correcta.
     \item \textbf{\texttt{psql: command not found} en Windows}: agregue \texttt{C:\textbackslash Program Files\textbackslash PostgreSQL\textbackslash<versión>\textbackslash bin} al \texttt{PATH}, o llame a \texttt{psql} por ruta completa. Alternativamente, use \emph{pgAdmin} o el script \texttt{scripts/create\_db.py}, que utiliza el driver Python y no requiere \texttt{psql} en el PATH.
 \end{itemize}

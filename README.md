@@ -59,15 +59,14 @@ Sistema web para que los profesores de la **División de Ciencias y Artes para e
 
 ## 3. Configuración rápida
 
-### 3.1 Clonar y preparar variables
+### 3.1 Clonar el repositorio
 
 ```bash
 git clone <repo> proyecto_terminal_cyad
 cd proyecto_terminal_cyad
-cd backend
-cp .env.example .env         # editar credenciales de PostgreSQL si es necesario
-cd ..
 ```
+
+Las variables de entorno se configuran más adelante, dentro de `backend/`, en §3.2.
 
 ### 3.2 Backend
 
@@ -80,6 +79,7 @@ python -m venv .venv
 source .venv/bin/activate
 
 pip install -r requirements.txt
+cp .env.example .env         # editar DB_PASSWORD y SECRET_KEY
 cd ..
 ```
 
@@ -110,6 +110,25 @@ echo "VITE_API_URL=http://localhost:8000/api/v1" > .env.local
 ---
 
 ## 4. Datos de prueba
+
+### 4.1 Instalación institucional (sin datos ficticios)
+
+Ruta canónica para despliegue real. Carga los catálogos oficiales (departamentos, licenciaturas, posgrados, áreas y las 510+ UEAs de coordinación) y crea un único superuser; el periodo académico vigente se captura después desde la UI de administrador. Ver detalle paso a paso en el Apéndice C del reporte (`docs/reporte/secciones/11c_manual_instalacion.tex`, subsección "Instalación mínima sin datos de demo").
+
+```bash
+cd backend
+python scripts/create_db.py
+python manage.py migrate
+python manage.py createsuperuser
+python manage.py loaddata catalogos/fixtures/departamentos.json \
+  catalogos/fixtures/licenciaturas.json \
+  catalogos/fixtures/posgrados.json \
+  catalogos/fixtures/areas.json
+python manage.py cargar_catalogos_csv --ueas-csv catalogos/fixtures/ueas_licenciatura.csv
+python manage.py cargar_catalogos_csv --ueas-csv catalogos/fixtures/ueas_posgrado.csv
+```
+
+### 4.2 Dataset demo (solo desarrollo local, no producción)
 
 Carga **todo el dataset demo** (usuarios + catálogos enriquecidos + UEAs + formulario de autoevaluación publicado):
 
@@ -210,22 +229,23 @@ Documentación viva (Swagger UI): **http://localhost:8000/api/docs/**
 
 ```
 proyecto_terminal_cyad/
-├── .env.example
 ├── README.md
 ├── backend/
+│   ├── .env.example         # plantilla del .env que Django lee
 │   ├── config/              # settings, urls, wsgi
 │   ├── core/                # mixins (TimeStamped, EstadoActivo)
 │   ├── accounts/            # Usuario, Profesor, JWT, /me
 │   ├── catalogos/           # Departamento, Licenciatura, UEA, Periodo
-│   │   └── fixtures/        # depto, licenciatura, periodos, UEA.csv
+│   │   └── fixtures/        # depto, licenciatura, posgrado, area (JSON) + ueas_*.csv
 │   ├── documentos/          # CartaTematica, RequisitoRecuperacion
 │   ├── autoevaluacion/      # Formulario, Seccion, Pregunta, Opcion, Nivel, Respuesta
 │   ├── reportes/            # vistas de agregación (sin modelos)
 │   ├── scripts/
-│   │   ├── create_db.py     # crea la BD en PostgreSQL si no existe
-│   │   ├── seed_users.py    # usuarios mínimos (admin + profesor)
-│   │   ├── seed_demo.py     # seed completo para demo / E2E
-│   │   └── smoke_test.py    # E2E vía API HTTP
+│   │   ├── create_db.py       # crea la BD en PostgreSQL si no existe
+│   │   ├── seed_users.py      # usuarios mínimos (admin + profesor)
+│   │   ├── seed_demo.py       # seed completo para demo / E2E
+│   │   ├── smoke_test.py      # E2E vía API HTTP
+│   │   └── medir_hardware.py  # mide RAM de Django/PostgreSQL y pico de npm run build
 │   ├── tests/               # pytest (auth, catálogos, documentos, AE, reportes)
 │   ├── manage.py
 │   ├── pytest.ini

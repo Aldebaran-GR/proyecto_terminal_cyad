@@ -223,7 +223,7 @@ La app \texttt{catalogos} expone \emph{ViewSets} de CRUD completo para \texttt{D
 
 \subsubsection{Precarga inicial y \emph{fixtures}}
 
-Cinco \emph{fixtures} JSON (ruta absoluta en el repositorio: \texttt{backend/catalogos/fixtures/*.json}) precargan los catálogos base: los cuatro departamentos de CyAD, las licenciaturas y posgrados activos, las áreas de conocimiento y cinco periodos históricos (24-I a 25-O). Se aplican con el comando \texttt{loaddata} de Django. Es necesario situarse primero en el directorio del proyecto Django (\texttt{backend/}, donde vive \texttt{manage.py}), activar el entorno virtual que aísla las dependencias (para que \texttt{python} y \texttt{manage.py} usen la versión de Django instalada por \texttt{pip install -r requirements.txt}, no el intérprete del sistema) y respetar el orden que dictan las claves foráneas (departamentos antes que licenciaturas y posgrados):
+Cuatro \emph{fixtures} JSON (en \texttt{backend/catalogos/fixtures/}) precargan los catálogos institucionales estables: los cuatro departamentos de CyAD, las licenciaturas y posgrados activos, y las áreas de conocimiento. Se aplican con el comando \texttt{loaddata} de Django. Es necesario situarse primero en el directorio del proyecto Django (\texttt{backend/}, donde vive \texttt{manage.py}), activar el entorno virtual que aísla las dependencias (para que \texttt{python} y \texttt{manage.py} usen la versión de Django instalada por \texttt{pip install -r requirements.txt}, no el intérprete del sistema) y respetar el orden que dictan las claves foráneas (departamentos antes que licenciaturas y posgrados):
 
 \begin{Verbatim}[fontsize=\small, frame=single]
 cd backend
@@ -233,20 +233,23 @@ python manage.py loaddata \
     catalogos/fixtures/departamentos.json \
     catalogos/fixtures/licenciaturas.json \
     catalogos/fixtures/posgrados.json \
-    catalogos/fixtures/areas.json \
-    catalogos/fixtures/periodos.json
+    catalogos/fixtures/areas.json
 \end{Verbatim}
 
-Las rutas indicadas son relativas a \texttt{backend/}. El comando \texttt{loaddata} es idempotente (usa la clave primaria de cada registro), por lo que se puede re-ejecutar sin duplicar datos: si un registro ya existe, lo actualiza. Esto reduce el tiempo de puesta en marcha del sistema a minutos, sin capturar manualmente los mismos datos. La creación del entorno virtual (\texttt{python -m venv .venv}), la instalación de dependencias y la configuración del archivo \texttt{.env} se documentan en el manual de instalación (Apéndice~\ref{apx:manual-instalacion}, \hyperref[apx:manual-instalacion]{``Manual de instalación''}).
+Las rutas indicadas son relativas a \texttt{backend/}. El comando \texttt{loaddata} es idempotente (usa la clave primaria de cada registro), por lo que se puede re-ejecutar sin duplicar datos: si un registro ya existe, lo actualiza. Esto reduce el tiempo de puesta en marcha del sistema a minutos, sin capturar manualmente los mismos datos.
+
+Los \texttt{Periodo}s académicos \emph{no} se precargan como \emph{fixture}: son datos temporales (una clave y dos fechas por trimestre) que envejecen mal y llevarían el JSON a estar desactualizado unos meses después de cada corte. El primer administrador captura el periodo vigente desde la interfaz web (\texttt{/admin/catalogos/periodos}), activando los tres \emph{flags} por recurso descritos en la Subsubsección~``Módulo 3: habilitación de periodos por recurso''. La creación del entorno virtual (\texttt{python -m venv .venv}), la instalación de dependencias y la configuración del archivo \texttt{.env} se documentan en el manual de instalación (Apéndice~\ref{apx:manual-instalacion}, \hyperref[apx:manual-instalacion]{``Manual de instalación''}).
 
 \subsubsection{Importación masiva de UEAs desde CSV}
 
-Las UEAs son numerosas (una por asignatura por programa), por lo que se ofrecen dos vías de carga masiva idempotente:
+Las UEAs son numerosas (una por asignatura por programa: ~430 en las cuatro licenciaturas de CyAD y ~80 en los posgrados vigentes), por lo que la carga se hace en bloque desde CSV. El proyecto ya trae los dos CSV oficiales que mantiene coordinación académica (\texttt{ueas\_licenciatura.csv} y \texttt{ueas\_posgrado.csv}) versionados dentro de \texttt{backend/catalogos/fixtures/}, y ofrece dos vías de carga idempotente que consumen el mismo formato:
 
 \begin{itemize}
+    \item \textbf{Desde la línea de comandos}: el comando de gestión \texttt{python manage.py }\code{cargar_catalogos_csv --ueas-csv <ruta>} (Apéndice~\ref{apx:codigo}, \hyperref[lst:import_csv]{``Backend --- Comando de importación CSV para UEA''}). Es la vía canónica para el arranque institucional y para actualizaciones incrementales cuando coordinación envía un CSV nuevo.
     \item \textbf{Desde la interfaz}: \texttt{POST} \code{/api/v1/uea/import-csv/} con \code{multipart/form-data}. El backend lee las cabeceras \texttt{clave}, \texttt{nombre}, \code{programa_clave}, \texttt{trimestre}, \texttt{tipo}, \texttt{creditos}, \code{area_nombre}, \code{area_descripcion} y \texttt{url}, hace \emph{upsert} usando cachés en memoria para evitar \emph{queries} redundantes y detecta colisiones cuando la clave existe en licenciatura y posgrado simultáneamente.
-    \item \textbf{Desde la línea de comandos}: el comando de gestión \texttt{python manage.py }\code{cargar_catalogos_csv} (Apéndice~\ref{apx:codigo}, \hyperref[lst:import_csv]{``Backend --- Comando de importación CSV para UEA''}) consume archivos CSV desde un directorio configurable y produce el mismo efecto. Es útil para automatizar la puesta en marcha en entornos nuevos.
 \end{itemize}
+
+Ambas rutas resuelven el área de cada UEA contra los pares \texttt{(nombre, descripción)} de la tabla \texttt{Area} (precargada por \texttt{areas.json}); las áreas que no se encuentren se reportan como \emph{warning} y la UEA queda con \texttt{area = NULL}, nunca se crean áreas nuevas de forma silenciosa.
 
 \subsubsection{Restricciones de integridad de UEA}
 

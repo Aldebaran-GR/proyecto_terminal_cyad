@@ -1,32 +1,34 @@
-"""Carga idempotente de catálogos institucionales desde CSVs.
+"""Carga idempotente de UEAs (y opcionalmente áreas / licenciaturas / posgrados) desde CSV.
 
-Lee `areas.csv`, `licenciaturas.csv`, `posgrados.csv` y `ueas_ejemplo.csv` (en
-ese orden) y hace upsert en las tablas `Area`, `Licenciatura`, `Posgrado` y
-`UEA`.
+Los catálogos base (departamentos, licenciaturas, posgrados, áreas) viven en el
+repo como *fixtures* JSON y se cargan con ``python manage.py loaddata``. Este
+comando cubre la carga masiva de UEAs desde los CSV oficiales de coordinación,
+que también viven versionados en ``backend/catalogos/fixtures/``:
 
-CSVs esperados (ver `C:\\Users\\godin\\Documents\\10_2025_Proyectos\\CSV`):
+    - ``ueas_licenciatura.csv``   (~430 filas: DCG, ARQ, DI, DiPS)
+    - ``ueas_posgrado.csv``       (~80 filas: PPCDA, PDB, PDEU)
 
-  areas.csv:
-      area_id,nombre,descripcion
+CSV esperado (encabezado):
 
-  licenciaturas.csv:
-      licenciatura_id,clave,nombre
+    clave,nombre,programa_clave,trimestre,tipo,creditos,area_nombre,area_descripcion,url
 
-  posgrados.csv (opcional):
-      clave,nombre
+- ``programa_clave`` se busca en Licenciatura y, si no encuentra, en Posgrado.
+  Si la clave existe en ambos modelos la fila se rechaza como ambigua.
+- ``area_nombre`` + ``area_descripcion`` se resuelven contra la tabla ``Area``.
+  Las áreas oficiales están precargadas por ``areas.json``; si el par no
+  existe, la UEA queda con ``area = NULL`` y se reporta como *warning* (nunca
+  se crea un área nueva desde este comando).
 
-  ueas_ejemplo.csv:
-      area_id,clave,nombre,programa_clave,trimestre,tipo,creditos,url
+Opcionalmente, también acepta ``areas.csv``, ``licenciaturas.csv`` y
+``posgrados.csv`` para escenarios ad-hoc en los que coordinación entregue esos
+catálogos como CSV en vez de JSON.
 
-El CSV de UEAs trae una sola columna `programa_clave` con la clave de la
-Licenciatura o del Posgrado al que pertenece la UEA; el lookup se hace
-contra ambas tablas y debe ser inequívoco (si una misma clave existe en
-ambos modelos la fila se rechaza como ambigua).
+Uso típico (desde ``backend/``):
 
-Uso:
-    python manage.py cargar_catalogos_csv
-    python manage.py cargar_catalogos_csv --csv-dir /ruta/a/CSV
-    python manage.py cargar_catalogos_csv --ueas-csv /ruta/a/otro.csv
+    python manage.py cargar_catalogos_csv \\
+        --ueas-csv catalogos/fixtures/ueas_licenciatura.csv
+    python manage.py cargar_catalogos_csv \\
+        --ueas-csv catalogos/fixtures/ueas_posgrado.csv
 """
 
 import csv
@@ -38,45 +40,86 @@ from django.db import transaction
 from catalogos.models import Area, Licenciatura, Posgrado, UEA
 
 
-DEFAULT_CSV_DIR = Path(r"C:\Users\godin\Documents\10_2025_Proyectos\CSV")
+# Directorio versionado donde viven los CSV oficiales dentro del repo.
+DEFAULT_CSV_DIR = Path(__file__).resolve().parents[2] / "catalogos" / "fixtures"
 
 
 class Command(BaseCommand):
-    help = "Carga áreas, licenciaturas, posgrados y UEAs desde los CSVs canónicos."
+    help = "Carga UEAs (y opcionalmente áreas/licenciaturas/posgrados) desde CSV."
 
     def add_arguments(self, parser):
         parser.add_argument(
             "--csv-dir",
             type=Path,
             default=DEFAULT_CSV_DIR,
-            help="Directorio que contiene los CSVs (default: %(default)s).",
+            help="Directorio con CSVs opcionales (default: %(default)s).",
         )
         parser.add_argument("--areas-csv", type=Path, default=None)
         parser.add_argument("--licenciaturas-csv", type=Path, default=None)
         parser.add_argument("--posgrados-csv", type=Path, default=None)
-        parser.add_argument("--ueas-csv", type=Path, default=None)
+        parser.add_argument(
+            "--ueas-csv",
+            type=Path,
+            default=None,
+            help="CSV de UEAs a cargar. Puede repetirse la invocación para varios.",
+        )
 
     def handle(self, *args, **opts):
         csv_dir: Path = opts["csv_dir"]
-        areas_csv: Path = opts["areas_csv"] or (csv_dir / "areas.csv")
-        lics_csv: Path = opts["licenciaturas_csv"] or (csv_dir / "licenciaturas.csv")
-        pos_csv: Path = opts["posgrados_csv"] or (csv_dir / "posgrados.csv")
-        ueas_csv: Path = opts["ueas_csv"] or (csv_dir / "ueas_ejemplo.csv")
+        areas_csv: Path | None = opts["areas_csv"]
+        lics_csv: Path | None = opts["licenciaturas_csv"]
+        pos_csv: Path | None = opts["posgrados_csv"]
+        ueas_csv: Path | None = opts["ueas_csv"]
 
-        for path in (areas_csv, lics_csv, ueas_csv):
-            if not path.exists():
-                raise CommandError(f"No existe el CSV: {path}")
+        # Descubrimiento por convención dentro de csv_dir: si no se pasa la ruta
+        # explícita y existe el archivo en el directorio, se usa. Esto mantiene
+        # la compatibilidad con el flujo histórico (un solo ``csv_dir`` con los
+        # cuatro archivos) y con las llamadas explícitas por ``--ueas-csv``.
+        if areas_csv is None:
+            candidato = csv_dir / "areas.csv"
+            if candidato.exists():
+                areas_csv = candidato
+        if lics_csv is None:
+            candidato = csv_dir / "licenciaturas.csv"
+            if candidato.exists():
+                lics_csv = candidato
+        if pos_csv is None:
+            candidato = csv_dir / "posgrados.csv"
+            if candidato.exists():
+                pos_csv = candidato
+        if ueas_csv is None:
+            candidato = csv_dir / "ueas_ejemplo.csv"
+            if candidato.exists():
+                ueas_csv = candidato
+
+        if not any([areas_csv, lics_csv, pos_csv, ueas_csv]):
+            raise CommandError(
+                "Nada que hacer: pase al menos --ueas-csv "
+                "(o --areas-csv / --licenciaturas-csv / --posgrados-csv), "
+                f"o coloque los CSV convencionales dentro de {csv_dir}."
+            )
 
         with transaction.atomic():
-            area_map = self._cargar_areas(areas_csv)
-            lic_map = self._cargar_licenciaturas(lics_csv)
-            if pos_csv.exists():
+            area_map: dict[str, Area] = {}
+            if areas_csv:
+                if not areas_csv.exists():
+                    raise CommandError(f"No existe el CSV: {areas_csv}")
+                area_map = self._cargar_areas(areas_csv)
+
+            if lics_csv:
+                if not lics_csv.exists():
+                    raise CommandError(f"No existe el CSV: {lics_csv}")
+                self._cargar_licenciaturas(lics_csv)
+
+            if pos_csv:
+                if not pos_csv.exists():
+                    raise CommandError(f"No existe el CSV: {pos_csv}")
                 self._cargar_posgrados(pos_csv)
-            else:
-                self.stdout.write(
-                    self.style.WARNING(f"Posgrados: omitido (no existe {pos_csv}).")
-                )
-            self._cargar_ueas(ueas_csv, area_map, lic_map)
+
+            if ueas_csv:
+                if not ueas_csv.exists():
+                    raise CommandError(f"No existe el CSV: {ueas_csv}")
+                self._cargar_ueas(ueas_csv, area_map)
 
     # ── Áreas ────────────────────────────────────────────────────────────
     def _cargar_areas(self, path: Path) -> dict[str, Area]:
@@ -123,7 +166,6 @@ class Command(BaseCommand):
                 nombre = (row.get("nombre") or "").strip()
                 if not (clave and nombre):
                     continue
-                # Defensa: si en algún entorno todavía dice "DPS", renombrar a "DiPS".
                 if clave == "DPS":
                     clave = "DiPS"
                 orden = int(csv_id) if csv_id.isdigit() else 0
@@ -144,10 +186,7 @@ class Command(BaseCommand):
 
     # ── Posgrados ────────────────────────────────────────────────────────
     def _cargar_posgrados(self, path: Path) -> dict[str, Posgrado]:
-        """Upsert por `clave`. `orden` se asigna por la posición en el CSV.
-
-        Devuelve {clave: Posgrado}.
-        """
+        """Upsert por `clave`. `orden` se asigna por la posición en el CSV."""
         mapping: dict[str, Posgrado] = {}
         created, updated = 0, 0
         with path.open(encoding="utf-8-sig", newline="") as f:
@@ -176,17 +215,21 @@ class Command(BaseCommand):
         self,
         path: Path,
         area_map: dict[str, Area],
-        lic_map: dict[str, Licenciatura],
     ) -> None:
-        """Upsert por `clave`."""
+        """Upsert por (clave, programa)."""
         lic_por_clave = {l.clave: l for l in Licenciatura.objects.all()}
         pos_por_clave = {p.clave: p for p in Posgrado.objects.all()}
         colisiones = set(lic_por_clave) & set(pos_por_clave)
+        # Cache de áreas: clave = (nombre.lower(), descripcion.lower())
+        area_por_par = {
+            (a.nombre.strip().lower(), a.descripcion.strip().lower()): a
+            for a in Area.objects.all()
+        }
         tipo_map = {
             "OBL": UEA.Tipo.OBLIGATORIA,
             "OPT": UEA.Tipo.OPTATIVA,
         }
-        created, updated, errors = 0, 0, []
+        created, updated, errors, sin_area = 0, 0, [], set()
         with path.open(encoding="utf-8-sig", newline="") as f:
             reader = csv.DictReader(f)
             for i, row in enumerate(reader, start=2):
@@ -203,8 +246,9 @@ class Command(BaseCommand):
                     errors.append(f"Fila {i}: {error}")
                     continue
 
-                area_raw = (row.get("area_id") or "").strip()
-                area = area_map.get(area_raw)
+                # Resolución de área: primero por (nombre, descripcion), y como
+                # fallback por area_id (compatibilidad con CSVs históricos).
+                area = self._resolver_area(row, area_por_par, area_map, sin_area)
 
                 creditos_raw = (row.get("creditos") or "").strip()
                 try:
@@ -241,14 +285,28 @@ class Command(BaseCommand):
         )
         for err in errors:
             self.stdout.write(self.style.WARNING(f"  · {err}"))
+        for par in sorted(sin_area):
+            self.stdout.write(
+                self.style.WARNING(
+                    f"  · Área no encontrada: {par!r} — UEAs afectadas quedaron sin área."
+                )
+            )
+
+    def _resolver_area(self, row, area_por_par, area_map, sin_area):
+        nombre = (row.get("area_nombre") or "").strip()
+        descripcion = (row.get("area_descripcion") or "").strip()
+        if nombre:
+            area = area_por_par.get((nombre.lower(), descripcion.lower()))
+            if area is None:
+                sin_area.add((nombre, descripcion))
+            return area
+        # Fallback histórico: area_id numérico contra el mapping construido
+        # por --areas-csv en la misma invocación.
+        area_raw = (row.get("area_id") or "").strip()
+        return area_map.get(area_raw)
 
     def _resolver_programa(self, row, lic_por_clave, pos_por_clave, colisiones):
-        """Resuelve (licenciatura, posgrado, error) para una fila de UEA.
-
-        Busca `programa_clave` primero en Licenciatura y, si no encuentra, en
-        Posgrado. Si la clave existe en ambas tablas se devuelve error de
-        ambigüedad.
-        """
+        """Resuelve (licenciatura, posgrado, error) para una fila de UEA."""
         programa_clave = (row.get("programa_clave") or "").strip()
         if not programa_clave:
             return None, None, "programa_clave es obligatoria."
