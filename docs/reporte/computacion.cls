@@ -322,7 +322,7 @@
 {\centering Josué Figueroa González\par}
 \vspace{1.6cm}
 
-\noindent\justifying Yo, Zuriel Godinez Ramos, doy mi autorización a la Coordinación de Servicios de Información de la Universidad Autónoma Metropolitana, Unidad Azcapotzalco, para publicar el presente documento en la Biblioteca Digital, así como en el Repositorio Institucional de la UAM Azcapotzalco. En caso de que el Comité de Estudios de la Licenciatura en Ingeniería en Computación apruebe la realización de la presente propuesta, otorgamos nuestra autorización para su publicación en la página de la División de Ciencias Básicas e Ingeniería.\\[1.8cm]
+\noindent\justifying Yo, Zuriel Godinez Ramos, doy mi autorización a la Coordinación de Servicios de Información de la Universidad Autónoma Metropolitana, Unidad Azcapotzalco, para publicar el presente documento en la Biblioteca Digital, así como en el Repositorio Institucional de la UAM Azcapotzalco.\\[1.8cm]
 
 {\centering Zuriel Godinez Ramos\par}
 

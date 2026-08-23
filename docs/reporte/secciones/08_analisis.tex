@@ -66,10 +66,6 @@ La propuesta indicaba autenticación con \texttt{número económico + contraseñ
 
 Ésta es la brecha de mayor visibilidad. La propuesta prometía generación de PDFs y DOCXs para cartas, requisitos, resultados de autoevaluación y reportes. En el sistema entregado, la única forma de \emph{generar un PDF} de una carta o requisito es abrir la vista pública e imprimir a PDF desde el navegador (\texttt{window.print()}); la única exportación estructurada es la descarga a XLSX de los reportes, generada en el cliente con \emph{SheetJS}. Las razones prácticas fueron: (a)~evitar la dependencia de librerías pesadas (\emph{WeasyPrint} requiere GTK; \emph{ReportLab} requiere maquetación manual); (b)~priorizar el flujo de operación diaria (captura, publicación, reportes en línea) sobre entregables descargables; y (c)~concentrar el esfuerzo en el módulo de autoevaluación, técnicamente más complejo. En la Sección~\ref{sec:conclusiones} se marca la generación nativa de PDFs como trabajo futuro prioritario.
 
-\subsubsection{Cartas y requisitos aplanados}
-
-Los submodelos \texttt{Tema}, \texttt{Subtema}, \texttt{Bibliografia} y \texttt{CriterioEvaluacion} propuestos originalmente para estructurar el contenido de la carta temática se eliminaron mediante la migración \texttt{documentos/0002\_rediseno\_documentos} y se sustituyeron por campos \texttt{TextField} libres. La motivación fue la ausencia de una plantilla oficial de CyAD que estableciera con carácter normativo qué campos debían existir y con qué cardinalidad. Con contenido libre, cada profesor organiza su carta como considere conveniente, y la Coordinación puede definir posteriormente un formato estándar sin necesidad de migrar datos.
-
 \subsubsection{Sin reset de contraseña autoservicio}
 
 Sólo el administrador puede restablecer la contraseña de un profesor. Un flujo de \emph{forgot password} con token por correo se documenta como línea de trabajo futuro pero no se entregó porque el envío de correos requiere infraestructura adicional (SMTP institucional configurado) que no estuvo disponible en el trimestre de desarrollo.
