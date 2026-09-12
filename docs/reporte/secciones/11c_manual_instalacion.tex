@@ -83,9 +83,25 @@ Verificar contra qué Python vas a instalar (opcional, para descartar dudas). De
 
 \begin{quote}
 \ttfamily
-    python -c "import sys; print(sys.executable)" \\
-    python -m pip install -r requirements.txt \# Instala en el Python activo \\
-    pip show python-decouple \# Verifica que se instaló en el venv. Debe mostrar Location: ...\textbackslash .venv\textbackslash Lib\textbackslash site-packages
+    python -c "import sys; print(sys.executable)" \#Verifica que apunta al venv
+\end{quote}
+
+Windows por defecto bloquea ejecutar scripts .ps1. Si ves un error de "execution policy" o simplemente no pasa nada, corre esto una sola vez en esa terminal (no persiste, solo aplica a la sesión actual)
+\begin{quote}
+\ttfamily
+    Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass \\
+    .venv\textbackslash Scripts\textbackslash Activate.ps1 \\
+    python -c "import sys; print(sys.executable)"
+\end{quote}
+
+Si sigue sin apuntar al venv (activación "exitosa" pero PATH incorrecto), La solución definitiva, que no depende de la activación ni del PATH, es llamar siempre al ejecutable del venv por su ruta completa, sin usar el comando python genérico:
+
+\begin{quote}
+\ttfamily
+    .venv\textbackslash Scripts\textbackslash python.exe -m pip install -r requirements.txt \\
+    pip show python-decouple \# Verifica que se instaló en el venv. Debe mostrar Location: ...\textbackslash .venv\textbackslash Lib\textbackslash site-packages \\
+    .venv\textbackslash Scripts\textbackslash python.exe scripts/create\_db.py \#Ejecutar en 3. Crear la base de datos vacía \\
+    .venv\textbackslash Scripts\textbackslash python.exe manage.py migrate \#Ejecutar en 4. Aplicar migraciones
 \end{quote}
 
 
@@ -122,6 +138,7 @@ El proyecto utiliza por defecto el usuario \texttt{postgres} y una base de datos
 \ttfamily
 python scripts/create\_db.py
 \end{quote}
+
 
 \paragraph{4. Aplicar migraciones}\mbox{}\\
 \begin{quote}
