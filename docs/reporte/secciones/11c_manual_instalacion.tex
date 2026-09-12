@@ -62,8 +62,7 @@ Al finalizar imprime una tabla legible en la consola y deja el detalle en \textt
 
 \begin{quote}
 \ttfamily
-git clone --depth 1 \textless URL\_del\_repositorio\textgreater\ proyecto\_terminal\_cyad \\
-cd proyecto\_terminal\_cyad
+git clone --depth 1 https://github.com/Aldebaran-GR/proyecto_terminal_cyad.git .
 \end{quote}
 
 \subsubsection{Instalación mínima sin datos de demo}
@@ -76,10 +75,19 @@ Esta es la ruta recomendada para un despliegue institucional real. Deja el siste
 \ttfamily
 cd backend \\
 python -m venv .venv \\
-.venv\textbackslash Scripts\textbackslash activate\ \ \# Windows \\
-source .venv/bin/activate\ \ \# Linux/macOS \\
+.venv\textbackslash Scripts\textbackslash Activate.ps1\ \ \# Windows \\
 pip install -r requirements.txt
 \end{quote}
+
+Verificar contra qué Python vas a instalar (opcional, para descartar dudas). Debe apuntar a ...\textbackslash proyecto_terminal_cyad\textbackslash backend\textbackslash .venv\textbackslash Scripts\textbackslash python.exe. Si apunta a otro Python (por ejemplo C:\textbackslash Python313\textbackslash o C:\textbackslash Users\textbackslash ...\textbackslash AppData\textbackslash Local\textbackslash Programs\textbackslash Python\textbackslash ...), el venv no está activo de verdad.
+
+\begin{quote}
+\ttfamily
+    python -c "import sys; print(sys.executable)" \\
+    python -m pip install -r requirements.txt \# Instala en el Python activo \\
+    pip show python-decouple \# Verifica que se instaló en el venv. Debe mostrar Location: ...\textbackslash .venv\textbackslash Lib\textbackslash site-packages
+\end{quote}
+
 
 \paragraph{2. Archivo \texttt{.env} del backend}\mbox{}\\
 \textbf{Ubicación:} el archivo \texttt{.env} que Django lee debe estar en la carpeta \texttt{backend/} (donde vive \texttt{manage.py}), \emph{no} en la raíz del repositorio. El repositorio incluye \texttt{backend/.env.example} como plantilla; cópielo y ajuste los valores:
@@ -92,8 +100,8 @@ cp .env.example .env\ \ \# desde backend/
 Contenido esperado (valores por defecto de la plantilla; ajuste \texttt{DB\_PASSWORD} y \texttt{SECRET\_KEY} a su entorno):
 
 \begin{Verbatim}[fontsize=\small, frame=single]
-DEBUG=True
 SECRET_KEY=cambia-esta-clave-por-una-aleatoria-larga
+DEBUG=True
 ALLOWED_HOSTS=localhost,127.0.0.1
 DB_NAME=proyecto_terminal_cyad
 DB_USER=postgres
@@ -102,7 +110,7 @@ DB_HOST=localhost
 DB_PORT=5432
 JWT_ACCESS_MINUTES=60
 JWT_REFRESH_DAYS=7
-CORS_ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
+CORS_ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173,http://localhost:5174
 \end{Verbatim}
 
 Para producción se debe establecer \texttt{DEBUG=False}, definir \texttt{ALLOWED\_HOSTS} con el dominio real y generar una \texttt{SECRET\_KEY} con \texttt{python -c "from django.core.management.utils import get\_random\_secret\_key; print(get\_random\_secret\_key())"} (más detalle en Subsubsección~\ref{apx:manual-inst:despliegue-produccion}).
@@ -113,22 +121,6 @@ El proyecto utiliza por defecto el usuario \texttt{postgres} y una base de datos
 \begin{quote}
 \ttfamily
 python scripts/create\_db.py
-\end{quote}
-
-Si prefiere crearla manualmente con \texttt{psql}:
-
-\begin{quote}
-\ttfamily
-psql -U postgres \\
-CREATE DATABASE proyecto\_terminal\_cyad;
-\end{quote}
-
-También puede definir un usuario dedicado con permisos limitados (recomendado en despliegues compartidos) y ajustar \texttt{DB\_USER}/\texttt{DB\_PASSWORD} en \texttt{.env} en consecuencia:
-
-\begin{quote}
-\ttfamily
-CREATE USER cyad\_user WITH PASSWORD 'cyad\_pass'; \\
-GRANT ALL PRIVILEGES ON DATABASE proyecto\_terminal\_cyad TO cyad\_user;
 \end{quote}
 
 \paragraph{4. Aplicar migraciones}\mbox{}\\
@@ -146,6 +138,13 @@ python manage.py createsuperuser
 \end{quote}
 
 Se pedirán correo, nombre y contraseña. Este usuario tendrá rol \texttt{ADMIN} y podrá crear el resto de cuentas desde la interfaz web.
+
+\begin{Verbatim}[fontsize=\small, frame=single]
+set DJANGO_SUPERUSER_EMAIL=admin@cyad.uam.mx
+set DJANGO_SUPERUSER_NOMBRE=Administrador CyAD
+set DJANGO_SUPERUSER_PASSWORD=<password-fuerte>
+python manage.py createsuperuser --noinput
+\end{Verbatim}
 
 \paragraph{6. Cargar los catálogos base (fixtures JSON versionados)}\mbox{}\\
 Departamentos, licenciaturas, posgrados y áreas están precargados en fixtures JSON dentro del repositorio, y se aplican con el comando \texttt{loaddata} de Django. Ejecutar en el orden que dictan las claves foráneas:
@@ -175,8 +174,11 @@ El comando valida claves duplicadas, reporta filas rechazadas y resuelve el áre
 
 Si coordinación entrega en el futuro un CSV incremental (por ejemplo cuando cambie un plan de estudios), se carga con el mismo comando apuntando \texttt{--ueas-csv} a la nueva ruta; el efecto es un \emph{upsert} por \texttt{(clave, programa)}.
 
-\paragraph{8. Crear el periodo académico vigente}\mbox{}\\
-Los periodos (25-P, 26-I, …) \emph{no} se precargan como fixture porque son datos temporales que envejecen mal (un fixture con periodos históricos quedaría obsoleto tras unos meses). El primer administrador los captura desde la interfaz una vez que el sistema está corriendo, en \texttt{/admin/catalogos/periodos}: se ingresa clave, fecha de inicio, fecha de fin y se activan los \emph{flags} por recurso (\texttt{activo\_cartas}, \texttt{activo\_requisitos}, \texttt{activo\_autoevaluacion}) según la ventana de captura vigente. Ver §~``Módulo 3: habilitación de periodos por recurso'' del capítulo de Desarrollo (\S~\ref{sec:desarrollo}) para el detalle de estos \emph{flags}.
+\paragraph{8. Verificación con pytest (antes de levantar servidores)}\mbox{}\\
+\begin{quote}
+\ttfamily
+pytest \# desde backend/
+\end{quote}
 
 \paragraph{9. Arrancar el servidor de desarrollo del backend}\mbox{}\\
 \begin{quote}
@@ -201,7 +203,7 @@ Como atajo, el repositorio incluye \texttt{scripts/bootstrap.ps1} que orquesta \
 
 \begin{quote}
 \ttfamily
-.\textbackslash scripts\textbackslash bootstrap.ps1
+.\textbackslash scripts\textbackslash bootstrap.ps1 \# Desde proyecto_terminal_cyad/
 \end{quote}
 
 El script imprime tres pasos numerados (\texttt{[1/3]} crear BD, \texttt{[2/3]} migrar, \texttt{[3/3]} seed) y al finalizar recuerda cómo arrancar el backend y el frontend en dos terminales distintas. Falla temprano si falta \texttt{backend/.env} o si el árbol del repositorio no está completo.
@@ -214,7 +216,7 @@ Con la base de datos ya creada y las migraciones aplicadas (pasos 3 y 4 de la Su
 python scripts/seed\_demo.py
 \end{quote}
 
-El \emph{seed} es idempotente y crea catálogos, UEAs, usuarios de prueba, periodo activo (\texttt{26-I}) y el formulario de autoevaluación en un solo comando. Al finalizar, existirán las siguientes cuentas:
+El \emph{seed} es idempotente y crea, en un solo comando, catálogos y UEAs \emph{de muestra} (4 departamentos, 4 licenciaturas, 2 áreas y 5 UEAs — no invoca \texttt{loaddata} ni \texttt{cargar\_catalogos\_csv}, por lo que no deja cargado el catálogo oficial de 511 UEAs de la Subsubsección~\ref{apx:manual-inst:install-limpia}), usuarios de prueba, un periodo activo (\texttt{26-I}) y el formulario de autoevaluación. Al finalizar, existirán las siguientes cuentas:
 
 \begin{longtable}{p{0.30\textwidth} p{0.35\textwidth} p{0.30\textwidth}}
     \toprule
@@ -238,13 +240,16 @@ En una terminal aparte:
 \begin{quote}
 \ttfamily
 cd frontend \\
+cp .env.example .env \\
 npm install \\
 npm run dev
 \end{quote}
 
-El frontend queda disponible en \texttt{http://localhost:5173}. Vite realiza \emph{hot reload} automático al editar archivos fuente.
+El repositorio incluye \texttt{frontend/.env.example} ya con \texttt{VITE\_API\_URL=http://localhost:8000/api/v1}, que coincide con el valor por defecto de \texttt{frontend/src/api/client.js}; para desarrollo local con el backend en el puerto 8000 basta copiarlo tal cual.
 
-Si el backend no está en \texttt{localhost:8000}, cree \texttt{frontend/.env.local} con:
+El frontend queda disponible en \texttt{http://localhost:5173} y en \texttt{http://localhost:5174}. Vite realiza \emph{hot reload} automático al editar archivos fuente.
+
+Si el backend no está en \texttt{localhost:8000}, ajuste \texttt{VITE\_API\_URL} en \texttt{frontend/.env} (o cree \texttt{frontend/.env.local}, que Vite prioriza) con:
 
 \begin{Verbatim}[fontsize=\small, frame=single]
 VITE_API_URL=http://tu-servidor:8000/api/v1
@@ -255,11 +260,10 @@ VITE_API_URL=http://tu-servidor:8000/api/v1
 \subsubsection{Verificación}
 
 \begin{enumerate}
-    \item Abra \texttt{http://localhost:5173/} — debe mostrarse la vista pública ``Explorar''.
+    \item Abra \texttt{http://localhost:5173/} — debe mostrarse la portada pública, con los accesos a ``Explorar'' por tipo de documento (la ruta \texttt{/publico/explorar/:tipo}; la portada en \texttt{/} es \texttt{HomePage}, no la vista de Explorar en sí).
     \item Inicie sesión con el superuser creado en el paso 5 de la Subsubsección~\ref{apx:manual-inst:install-limpia} (o, si sembró la demo, con \texttt{admin@cyad.uam.mx / Admin1234!}). Debe redirigir al \emph{dashboard} de administrador.
     \item Si sembró la demo, cierre sesión e inicie con \texttt{profesor@cyad.uam.mx / Profesor1234!}. Debe redirigir al \emph{dashboard} de profesor.
-    \item Ejecute la suite de pruebas: \texttt{pytest} desde \texttt{backend/}. Todas deben pasar.
-    \item \emph{Opcional}: con el backend corriendo y el seed cargado, ejecute \texttt{python scripts/smoke\_test.py} desde \texttt{backend/}. Verifica de extremo a extremo, vía HTTP, el \emph{login} de \texttt{admin} y \texttt{profesor}, \texttt{/auth/me}, catálogos, formularios disponibles, creación de respuesta, creación de carta temática y los reportes de administrador.
+    \item \emph{Opcional, sólo si sembró la demo de la Subsubsección~\ref{apx:manual-inst:datos-demo}}: con el backend corriendo, ejecute \texttt{python scripts/smoke\_test.py} desde \texttt{backend/}. Verifica de extremo a extremo, vía HTTP, el \emph{login} de \texttt{admin} y \texttt{profesor}, \texttt{/auth/me}, catálogos, formularios disponibles, creación de respuesta, creación de carta temática y los reportes de administrador; no aplica a la instalación limpia porque depende de las cuentas de prueba del seed.
 \end{enumerate}
 
 \subsubsection{Comandos administrativos útiles}
@@ -277,7 +281,7 @@ VITE_API_URL=http://tu-servidor:8000/api/v1
     \midrule
     \texttt{python scripts/medir\_hardware.py} & Medir RAM de Django, PostgreSQL y pico de \texttt{npm run build}. \\
     \midrule
-    \texttt{pytest --cov=. --cov-report=html} & Ejecutar pruebas con cobertura. \\
+    \texttt{pip install pytest-cov \&\& pytest --cov=. --cov-report=html} & Ejecutar pruebas con cobertura (\texttt{pytest-cov} no está en \texttt{requirements.txt}). \\
     \midrule
     \texttt{npm run build} (frontend) & Compilar producción estática (\texttt{dist/}). \\
     \bottomrule
