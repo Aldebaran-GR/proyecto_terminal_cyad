@@ -61,8 +61,7 @@ Al finalizar imprime una tabla legible en la consola y deja el detalle en \textt
 \subsubsection{Clonado del repositorio}
 
 \begin{Comandos}
-git clone --depth 1 https://github.com/Aldebaran-GR/proyecto_terminal_cyad.git
-cd proyecto_terminal_cyad
+git clone --depth 1 https://github.com/Aldebaran-GR/proyecto_terminal_cyad.git .
 \end{Comandos}
 
 \subsubsection{Instalación mínima sin datos de demo}
@@ -88,13 +87,22 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 
 Si \texttt{pip install -r requirements.txt} falla, confirme que el \texttt{.venv} esté activo y que la versión de Python sea 3.11 o superior.
 
-Para descartar dudas sobre qué intérprete quedó activo (opcional), ejecute:
+Para descartar dudas sobre qué intérprete quedó activo (opcional, y obligatorio si aparece el incidente descrito abajo), ejecute:
 
 \begin{Comandos}
 python -c "import sys; print(sys.executable)"
 \end{Comandos}
 
 La salida debe apuntar a \texttt{...\textbackslash\allowbreak proyecto_terminal_cyad\textbackslash\allowbreak backend\textbackslash\allowbreak .venv\textbackslash\allowbreak Scripts\textbackslash\allowbreak python.exe} en Windows (o \texttt{.../backend/.venv/bin/python} en Linux/macOS). Si apunta a otro Python (por ejemplo \texttt{C:\textbackslash\allowbreak Python313\textbackslash} o \texttt{...\textbackslash\allowbreak AppData\textbackslash\allowbreak Local\textbackslash\allowbreak Programs\textbackslash\allowbreak Python\textbackslash...}), el \texttt{.venv} no está activo de verdad.
+
+\textbf{Incidente frecuente: \texttt{ModuleNotFoundError: No module named 'decouple'}} al ejecutar \texttt{scripts/create\_db.py} o \texttt{manage.py}, pese a que \texttt{pip install -r requirements.txt} no reportó errores. Esto ocurre cuando esa instalación se realizó contra el Python global en lugar del Python del \texttt{.venv} —típicamente porque la activación falló silenciosamente (símbolo de la terminal sin el prefijo \texttt{(.venv)}, o una terminal nueva donde no se volvió a activar) y el comando \texttt{pip} del \texttt{PATH} apuntaba a otro intérprete. El diagnóstico es la misma verificación de arriba (\texttt{python -c "import sys; print(sys.executable)"}); si confirma que el intérprete activo no es el del \texttt{.venv}, la forma de corregirlo —inmune al estado de activación y al orden del \texttt{PATH}— es invocar el ejecutable del \texttt{.venv} por su ruta completa, tanto para instalar como para ejecutar cualquier \emph{script} posterior:
+
+\begin{Comandos}
+.venv\Scripts\python.exe -m pip install -r requirements.txt    # Windows
+.venv/bin/python -m pip install -r requirements.txt            # Linux/macOS
+\end{Comandos}
+
+Verifique con \texttt{.venv\textbackslash Scripts\textbackslash python.exe -c "import decouple; print('OK')"} (o su equivalente en \texttt{bin/python}) antes de continuar con el resto de la instalación.
 
 \paragraph{2. Archivo \texttt{.env} del backend}\mbox{}\\
 \textbf{Ubicación:} el archivo \texttt{.env} que Django lee debe estar en la carpeta \texttt{backend/} (donde vive \texttt{manage.py}), \emph{no} en la raíz del repositorio. El repositorio incluye \texttt{backend/.env.example} como plantilla; cópielo y ajuste los valores:
