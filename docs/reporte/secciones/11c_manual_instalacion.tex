@@ -25,12 +25,12 @@ Este manual describe cómo instalar y ejecutar el \emph{Sistema para la gestión
 
 En Windows se recomienda utilizar \emph{Git Bash} o \emph{PowerShell}. En Linux/macOS los comandos son idénticos, cambiando la ruta del entorno virtual (\texttt{bin/} en lugar de \texttt{Scripts/}).
 
-\textbf{Nota importante para Windows:} el instalador oficial de PostgreSQL no agrega \texttt{psql} al \texttt{PATH} del sistema. Si al escribir \texttt{psql --version} obtiene ``command not found'', agregue manualmente la carpeta \texttt{C:\textbackslash Program Files\textbackslash PostgreSQL\textbackslash 17\textbackslash bin} (ajuste al número de versión que tenga) a la variable de entorno \texttt{Path} de Windows, o invoque \texttt{psql} por ruta completa.
+\textbf{Nota importante para Windows:} el instalador oficial de PostgreSQL no agrega \texttt{psql} al \texttt{PATH} del sistema; esto no impide la instalación, que en esta guía usa el \emph{script} \texttt{scripts/create\_db.py} en lugar de \texttt{psql} (ver la Solución de problemas al final de este manual si necesita invocar \texttt{psql} directamente).
 
 \paragraph{Requisitos mínimos de hardware}\mbox{}\\
 Las siguientes cifras se derivan de mediciones sobre un entorno con \texttt{seed\_demo} cargado, ejecutando \texttt{backend/scripts/medir\_hardware.py} (descrito al final de este apartado): el proceso de Django consume aproximadamente 120~MB de RAM en reposo, PostgreSQL alrededor de 80~MB con la carga de demostración, y el \emph{build} del frontend (\texttt{npm run build}) alcanza un pico de \textasciitilde 250~MB durante la compilación (no en tiempo de ejecución).
 
-\begin{longtable}{p{0.30\textwidth} p{0.20\textwidth} p{0.20\textwidth} p{0.22\textwidth}}
+\begin{longtable}{p{0.28\textwidth} p{0.18\textwidth} p{0.20\textwidth} p{0.22\textwidth}}
     \toprule
     \textbf{Escenario} & \textbf{RAM mínima} & \textbf{RAM recomendada} & \textbf{Disco} \\
     \midrule
@@ -51,7 +51,7 @@ Ancho de banda: al ser una aplicación de tipo formulario, el consumo por sesió
 Las tres cifras anteriores (Django en reposo, PostgreSQL con demo, pico de \texttt{npm run build}) se pueden reproducir sobre cualquier host ejecutando el \emph{script} versionado \texttt{backend/scripts/medir\_hardware.py}. El \emph{script}:
 
 \begin{itemize}
-    \item arranca \texttt{manage.py runserver --noreload} en un subproceso, sirve una petición a \texttt{/api/schema/} para forzar la inicialización de la app y muestrea el \texttt{RSS} del proceso con \texttt{psutil};
+    \item arranca \texttt{manage.py runserver -{}-noreload} en un subproceso, sirve una petición a \texttt{/api/schema/} para forzar la inicialización de la app y muestrea el \texttt{RSS} del proceso con \texttt{psutil};
     \item enumera todos los procesos \texttt{postgres} visibles al usuario y suma su \texttt{RSS} (refleja la carga vigente de la base; ideal medirlo después de correr \texttt{python scripts/seed\_demo.py});
     \item ejecuta \texttt{npm run build} en \texttt{frontend/} y muestrea el RSS del árbol de procesos cada 200~ms hasta que termina, guardando el máximo.
 \end{itemize}
@@ -60,10 +60,10 @@ Al finalizar imprime una tabla legible en la consola y deja el detalle en \textt
 
 \subsubsection{Clonado del repositorio}
 
-\begin{quote}
-\ttfamily
-git clone --depth 1 https://github.com/Aldebaran-GR/proyecto_terminal_cyad.git .
-\end{quote}
+\begin{Comandos}
+git clone --depth 1 https://github.com/Aldebaran-GR/proyecto_terminal_cyad.git
+cd proyecto_terminal_cyad
+\end{Comandos}
 
 \subsubsection{Instalación mínima sin datos de demo}
 \label{apx:manual-inst:install-limpia}
@@ -71,47 +71,37 @@ git clone --depth 1 https://github.com/Aldebaran-GR/proyecto_terminal_cyad.git .
 Esta es la ruta recomendada para un despliegue institucional real. Deja el sistema con los catálogos oficiales de CyAD (departamentos, licenciaturas, posgrados, áreas y UEAs) y una única cuenta de administrador; no crea profesores de prueba, formularios ficticios ni respuestas simuladas. Es la única ruta apropiada para producción; el flujo con datos de demostración se documenta después (Subsubsección~\ref{apx:manual-inst:datos-demo}) y no debe ejecutarse en un ambiente productivo.
 
 \paragraph{1. Entorno virtual y dependencias del backend}\mbox{}\\
-\begin{quote}
-\ttfamily
-cd backend \\
-python -m venv .venv \\
-.venv\textbackslash Scripts\textbackslash Activate.ps1\ \ \# Windows \\
+\begin{Comandos}
+cd backend
+python -m venv .venv
+.venv\Scripts\Activate.ps1    # Windows (PowerShell)
+source .venv/bin/activate     # Linux / macOS
 pip install -r requirements.txt
-\end{quote}
+\end{Comandos}
 
-Verificar contra qué Python vas a instalar (opcional, para descartar dudas). Debe apuntar a ...\textbackslash proyecto_terminal_cyad\textbackslash backend\textbackslash .venv\textbackslash Scripts\textbackslash python.exe. Si apunta a otro Python (por ejemplo C:\textbackslash Python313\textbackslash o C:\textbackslash Users\textbackslash ...\textbackslash AppData\textbackslash Local\textbackslash Programs\textbackslash Python\textbackslash ...), el venv no está activo de verdad.
+Windows bloquea por defecto la ejecución de \emph{scripts} \texttt{.ps1}. Si al activar aparece un error de \emph{execution policy}, o el símbolo de la terminal no cambia a \texttt{(.venv)}, ejecute lo siguiente una sola vez en esa terminal (no persiste; sólo aplica a la sesión actual) y repita la activación:
 
-\begin{quote}
-\ttfamily
-    python -c "import sys; print(sys.executable)" \#Verifica que apunta al venv
-\end{quote}
+\begin{Comandos}
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+.venv\Scripts\Activate.ps1
+\end{Comandos}
 
-Windows por defecto bloquea ejecutar scripts .ps1. Si ves un error de "execution policy" o simplemente no pasa nada, corre esto una sola vez en esa terminal (no persiste, solo aplica a la sesión actual)
-\begin{quote}
-\ttfamily
-    Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass \\
-    .venv\textbackslash Scripts\textbackslash Activate.ps1 \\
-    python -c "import sys; print(sys.executable)"
-\end{quote}
+Si \texttt{pip install -r requirements.txt} falla, confirme que el \texttt{.venv} esté activo y que la versión de Python sea 3.11 o superior.
 
-Si sigue sin apuntar al venv (activación "exitosa" pero PATH incorrecto), La solución definitiva, que no depende de la activación ni del PATH, es llamar siempre al ejecutable del venv por su ruta completa, sin usar el comando python genérico:
+Para descartar dudas sobre qué intérprete quedó activo (opcional), ejecute:
 
-\begin{quote}
-\ttfamily
-    .venv\textbackslash Scripts\textbackslash python.exe -m pip install -r requirements.txt \\
-    pip show python-decouple \# Verifica que se instaló en el venv. Debe mostrar Location: ...\textbackslash .venv\textbackslash Lib\textbackslash site-packages \\
-    .venv\textbackslash Scripts\textbackslash python.exe scripts/create\_db.py \#Ejecutar en 3. Crear la base de datos vacía \\
-    .venv\textbackslash Scripts\textbackslash python.exe manage.py migrate \#Ejecutar en 4. Aplicar migraciones
-\end{quote}
+\begin{Comandos}
+python -c "import sys; print(sys.executable)"
+\end{Comandos}
 
+La salida debe apuntar a \texttt{...\textbackslash\allowbreak proyecto_terminal_cyad\textbackslash\allowbreak backend\textbackslash\allowbreak .venv\textbackslash\allowbreak Scripts\textbackslash\allowbreak python.exe} en Windows (o \texttt{.../backend/.venv/bin/python} en Linux/macOS). Si apunta a otro Python (por ejemplo \texttt{C:\textbackslash\allowbreak Python313\textbackslash} o \texttt{...\textbackslash\allowbreak AppData\textbackslash\allowbreak Local\textbackslash\allowbreak Programs\textbackslash\allowbreak Python\textbackslash...}), el \texttt{.venv} no está activo de verdad.
 
 \paragraph{2. Archivo \texttt{.env} del backend}\mbox{}\\
 \textbf{Ubicación:} el archivo \texttt{.env} que Django lee debe estar en la carpeta \texttt{backend/} (donde vive \texttt{manage.py}), \emph{no} en la raíz del repositorio. El repositorio incluye \texttt{backend/.env.example} como plantilla; cópielo y ajuste los valores:
 
-\begin{quote}
-\ttfamily
-cp .env.example .env\ \ \# desde backend/
-\end{quote}
+\begin{Comandos}
+cp .env.example .env    # desde backend/
+\end{Comandos}
 
 Contenido esperado (valores por defecto de la plantilla; ajuste \texttt{DB\_PASSWORD} y \texttt{SECRET\_KEY} a su entorno):
 
@@ -126,87 +116,81 @@ DB_HOST=localhost
 DB_PORT=5432
 JWT_ACCESS_MINUTES=60
 JWT_REFRESH_DAYS=7
-CORS_ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173,http://localhost:5174
+CORS_ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
 \end{Verbatim}
 
-Para producción se debe establecer \texttt{DEBUG=False}, definir \texttt{ALLOWED\_HOSTS} con el dominio real y generar una \texttt{SECRET\_KEY} con \texttt{python -c "from django.core.management.utils import get\_random\_secret\_key; print(get\_random\_secret\_key())"} (más detalle en Subsubsección~\ref{apx:manual-inst:despliegue-produccion}).
+Para producción se debe establecer \texttt{DEBUG=False}, definir \texttt{ALLOWED\_HOSTS} con el dominio real y generar una \texttt{SECRET\_KEY} nueva (comando en la Subsubsección~\ref{apx:manual-inst:despliegue-produccion}).
 
 \paragraph{3. Crear la base de datos vacía}\mbox{}\\
 El proyecto utiliza por defecto el usuario \texttt{postgres} y una base de datos llamada \texttt{proyecto\_terminal\_cyad} (ver \texttt{backend/.env.example}). La forma recomendada es dejar que el script auxiliar cree la base automáticamente:
 
-\begin{quote}
-\ttfamily
-python scripts/create\_db.py
-\end{quote}
-
+\begin{Comandos}
+python scripts/create_db.py
+\end{Comandos}
 
 \paragraph{4. Aplicar migraciones}\mbox{}\\
-\begin{quote}
-\ttfamily
+\begin{Comandos}
 python manage.py migrate
-\end{quote}
+\end{Comandos}
 
 \paragraph{5. Crear la primera cuenta de administrador}\mbox{}\\
 Con el comando interactivo de Django:
 
-\begin{quote}
-\ttfamily
+\begin{Comandos}
 python manage.py createsuperuser
-\end{quote}
+\end{Comandos}
 
 Se pedirán correo, nombre y contraseña. Este usuario tendrá rol \texttt{ADMIN} y podrá crear el resto de cuentas desde la interfaz web.
 
-\begin{Verbatim}[fontsize=\small, frame=single]
-set DJANGO_SUPERUSER_EMAIL=admin@cyad.uam.mx
-set DJANGO_SUPERUSER_NOMBRE=Administrador CyAD
-set DJANGO_SUPERUSER_PASSWORD=<password-fuerte>
+Alternativa no interactiva (útil para automatizar el aprovisionamiento), definiendo antes las variables de entorno que \texttt{createsuperuser} espera:
+
+\begin{Comandos}
+$env:DJANGO_SUPERUSER_EMAIL="admin@azc.uam.mx"       # PowerShell
+$env:DJANGO_SUPERUSER_NOMBRE="Administrador CyAD"
+$env:DJANGO_SUPERUSER_PASSWORD="<password-fuerte>"
 python manage.py createsuperuser --noinput
-\end{Verbatim}
+\end{Comandos}
+
+En \emph{Git Bash}, Linux o macOS use \texttt{export VAR=valor} en vez de la sintaxis de PowerShell.
 
 \paragraph{6. Cargar los catálogos base (fixtures JSON versionados)}\mbox{}\\
 Departamentos, licenciaturas, posgrados y áreas están precargados en fixtures JSON dentro del repositorio, y se aplican con el comando \texttt{loaddata} de Django. Ejecutar en el orden que dictan las claves foráneas:
 
-\begin{quote}
-\ttfamily
-python manage.py loaddata catalogos/fixtures/departamentos.json \\
-python manage.py loaddata catalogos/fixtures/licenciaturas.json \\
-python manage.py loaddata catalogos/fixtures/posgrados.json \\
+\begin{Comandos}
+python manage.py loaddata catalogos/fixtures/departamentos.json
+python manage.py loaddata catalogos/fixtures/licenciaturas.json
+python manage.py loaddata catalogos/fixtures/posgrados.json
 python manage.py loaddata catalogos/fixtures/areas.json
-\end{quote}
+\end{Comandos}
 
 Los fixtures son idempotentes (usan clave primaria explícita): se pueden re-ejecutar sin duplicar registros.
 
 \paragraph{7. Cargar las UEAs oficiales}\mbox{}\\
 Los CSV oficiales de coordinación académica (\texttt{ueas\_licenciatura.csv} con las UEAs de DCG, ARQ, DI y DiPS; \texttt{ueas\_posgrado.csv} con las UEAs de PPCDA, PDB y PDEU) viven versionados en \texttt{backend/catalogos/fixtures/}. Se cargan con el comando de gestión \texttt{cargar\_catalogos\_csv}:
 
-\begin{quote}
-\ttfamily
-python manage.py cargar\_catalogos\_csv \\
-\ \ --ueas-csv catalogos/fixtures/ueas\_licenciatura.csv \\
-python manage.py cargar\_catalogos\_csv \\
-\ \ --ueas-csv catalogos/fixtures/ueas\_posgrado.csv
-\end{quote}
+\begin{Comandos}
+python manage.py cargar_catalogos_csv --ueas-csv catalogos/fixtures/ueas_licenciatura.csv
+python manage.py cargar_catalogos_csv --ueas-csv catalogos/fixtures/ueas_posgrado.csv
+\end{Comandos}
 
 El comando valida claves duplicadas, reporta filas rechazadas y resuelve el área de cada UEA contra los pares \texttt{(nombre, descripción)} de \texttt{areas.json}; las áreas que no encuentre las lista como \emph{warning} y la UEA queda con \texttt{area = NULL} (nunca se crea un área nueva de forma silenciosa). La carga es idempotente por el \texttt{update\_or\_create} interno.
 
-Si coordinación entrega en el futuro un CSV incremental (por ejemplo cuando cambie un plan de estudios), se carga con el mismo comando apuntando \texttt{--ueas-csv} a la nueva ruta; el efecto es un \emph{upsert} por \texttt{(clave, programa)}.
+Si coordinación entrega en el futuro un CSV incremental (por ejemplo cuando cambie un plan de estudios), se carga con el mismo comando apuntando \texttt{-{}-ueas-csv} a la nueva ruta; el efecto es un \emph{upsert} por \texttt{(clave, programa)}.
 
 \paragraph{8. Verificación con pytest (antes de levantar servidores)}\mbox{}\\
-\begin{quote}
-\ttfamily
-pytest \# desde backend/
-\end{quote}
+\begin{Comandos}
+pytest    # desde backend/
+\end{Comandos}
 
 \paragraph{9. Arrancar el servidor de desarrollo del backend}\mbox{}\\
-\begin{quote}
-\ttfamily
+\begin{Comandos}
 python manage.py runserver 8000
-\end{quote}
+\end{Comandos}
 
 El backend queda disponible en \texttt{http://localhost:8000}. La documentación interactiva de la API está en \texttt{http://localhost:8000/api/docs/}.
 
 \paragraph{10. Crear el formulario de autoevaluación institucional}\mbox{}\\
-Con el backend corriendo, iniciar sesión con el superuser del paso 5 y, desde \texttt{Autoevaluación $\to$ Nuevo formulario}, construir el formulario del periodo vigente (secciones, preguntas, opciones puntuables y niveles de desempeño). Publicarlo cuando la suma de pesos de las secciones alcance 100~\%.
+Con el backend corriendo (paso 9) y el frontend levantado (Subsubsección~\ref{apx:manual-inst:frontend}), iniciar sesión con el superuser del paso 5 y, desde \texttt{Autoevaluación $\to$ Nuevo formulario}, construir el formulario del periodo vigente (secciones, preguntas, opciones puntuables y niveles de desempeño). Publicarlo cuando la suma de pesos de las secciones alcance 100~\%.
 
 Los usuarios de profesor se crean posteriormente desde \texttt{Profesores $\to$ Nuevo profesor} en la interfaz de administrador; cada creación genera un correo + contraseña temporal que el administrador entrega personalmente al docente.
 
@@ -218,24 +202,22 @@ Los usuarios de profesor se crean posteriormente desde \texttt{Profesores $\to$ 
 \paragraph{Bootstrap unificado (Windows PowerShell)}\mbox{}\\
 Como atajo, el repositorio incluye \texttt{scripts/bootstrap.ps1} que orquesta \emph{creación de BD}, \emph{migraciones} y \emph{siembra de datos de demo} en un único comando. Debe ejecutarse desde la raíz del repositorio, con el \texttt{.venv} ya activo y \texttt{backend/.env} configurado:
 
-\begin{quote}
-\ttfamily
-.\textbackslash scripts\textbackslash bootstrap.ps1 \# Desde proyecto_terminal_cyad/
-\end{quote}
+\begin{Comandos}
+.\scripts\bootstrap.ps1    # Desde proyecto_terminal_cyad/
+\end{Comandos}
 
 El script imprime tres pasos numerados (\texttt{[1/3]} crear BD, \texttt{[2/3]} migrar, \texttt{[3/3]} seed) y al finalizar recuerda cómo arrancar el backend y el frontend en dos terminales distintas. Falla temprano si falta \texttt{backend/.env} o si el árbol del repositorio no está completo.
 
 \paragraph{Seed manual (Linux, macOS, o alternativa a Bootstrap)}\mbox{}\\
 Con la base de datos ya creada y las migraciones aplicadas (pasos 3 y 4 de la Subsubsección~\ref{apx:manual-inst:install-limpia}), ejecute:
 
-\begin{quote}
-\ttfamily
-python scripts/seed\_demo.py
-\end{quote}
+\begin{Comandos}
+python scripts/seed_demo.py
+\end{Comandos}
 
-El \emph{seed} es idempotente y crea, en un solo comando, catálogos y UEAs \emph{de muestra} (4 departamentos, 4 licenciaturas, 2 áreas y 5 UEAs — no invoca \texttt{loaddata} ni \texttt{cargar\_catalogos\_csv}, por lo que no deja cargado el catálogo oficial de 511 UEAs de la Subsubsección~\ref{apx:manual-inst:install-limpia}), usuarios de prueba, un periodo activo (\texttt{26-I}) y el formulario de autoevaluación. Al finalizar, existirán las siguientes cuentas:
+El \emph{seed} es idempotente y crea, en un solo comando, catálogos y UEAs \emph{de muestra} (4 departamentos, 4 licenciaturas, 1 posgrado, 2 áreas y 5 UEAs — 4 de licenciatura y 1 de posgrado, para validar la relación excluyente licenciatura/posgrado de \texttt{UEA} — sin invocar \texttt{loaddata} ni \texttt{cargar\_catalogos\_csv}, por lo que no deja cargado el catálogo oficial de 511 UEAs de la Subsubsección~\ref{apx:manual-inst:install-limpia}), usuarios de prueba, un periodo activo (\texttt{26-I}) y el formulario de autoevaluación. Al finalizar, existirán las siguientes cuentas:
 
-\begin{longtable}{p{0.30\textwidth} p{0.35\textwidth} p{0.30\textwidth}}
+\begin{longtable}{p{0.24\textwidth} p{0.36\textwidth} p{0.24\textwidth}}
     \toprule
     \textbf{Rol} & \textbf{Correo} & \textbf{Contraseña} \\
     \midrule
@@ -251,33 +233,31 @@ El \emph{seed} es idempotente y crea, en un solo comando, catálogos y UEAs \emp
 Estas contraseñas deben cambiarse antes del despliegue a producción (y, de hecho, la base entera debería recrearse limpia siguiendo la Subsubsección~\ref{apx:manual-inst:install-limpia}).
 
 \subsubsection{Configuración del frontend}
+\label{apx:manual-inst:frontend}
 
 En una terminal aparte:
 
-\begin{quote}
-\ttfamily
-cd frontend \\
-cp .env.example .env \\
-npm install \\
+\begin{Comandos}
+cd frontend
+cp .env.example .env
+npm install
 npm run dev
-\end{quote}
+\end{Comandos}
 
-El repositorio incluye \texttt{frontend/.env.example} ya con \texttt{VITE\_API\_URL=http://localhost:8000/api/v1}, que coincide con el valor por defecto de \texttt{frontend/src/api/client.js}; para desarrollo local con el backend en el puerto 8000 basta copiarlo tal cual.
+El repositorio incluye \texttt{frontend/.env.example} ya con \texttt{VITE\_API\_URL=}\code{http://localhost:8000/api/v1}, que coincide con el valor por defecto de \texttt{frontend/src/api/client.js}; para desarrollo local con el backend en el puerto 8000 basta copiarlo tal cual.
 
-El frontend queda disponible en \texttt{http://localhost:5173} y en \texttt{http://localhost:5174}. Vite realiza \emph{hot reload} automático al editar archivos fuente.
+El frontend queda disponible en \code{http://localhost:5173}. Si el puerto está ocupado, Vite usa automáticamente el siguiente libre e imprime la URL real en consola. Vite realiza \emph{hot reload} automático al editar archivos fuente.
 
 Si el backend no está en \texttt{localhost:8000}, ajuste \texttt{VITE\_API\_URL} en \texttt{frontend/.env} (o cree \texttt{frontend/.env.local}, que Vite prioriza) con:
 
-\begin{Verbatim}[fontsize=\small, frame=single]
+\begin{Verbatim}[fontsize=\small, frame=single, breaklines=true]
 VITE_API_URL=http://tu-servidor:8000/api/v1
 \end{Verbatim}
-
-\textbf{Nota:} el nombre correcto de la variable es \texttt{VITE\_API\_URL} (verificable en \texttt{frontend/src/api/client.js}).
 
 \subsubsection{Verificación}
 
 \begin{enumerate}
-    \item Abra \texttt{http://localhost:5173/} — debe mostrarse la portada pública, con los accesos a ``Explorar'' por tipo de documento (la ruta \texttt{/publico/explorar/:tipo}; la portada en \texttt{/} es \texttt{HomePage}, no la vista de Explorar en sí).
+    \item Abra \texttt{http://localhost:5173/} — debe mostrarse la portada pública, con accesos a ``Explorar'' por tipo de documento.
     \item Inicie sesión con el superuser creado en el paso 5 de la Subsubsección~\ref{apx:manual-inst:install-limpia} (o, si sembró la demo, con \texttt{admin@cyad.uam.mx / Admin1234!}). Debe redirigir al \emph{dashboard} de administrador.
     \item Si sembró la demo, cierre sesión e inicie con \texttt{profesor@cyad.uam.mx / Profesor1234!}. Debe redirigir al \emph{dashboard} de profesor.
     \item \emph{Opcional, sólo si sembró la demo de la Subsubsección~\ref{apx:manual-inst:datos-demo}}: con el backend corriendo, ejecute \texttt{python scripts/smoke\_test.py} desde \texttt{backend/}. Verifica de extremo a extremo, vía HTTP, el \emph{login} de \texttt{admin} y \texttt{profesor}, \texttt{/auth/me}, catálogos, formularios disponibles, creación de respuesta, creación de carta temática y los reportes de administrador; no aplica a la instalación limpia porque depende de las cuentas de prueba del seed.
@@ -290,7 +270,7 @@ VITE_API_URL=http://tu-servidor:8000/api/v1
     \textbf{Comando} & \textbf{Uso} \\
     \midrule
     \endhead
-    \texttt{python manage.py cargar\_catalogos\_csv --ueas-csv <archivo>} & Importar UEAs adicionales desde CSV. \\
+    \texttt{python manage.py cargar\_catalogos\_csv \allowbreak -{}-ueas-csv <archivo>} & Importar UEAs adicionales desde CSV. \\
     \midrule
     \texttt{python manage.py createsuperuser} & Crear cuenta administradora adicional. \\
     \midrule
@@ -298,7 +278,7 @@ VITE_API_URL=http://tu-servidor:8000/api/v1
     \midrule
     \texttt{python scripts/medir\_hardware.py} & Medir RAM de Django, PostgreSQL y pico de \texttt{npm run build}. \\
     \midrule
-    \texttt{pip install pytest-cov \&\& pytest --cov=. --cov-report=html} & Ejecutar pruebas con cobertura (\texttt{pytest-cov} no está en \texttt{requirements.txt}). \\
+    \texttt{pip install pytest-cov \&\& \allowbreak pytest -{}-cov=. \allowbreak -{}-cov-report=html} & Ejecutar pruebas con cobertura (\texttt{pytest-cov} no está en \texttt{requirements.txt}). \\
     \midrule
     \texttt{npm run build} (frontend) & Compilar producción estática (\texttt{dist/}). \\
     \bottomrule
@@ -317,10 +297,10 @@ Esta subsubsección describe el despliegue en un servidor Linux (Ubuntu 22.04 LT
      +--------------------+
      |       Nginx        |    Sirve /  -> frontend/dist  (SPA estático)
      | (proxy inverso +   |    /api/    -> gunicorn (socket UNIX)
-     |  archivos estát.)  |    /admin/  -> gunicorn (socket UNIX)
-     +---------+----------+    /static/ -> backend/staticfiles
+     |  archivos estát.)  |    /static/ -> backend/staticfiles
+     +---------+----------+
                |
-               v (unix:/run/cyad.sock)
+               v (unix:/run/cyad/cyad.sock)
      +--------------------+
      |  gunicorn (3 wk)   |    Django / DRF
      |  config.wsgi:app   |
@@ -332,10 +312,12 @@ Esta subsubsección describe el despliegue en un servidor Linux (Ubuntu 22.04 LT
      +--------------------+
 \end{Verbatim}
 
+El Django \emph{admin} (\texttt{/admin/}) no se expone públicamente: el SPA usa esa misma ruta (\texttt{/admin/*}) para su propio panel de administrador (ver \texttt{frontend/src/App.jsx}), así que Nginx no debe proxiarla hacia gunicorn. Si se necesita el admin de Django en producción para depuración puntual, accédase por túnel SSH a \texttt{localhost:8000} en el servidor, no vía Nginx.
+
 Todos los servicios corren en la misma máquina en el caso más simple; se pueden separar la BD y el \emph{app server} sin cambios en el código, ajustando \texttt{DB\_HOST} en el \texttt{.env}.
 
 \paragraph{Variables de entorno de producción}\mbox{}\\
-El archivo \texttt{backend/.env} para producción difiere del de desarrollo en cinco campos críticos:
+El archivo \texttt{backend/.env} para producción difiere del de desarrollo en varios campos clave:
 
 \begin{Verbatim}[fontsize=\small, frame=single]
 DEBUG=False
@@ -353,38 +335,40 @@ JWT_REFRESH_DAYS=1
 
 Generación de \texttt{SECRET\_KEY}:
 
-\begin{quote}\ttfamily
-python -c "from django.core.management.utils import get\_random\_secret\_key; \\
-print(get\_random\_secret\_key())"
-\end{quote}
+\begin{Comandos}
+python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"
+\end{Comandos}
 
 La ventana de \texttt{JWT\_ACCESS\_MINUTES=15} y \texttt{JWT\_REFRESH\_DAYS=1} reduce el impacto de un token filtrado; el frontend refresca el \emph{access token} automáticamente en segundo plano mientras el \emph{refresh} siga vigente.
 
 El archivo \texttt{.env} debe tener permisos restrictivos:
 
-\begin{quote}\ttfamily
-chmod 600 backend/.env \\
+\begin{Comandos}
+chmod 600 backend/.env
 chown www-data:www-data backend/.env
-\end{quote}
+\end{Comandos}
 
 \paragraph{Base de datos en producción}\mbox{}\\
 Crear un rol \emph{no-superuser} dedicado y una base propiedad de ese rol:
 
-\begin{quote}\ttfamily
-sudo -u postgres psql \\
-CREATE USER cyad\_prod WITH PASSWORD '\textless password-fuerte\textgreater'; \\
-CREATE DATABASE cyad\_prod OWNER cyad\_prod; \\
-\textbackslash q
-\end{quote}
+\begin{Comandos}
+sudo -u postgres psql
+CREATE USER cyad_prod WITH PASSWORD '<password-fuerte>';
+CREATE DATABASE cyad_prod OWNER cyad_prod;
+\q
+\end{Comandos}
 
 Endurecer \texttt{pg\_hba.conf} para permitir sólo conexiones locales autenticadas por contraseña al usuario \texttt{cyad\_prod} (no permita accesos remotos al usuario \texttt{postgres}).
 
-Respaldo diario recomendado vía \emph{cron}:
+Respaldo diario recomendado vía \emph{cron}. Cree primero el directorio de respaldos (\texttt{postgres} debe poder escribir en él) y luego la tarea:
 
-\begin{Verbatim}[fontsize=\small, frame=single]
+\begin{Comandos}
+sudo install -d -o postgres -g postgres /var/backups/cyad
+\end{Comandos}
+
+\begin{Verbatim}[fontsize=\small, frame=single, breaklines=true, breakanywhere=true]
 # /etc/cron.d/cyad-backup
-0 3 * * * postgres pg_dump -Fc cyad_prod \
-  > /var/backups/cyad/cyad_$(date +\%Y\%m\%d).dump
+0 3 * * * postgres pg_dump -Fc cyad_prod > /var/backups/cyad/cyad_$(date +\%Y\%m\%d).dump
 \end{Verbatim}
 
 Rotar respaldos con \texttt{logrotate} o un simple \texttt{find /var/backups/cyad -mtime +30 -delete}.
@@ -392,9 +376,9 @@ Rotar respaldos con \texttt{logrotate} o un simple \texttt{find /var/backups/cya
 \paragraph{Backend con gunicorn + systemd}\mbox{}\\
 Instalar gunicorn en el mismo entorno virtual:
 
-\begin{quote}\ttfamily
+\begin{Comandos}
 pip install gunicorn
-\end{quote}
+\end{Comandos}
 
 Crear la unidad \texttt{/etc/systemd/system/cyad-backend.service}:
 
@@ -408,12 +392,13 @@ Requires=postgresql.service
 Type=notify
 User=www-data
 Group=www-data
+RuntimeDirectory=cyad
 WorkingDirectory=/srv/cyad/proyecto_terminal_cyad/backend
 Environment="PATH=/srv/cyad/proyecto_terminal_cyad/backend/.venv/bin"
 ExecStart=/srv/cyad/proyecto_terminal_cyad/backend/.venv/bin/gunicorn \
     config.wsgi:application \
     --workers 3 \
-    --bind unix:/run/cyad.sock \
+    --bind unix:/run/cyad/cyad.sock \
     --access-logfile /var/log/cyad/access.log \
     --error-logfile /var/log/cyad/error.log
 Restart=on-failure
@@ -422,33 +407,35 @@ Restart=on-failure
 WantedBy=multi-user.target
 \end{Verbatim}
 
+\texttt{RuntimeDirectory=cyad} hace que systemd cree \texttt{/run/cyad/} (propiedad de \texttt{www-data}) antes de arrancar el servicio, para que gunicorn pueda crear ahí el \emph{socket}; sin esta línea, \texttt{www-data} normalmente no tiene permiso de escritura directa en \texttt{/run/}.
+
 Habilitar y arrancar:
 
-\begin{quote}\ttfamily
-sudo mkdir -p /var/log/cyad \\
-sudo chown www-data:www-data /var/log/cyad \\
-sudo systemctl daemon-reload \\
-sudo systemctl enable --now cyad-backend \\
+\begin{Comandos}
+sudo mkdir -p /var/log/cyad
+sudo chown www-data:www-data /var/log/cyad
+sudo systemctl daemon-reload
+sudo systemctl enable --now cyad-backend
 sudo systemctl status cyad-backend
-\end{quote}
+\end{Comandos}
 
 \paragraph{Archivos estáticos del backend}\mbox{}\\
 El Django admin y \texttt{drf-spectacular} sirven CSS/JS estáticos que Nginx debe entregar directamente. Recolectarlos en \texttt{backend/staticfiles/} (ruta ya definida como \texttt{STATIC\_ROOT} en \texttt{config/settings.py}):
 
-\begin{quote}\ttfamily
+\begin{Comandos}
 python manage.py collectstatic --noinput
-\end{quote}
+\end{Comandos}
 
 Debe re-ejecutarse en cada actualización que añada estáticos nuevos.
 
 \paragraph{Frontend en producción}\mbox{}\\
 Compilar los estáticos del SPA:
 
-\begin{quote}\ttfamily
-cd frontend \\
-npm ci \\
+\begin{Comandos}
+cd frontend
+npm ci
 npm run build
-\end{quote}
+\end{Comandos}
 
 \texttt{npm ci} respeta \texttt{package-lock.json} exactamente y es más rápido que \texttt{npm install} para despliegues reproducibles. El resultado queda en \texttt{frontend/dist/}, que Nginx servirá como archivos estáticos.
 
@@ -474,24 +461,18 @@ server {
         try_files $uri $uri/ /index.html;
     }
 
-    # Backend (API + admin) via socket UNIX
+    # Backend (API) via socket UNIX. NO se proxía /admin/: esa ruta
+    # la sirve el SPA (su propio panel de administrador); ver la nota
+    # sobre el Django admin al inicio de esta subsubsección.
     location /api/ {
-        proxy_pass http://unix:/run/cyad.sock;
+        proxy_pass http://unix:/run/cyad/cyad.sock;
         proxy_set_header Host              $host;
         proxy_set_header X-Real-IP         $remote_addr;
         proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 
-    location /admin/ {
-        proxy_pass http://unix:/run/cyad.sock;
-        proxy_set_header Host              $host;
-        proxy_set_header X-Real-IP         $remote_addr;
-        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-
-    # Estáticos del backend (Django admin, drf-spectacular)
+    # Estáticos del backend (drf-spectacular)
     location /static/ {
         alias /srv/cyad/proyecto_terminal_cyad/backend/staticfiles/;
         expires 30d;
@@ -503,49 +484,48 @@ server {
 
 Habilitar y recargar:
 
-\begin{quote}\ttfamily
-sudo ln -s /etc/nginx/sites-available/cyad.conf \\
-\ \ \ \ \ \ /etc/nginx/sites-enabled/ \\
-sudo nginx -t \\
+\begin{Comandos}
+sudo ln -s /etc/nginx/sites-available/cyad.conf /etc/nginx/sites-enabled/
+sudo nginx -t
 sudo systemctl reload nginx
-\end{quote}
+\end{Comandos}
 
 \paragraph{HTTPS con Let's Encrypt}\mbox{}\\
 Con \emph{certbot} instalado (\texttt{sudo apt install certbot python3-certbot-nginx}):
 
-\begin{quote}\ttfamily
+\begin{Comandos}
 sudo certbot --nginx -d cyad.uam.mx
-\end{quote}
+\end{Comandos}
 
 Certbot modifica el bloque de Nginx anterior para añadir escucha en \texttt{:443} con el certificado emitido y una redirección \texttt{80 $\to$ 443}. La renovación se instala automáticamente vía \emph{systemd timer}; verificar con \texttt{sudo systemctl status certbot.timer}.
 
 \paragraph{Actualizaciones (redeploy)}\mbox{}\\
 Cada nueva versión del código se despliega con:
 
-\begin{quote}\ttfamily
-cd /srv/cyad/proyecto\_terminal\_cyad \\
-git pull \\
-cd backend \\
-source .venv/bin/activate \\
-pip install -r requirements.txt \\
-python manage.py migrate \\
-python manage.py collectstatic --noinput \\
-cd ../frontend \\
-npm ci \\
-npm run build \\
-sudo systemctl restart cyad-backend \\
+\begin{Comandos}
+cd /srv/cyad/proyecto_terminal_cyad
+git pull
+cd backend
+source .venv/bin/activate
+pip install -r requirements.txt
+python manage.py migrate
+python manage.py collectstatic --noinput
+cd ../frontend
+npm ci
+npm run build
+sudo systemctl restart cyad-backend
 sudo systemctl reload nginx
-\end{quote}
+\end{Comandos}
 
 Es recomendable hacer \texttt{pg\_dump} antes de cada \texttt{migrate} en producción.
 
 \paragraph{Nota para despliegues en Windows Server}\mbox{}\\
 Si el hosting institucional obliga a usar Windows Server, gunicorn no está disponible. La alternativa recomendada es \emph{waitress}:
 
-\begin{quote}\ttfamily
-pip install waitress \\
+\begin{Comandos}
+pip install waitress
 waitress-serve --port=8000 config.wsgi:application
-\end{quote}
+\end{Comandos}
 
 Como \emph{reverse proxy} se usa IIS con el módulo \emph{URL Rewrite} + \emph{Application Request Routing}, o bien \emph{Nginx for Windows} con una configuración equivalente a la mostrada arriba. El servicio se registra con \texttt{sc.exe create} o mediante \emph{NSSM}. El resto de la configuración (\texttt{.env}, base de datos, \texttt{collectstatic}, \texttt{npm run build}) es idéntica.
 
@@ -557,6 +537,6 @@ Como \emph{reverse proxy} se usa IIS con el módulo \emph{URL Rewrite} + \emph{A
     \item \textbf{\texttt{429 Too Many Requests} al iniciar sesión}: se activó el \emph{rate limiting} (5 intentos por minuto). Espere 60 segundos y reintente.
     \item \textbf{Puerto 5173 ocupado}: Vite usará automáticamente el siguiente puerto libre; verifique la URL impresa al inicio.
     \item \textbf{\texttt{cargar\_catalogos\_csv} reporta áreas no encontradas}: significa que el CSV trae un par \texttt{(area\_nombre, area\_descripcion)} que no está precargado en \texttt{areas.json}. Agregue el área faltante (ya sea editando \texttt{areas.json} y volviendo a hacer \texttt{loaddata}, o desde \texttt{/admin/catalogos/areas} en la UI) y vuelva a ejecutar el comando; las UEAs afectadas se actualizarán con el área correcta.
-    \item \textbf{\texttt{psql: command not found} en Windows}: agregue \texttt{C:\textbackslash Program Files\textbackslash PostgreSQL\textbackslash<versión>\textbackslash bin} al \texttt{PATH}, o llame a \texttt{psql} por ruta completa. Alternativamente, use \emph{pgAdmin} o el script \texttt{scripts/create\_db.py}, que utiliza el driver Python y no requiere \texttt{psql} en el PATH.
-    \item \textbf{\texttt{scripts/create\_db.py} responde \texttt{'utf-8' codec can't decode byte \dots: invalid continuation byte}}: es una traducción cifrada de un fallo de conexión de \emph{libpq} cuyo mensaje viene en la codificación regional de Windows (\emph{cp1252}) y no en \emph{utf-8}. La causa típica es autenticación fallida contra PostgreSQL: revise \texttt{DB\_USER} y \texttt{DB\_PASSWORD} en \texttt{backend/.env} y confirme que ese rol pueda conectarse a la base \texttt{postgres} (\texttt{psql -U <usuario> -d postgres}). El mismo síntoma aparece si el servicio de PostgreSQL no está corriendo.
+    \item \textbf{\texttt{psql: command not found} en Windows}: agregue \texttt{C:\textbackslash\allowbreak Program Files\textbackslash\allowbreak PostgreSQL\textbackslash\allowbreak<versión>\textbackslash\allowbreak bin} al \texttt{PATH}, o llame a \texttt{psql} por ruta completa. Alternativamente, use \emph{pgAdmin} o el script \texttt{scripts/create\_db.py}, que utiliza el driver Python y no requiere \texttt{psql} en el PATH.
+    \item \textbf{\texttt{scripts/create\_db.py} responde \texttt{'utf-8' codec can't decode byte...}}: es un error de decodificación, no el fallo real. El mensaje de \emph{libpq} llega en la codificación regional de Windows (\emph{cp1252}) y Python falla al intentar leerlo como \emph{utf-8}. La causa típica detrás es autenticación fallida contra PostgreSQL: revise \texttt{DB\_USER} y \texttt{DB\_PASSWORD} en \texttt{backend/.env} y confirme que ese rol pueda conectarse a la base \texttt{postgres} (\texttt{psql -U <usuario> -d postgres}). El mismo síntoma aparece si el servicio de PostgreSQL no está corriendo.
 \end{itemize}

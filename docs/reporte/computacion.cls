@@ -7,6 +7,15 @@
 \RequirePackage{listings,xcolor}
 %Verbatim con soporte UTF-8 (fancyvrb) para el apéndice de código
 \RequirePackage{fancyvrb}
+%fvextra extiende fancyvrb con breaklines/breakanywhere (corta líneas
+%largas dentro del Verbatim en vez de desbordar la caja del PDF).
+\RequirePackage{fvextra}
+%Entorno para bloques de comandos de terminal. Verbatim no aplica
+%ligaduras tipográficas ni los shorthands activos de babel[spanish]
+%(evita que "--depth" se vea como un guion largo o que "import" con
+%comillas rectas antes se lea como diéresis); breakanywhere corta
+%rutas/comandos largos para que no se salgan del margen del PDF.
+\DefineVerbatimEnvironment{Comandos}{Verbatim}{fontsize=\small,frame=single,breaklines=true,breakanywhere=true}
 %Para embeber PDFs externos (manuales de instalación y usuario) como anexos.
 \RequirePackage{pdfpages}
 %Versiones recientes de pdfpages pasan la clave "artifact" a
