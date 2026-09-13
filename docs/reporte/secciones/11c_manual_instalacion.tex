@@ -102,7 +102,7 @@ La salida debe apuntar a \texttt{...\textbackslash\allowbreak proyecto_terminal_
 .venv/bin/python -m pip install -r requirements.txt            # Linux/macOS
 \end{Comandos}
 
-Verifique con \texttt{.venv\textbackslash Scripts\textbackslash python.exe -c "import decouple; print('OK')"} (o su equivalente en \texttt{bin/python}) antes de continuar con el resto de la instalación.
+Verifique con \texttt{ .venv\textbackslash Scripts\textbackslash python.exe -c "import decouple; print('OK')"} (o su equivalente en \texttt{bin/python}) antes de continuar con el resto de la instalación.
 
 \paragraph{2. Archivo \texttt{.env} del backend}\mbox{}\\
 \textbf{Ubicación:} el archivo \texttt{.env} que Django lee debe estar en la carpeta \texttt{backend/} (donde vive \texttt{manage.py}), \emph{no} en la raíz del repositorio. El repositorio incluye \texttt{backend/.env.example} como plantilla; cópielo y ajuste los valores:
@@ -124,7 +124,7 @@ DB_HOST=localhost
 DB_PORT=5432
 JWT_ACCESS_MINUTES=60
 JWT_REFRESH_DAYS=7
-CORS_ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
+CORS_ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173,http://localhost:5174
 \end{Verbatim}
 
 Para producción se debe establecer \texttt{DEBUG=False}, definir \texttt{ALLOWED\_HOSTS} con el dominio real y generar una \texttt{SECRET\_KEY} nueva (comando en la Subsubsección~\ref{apx:manual-inst:despliegue-produccion}).
