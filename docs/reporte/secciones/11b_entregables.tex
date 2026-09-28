@@ -16,27 +16,27 @@ La Tabla~\ref{tab:entregablesReales} replica el calendario de actividades compro
     \midrule
     \endhead
 
-    1 & Diseño e implementación de la base de datos & 20 & \textbf{Completo}. 21 migraciones, seis apps, PostgreSQL 16. Diagrama ER en Figura~\ref{fig:er}. \\
+    1 & Diseño e implementación de la base de datos & 20 & \textbf{Completo}. 20 migraciones, seis apps, PostgreSQL 17. Diagrama ER en Figura~\ref{fig:er}. \\
     \midrule
     2 & Diseño de las interfaces por módulo & 10 & \textbf{Completo}. UI implementada en React 19 + Tailwind, con componentes reutilizables (\texttt{Button}, \texttt{Alert}, \texttt{Badge}, \texttt{Table}, \texttt{Modal}, \texttt{FormField}, \emph{etc}). Capturas en Sección~\ref{sec:resultados}. \\
     \midrule
-    3 & Desarrollo del módulo de autenticación & 25 & \textbf{Completo}. \texttt{accounts/} + 491 líneas de tests (\texttt{tests/test\_auth.py}). Login JWT con \emph{throttling}. \\
+    3 & Desarrollo del módulo de autenticación & 25 & \textbf{Completo}. \texttt{accounts/} + 25 pruebas (\texttt{tests/test\_auth.py}). Login JWT con \emph{throttling}. \\
     \midrule
     4 & Desarrollo del módulo de cartas temáticas & 25 & \textbf{Completo}. \texttt{documentos/} (parte \texttt{CartaTematica}) + tests en \texttt{tests/test\_documentos.py}. Sin exportación PDF/DOCX (véase Sección~\ref{sec:analisis}). \\
     \midrule
     5 & Desarrollo del módulo de requisitos de recuperación & 25 & \textbf{Completo}. \texttt{documentos/} (parte \texttt{RequisitoRecuperacion}). Mismo alcance/limitaciones que cartas. \\
     \midrule
-    6 & Desarrollo del módulo de autoevaluación docente & 25 & \textbf{Ampliado}. \texttt{autoevaluacion/} con \emph{form-builder}, 8 tipos de pregunta, \emph{scoring} ponderado y versionado (9 incrementos PR1--PR9). 2\,044 líneas de tests. \\
+    6 & Desarrollo del módulo de autoevaluación docente & 25 & \textbf{Ampliado}. \texttt{autoevaluacion/} con \emph{form-builder}, 8 tipos de pregunta, \emph{scoring} ponderado y versionado (9 incrementos PR1--PR9). 81 pruebas. \\
     \midrule
-    7 & Desarrollo del módulo de generación de reportes & 25 & \textbf{Completo}. \texttt{reportes/} + 390 líneas de tests. Export XLSX en cliente (no PDF). \\
+    7 & Desarrollo del módulo de generación de reportes & 25 & \textbf{Completo}. \texttt{reportes/} + 25 pruebas. Export XLSX en cliente (no PDF). \\
     \midrule
     8 & Integración del sistema con la base de datos & 10 & \textbf{Completo}. ORM operativo, \emph{fixtures}, comando \texttt{cargar\_catalogos\_csv} y \emph{scripts} \texttt{seed\_users} / \texttt{seed\_demo}. \\
     \midrule
-    9 & Prueba y corrección de errores & 8 & \textbf{Completo}. $\approx$4\,186 líneas de tests + \emph{smoke test} end-to-end. Historial git con \emph{fixes} rastreables (por ejemplo \emph{fix(seguridad)}, \emph{fix(autoevaluacion)}, \emph{fix(catalogos)}). \\
+    9 & Prueba y corrección de errores & 8 & \textbf{Completo}. 197 pruebas automatizadas + \emph{smoke test} de extremo a extremo. Historial git con \emph{fixes} rastreables (por ejemplo \emph{fix(seguridad)}, \emph{fix(autoevaluacion)}, \emph{fix(catalogos)}). \\
     \midrule
     10 & Documentación para usuarios & 10 & \textbf{Completo}. Contenido integrado en las Subsecciones~\ref{apx:manual-instalacion} (\emph{Manual de instalación}) y \ref{apx:manual-usuario} (\emph{Manual de usuario}) de este mismo apéndice. \\
     \midrule
-    11 & Redacción del reporte final del proyecto & 15 & \textbf{Completo}. Este documento (\texttt{docs/reporte/main.pdf}) con diez secciones numeradas, un apéndice con cuatro subsecciones, índices y bibliografía. \\
+    11 & Redacción del reporte final del proyecto & 15 & \textbf{Completo}. Este documento (\texttt{docs/reporte/main.pdf}) con once secciones numeradas, un apéndice con cuatro subsecciones, índices y bibliografía. \\
     \midrule
     \multicolumn{4}{l}{\emph{Entregables adicionales no contemplados originalmente:}} \\
     \midrule
@@ -44,9 +44,7 @@ La Tabla~\ref{tab:entregablesReales} replica el calendario de actividades compro
     \midrule
     E2 & Catálogos administrables completos + importación CSV & --- & \textbf{Entregado} (extra). Departamentos, licenciaturas, posgrados, áreas, UEA, periodos. \\
     \midrule
-    E3 & Suite de pruebas de $\sim$4\,200 líneas en backend & --- & \textbf{Entregado} (extra). Ver \texttt{backend/tests/}. \\
-    \midrule
-    E4 & Documentación OpenAPI/Swagger auto-generada & --- & \textbf{Entregado} (extra). Vía \emph{drf-spectacular} en \texttt{/api/schema/} y \texttt{/api/docs/}. \\
+    E3 & Documentación OpenAPI/Swagger auto-generada & --- & \textbf{Entregado} (extra). Vía \emph{drf-spectacular} en \texttt{/api/schema/} y \texttt{/api/docs/}. \\
     \bottomrule
 \end{longtable}
 

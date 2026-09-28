@@ -22,62 +22,91 @@ La Tabla~\ref{tab:metricasCodigo} resume el volumen del sistema entregado.
 
     Apps Django & 6 & \texttt{core, accounts, catalogos, documentos, autoevaluacion, reportes} \\
     \midrule
-    Migraciones aplicadas & 21 & Distribuidas entre las apps de dominio \\
+    Migraciones propias & 20 & Distribuidas entre las apps de dominio \\
     \midrule
     Endpoints REST de la API v1 & $\sim$45 & Documentados automáticamente vía OpenAPI en \texttt{/api/docs/} \\
     \midrule
-    Modelos concretos & 14 & Sin contar clases abstractas \texttt{TimeStampedModel} y \texttt{DocumentoAcademicoBase} \\
+    Modelos concretos & 20 & Sin contar las clases abstractas \texttt{TimeStampedModel}, \texttt{EstadoActivoModel} y \texttt{DocumentoAcademicoBase} \\
     \midrule
-    Dependencias Python & 11 & Ver \texttt{backend/requirements.txt} \\
+    Dependencias Python & 13 & 8 de ejecución, 4 de pruebas y 1 operativa; ver \texttt{backend/requirements.txt} \\
     \midrule
-    Dependencias JavaScript (prod) & 11 & Ver \texttt{frontend/package.json} \\
+    Dependencias JavaScript (prod) & 9 & Ver \texttt{frontend/package.json} \\
     \midrule
     Tipos de pregunta soportados & 8 & TEXTO\_CORTO, TEXTO\_LARGO, OPCION\_UNICA, CASILLAS, SI\_NO, ESCALA\_LINEAL, LISTA\_DESPLEGABLE, CUADRICULA \\
     \midrule
     Componentes UI reutilizables & 10+ & Button, Alert, Badge, Table, Modal, FormField, Loading, EmptyState, CollapsiblePeriodoCard, entre otros \\
     \midrule
-    Fixtures precargados & 5 & Departamentos, licenciaturas, posgrados, áreas (\texttt{catalogos/fixtures/}) \\
+    Fixtures y CSV precargados & 6 & Cuatro \emph{fixtures} JSON (departamentos, licenciaturas, posgrados, áreas) y dos CSV de UEA (\texttt{catalogos/fixtures/}) \\
+    \bottomrule
+\end{longtable}
+
+\subsection{Trazabilidad con los objetivos}
+
+La Tabla~\ref{tab:trazabilidad} relaciona cada objetivo específico (Sección~\ref{sec:objetivos}) con la funcionalidad que lo atiende y la evidencia que lo respalda.
+
+\begin{longtable}{p{0.05\textwidth} p{0.28\textwidth} p{0.28\textwidth} p{0.27\textwidth}}
+    \caption{Trazabilidad entre objetivos específicos, funcionalidad y evidencia.}
+    \label{tab:trazabilidad}\\
+    \toprule
+    \textbf{Obj.} & \textbf{Objetivo} & \textbf{Funcionalidad} & \textbf{Evidencia} \\
+    \midrule
+    \endfirsthead
+
+    \toprule
+    \textbf{Obj.} & \textbf{Objetivo} & \textbf{Funcionalidad} & \textbf{Evidencia} \\
+    \midrule
+    \endhead
+
+    1 & Acceso con autenticación y diferenciación de roles & Login con JWT, roles ADMIN/PROFESOR, permisos por rol y limitación de intentos & Figura~\ref{fig:login}; \texttt{tests/test\_auth.py} (25 pruebas) \\
+    \midrule
+    2 & Crear, modificar y consultar cartas y requisitos & CRUD con ciclo Borrador/Publicado y vista pública & Figuras~\ref{fig:docente_carta_form}, \ref{fig:docente_requisito_form} y \ref{fig:publico_carta}; \texttt{tests/test\_documentos.py} (32 pruebas) \\
+    \midrule
+    3 & Registrar la autoevaluación al final del trimestre & Constructor de formularios, captura de respuestas y puntaje ponderado & Figuras~\ref{fig:admin_formulario_builder} y~\ref{fig:docente_autoevaluacion}; \texttt{tests/test\_autoevaluacion.py} (81 pruebas) \\
+    \midrule
+    4 & Reportes de cumplimiento para la administración & Endpoints de agregación, tablero y exportación XLSX & Figuras~\ref{fig:admin_dashboard} y~\ref{fig:admin_reportes}; \texttt{tests/test\_reportes.py} (25 pruebas) \\
     \bottomrule
 \end{longtable}
 
 \subsection{Métricas de pruebas}
 
-La Tabla~\ref{tab:metricasTests} muestra el volumen de la suite de pruebas del backend.
+La Tabla~\ref{tab:metricasTests} muestra el número de pruebas automatizadas del \emph{backend} por archivo y la cobertura de línea del código de cada \emph{app}, medida con \texttt{coverage.py} a través de \texttt{pytest-cov} (comando \texttt{pytest --cov=. --cov-report=term}). La cobertura se calcula sobre el código de la aplicación, sin contar las propias pruebas ni las migraciones.
 
-\begin{longtable}{p{0.45\textwidth} p{0.20\textwidth} p{0.25\textwidth}}
-    \caption{Volumen de pruebas por módulo.}
+\begin{longtable}{p{0.38\textwidth} p{0.14\textwidth} p{0.22\textwidth} p{0.16\textwidth}}
+    \caption{Pruebas automatizadas y cobertura por módulo.}
     \label{tab:metricasTests}\\
     \toprule
-    \textbf{Archivo de pruebas} & \textbf{Líneas} & \textbf{Cobertura módulo} \\
+    \textbf{Archivo de pruebas} & \textbf{Pruebas} & \textbf{App cubierta} & \textbf{Cobertura} \\
     \midrule
     \endfirsthead
 
     \toprule
-    \textbf{Archivo de pruebas} & \textbf{Líneas} & \textbf{Cobertura módulo} \\
+    \textbf{Archivo de pruebas} & \textbf{Pruebas} & \textbf{App cubierta} & \textbf{Cobertura} \\
     \midrule
     \endhead
 
-    \texttt{tests/test\_auth.py} & 491 & Autenticación y usuarios \\
+    \texttt{tests/test\_auth.py} & 25 & \texttt{accounts} & 90\,\% \\
     \midrule
-    \texttt{tests/test\_autoevaluacion.py} & 2\,044 & Autoevaluación (form-builder + scoring) \\
+    \texttt{tests/test\_autoevaluacion.py} & 81 & \texttt{autoevaluacion} & 86\,\% \\
     \midrule
-    \texttt{tests/test\_catalogos.py} & 563 & Catálogos institucionales \\
+    \texttt{tests/test\_catalogos.py} & 34 & \texttt{catalogos} & 89\,\% \\
     \midrule
-    \texttt{tests/test\_documentos.py} & 698 & Cartas y requisitos \\
+    \texttt{tests/test\_documentos.py} & 32 & \texttt{documentos} & 96\,\% \\
     \midrule
-    \texttt{tests/test\_reportes.py} & 390 & Reportes de cumplimiento \\
+    \texttt{tests/test\_reportes.py} & 25 & \texttt{reportes} & 98\,\% \\
     \midrule
-    \textbf{Total backend} & $\approx$4\,186 & \\
+    \textbf{Total} & \textbf{197} & Código de la aplicación & $\approx$89\,\% \\
     \bottomrule
 \end{longtable}
 
-La ejecución completa de la \emph{suite} arroja \textbf{196 pruebas exitosas de 196} (100\,\%) y una \textbf{cobertura de código del 94\,\%} medida con \texttt{coverage.py} (comando \texttt{pytest --cov=. --cov-report=html}). El reporte HTML detallado se incluye en la carpeta de entregables bajo \texttt{cobertura/}.
+La ejecución completa de la \emph{suite} arroja \textbf{197 pruebas exitosas de 197} (100\,\%) y una \textbf{cobertura de línea de aproximadamente 89\,\%} sobre el código de la aplicación. La cifra global que reporta la herramienta (94\,\%) incluye los archivos de prueba, que se ejecutan por completo, por lo que no se toma como medida del código de producción. Las \emph{apps} \texttt{core} y \texttt{config} suman otro 90\,\% y 80\,\% respectivamente. El módulo con menor cobertura es \texttt{autoevaluacion/views.py} (79\,\%).
 
 \subsection{Evidencia visual del sistema en operación}
 
-Las siguientes capturas se tomaron con el sistema ejecutándose localmente contra la base de datos de \emph{seed} (\texttt{python scripts/seed\_demo.py}). Las credenciales usadas son las del entorno de desarrollo (\texttt{admin@cyad.uam.mx} / \texttt{Admin1234!} para el administrador; un profesor de prueba también sembrado).
+Las siguientes capturas se tomaron con el sistema ejecutándose localmente contra la base de datos de \emph{seed} (\texttt{python scripts/seed\_demo.py}). Las cuentas utilizadas son las de demostración descritas en el manual de instalación (Apéndice~\ref{apx:manual-inst:datos-demo}) y no deben emplearse en producción.
 
 \subsubsection{Autenticación}
+
+La Figura~\ref{fig:login} muestra la pantalla de acceso, punto de entrada de los roles administrador y docente (objetivo específico~1). Tras validar el correo y la contraseña, el sistema redirige al tablero que corresponde al rol de la cuenta; ante un intento fallido o una cuenta desactivada muestra un mensaje distinto sin revelar si el correo existe.
 
 \begin{figure}[!ht]
     \centering
@@ -87,6 +116,8 @@ Las siguientes capturas se tomaron con el sistema ejecutándose localmente contr
 \end{figure}
 
 \subsubsection{Vista Docente}
+
+Las Figuras~\ref{fig:docente_dashboard} a~\ref{fig:docente_autoevaluacion} cubren el trabajo del profesor (objetivos específicos~2 y~3). El tablero (Figura~\ref{fig:docente_dashboard}) resume, para el periodo activo, los documentos pendientes y publicados; los formularios de carta temática y de requisitos de recuperación (Figuras~\ref{fig:docente_carta_form} y~\ref{fig:docente_requisito_form}) asignan el periodo activo automáticamente y permiten guardar como borrador o publicar; y el formulario de autoevaluación (Figura~\ref{fig:docente_autoevaluacion}) se construye dinámicamente a partir de la definición hecha por el administrador.
 
 \begin{figure}[!ht]
     \centering
@@ -118,6 +149,8 @@ Las siguientes capturas se tomaron con el sistema ejecutándose localmente contr
 
 \subsubsection{Vista Administrador}
 
+Las Figuras~\ref{fig:admin_dashboard} a~\ref{fig:admin_reportes} muestran las herramientas del administrador (objetivos específicos~1 y~4). El tablero concentra los indicadores globales y el cumplimiento por departamento (Figura~\ref{fig:admin_dashboard}); la gestión de profesores cubre el alta, la edición y el restablecimiento de contraseña (Figura~\ref{fig:admin_profesores}); el constructor de formularios permite definir secciones ponderadas y preguntas (Figura~\ref{fig:admin_formulario_builder}); y el panel de reportes genera las descargas en XLSX (Figura~\ref{fig:admin_reportes}).
+
 \begin{figure}[!ht]
     \centering
     \captura[0.9\textwidth]{screenshots/admin_dashboard}
@@ -147,6 +180,8 @@ Las siguientes capturas se tomaron con el sistema ejecutándose localmente contr
 \end{figure}
 
 \subsubsection{Vista pública}
+
+Las Figuras~\ref{fig:publico_home} a~\ref{fig:publico_carta} ilustran la consulta sin iniciar sesión. La portada ofrece los dos tipos de documento; la cascada periodo $\rightarrow$ programa $\rightarrow$ UEA (Figura~\ref{fig:publico_explorar}) evita mostrar opciones vacías, y la vista de detalle (Figura~\ref{fig:publico_carta}) está preparada para imprimirse a PDF desde el navegador, que es el sustituto adoptado para la exportación de documentos (Sección~\ref{sec:analisis}).
 
 \begin{figure}[!ht]
     \centering

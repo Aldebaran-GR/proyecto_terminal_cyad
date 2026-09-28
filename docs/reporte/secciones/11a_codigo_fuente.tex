@@ -16,7 +16,7 @@ proyecto_terminal_cyad/
 |   |-- autoevaluacion/        # Formulario, Pregunta, Respuesta, Nivel
 |   |-- reportes/              # Dashboards y cumplimiento
 |   |-- scripts/               # seed_users, seed_demo, create_db
-|   |-- tests/                 # ~4200 lineas de tests con pytest
+|   |-- tests/                 # 197 pruebas con pytest
 |   |-- manage.py
 |   `-- requirements.txt
 |-- frontend/
@@ -35,8 +35,7 @@ proyecto_terminal_cyad/
 |   |-- package.json
 |   `-- vite.config.js
 |-- docs/
-|   |-- reporte/               # este documento
-|   `-- manuales/              # instalacion y usuario
+|   `-- reporte/               # este documento (incluye los manuales)
 `-- README.md
 \end{lstlisting}
 
@@ -149,11 +148,12 @@ SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME":  timedelta(minutes=60),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
     "ROTATE_REFRESH_TOKENS":  True,
+    "BLACKLIST_AFTER_ROTATION": True,  # requiere la app token_blacklist
     "AUTH_HEADER_TYPES":      ("Bearer",),
 }
 \end{lstlisting}
 
-\subsubsection{Backend --- Documento academico base}
+\subsubsection{Backend --- Documento académico base}
 
 Fragmento de \texttt{backend/documentos/models.py}. Clase abstracta con campos comunes y \emph{snapshot} de identidad del profesor.
 
@@ -356,9 +356,9 @@ class RespuestaSeccion(models.Model):
         unique_together = [["respuesta", "seccion"]]
 \end{lstlisting}
 
-\subsubsection{Backend --- Scoring ponderado de autoevaluacion}\label{lst:scoring}
+\subsubsection{Backend --- Cálculo ponderado del puntaje de autoevaluación}\label{lst:scoring}
 
-Fragmento simplificado de \texttt{backend/autoevaluacion/views.py}: calculo del puntaje ponderado por seccion, con manejo por tipo de pregunta y \emph{snapshot} del peso en \texttt{RespuestaSeccion}.
+Fragmento simplificado de \texttt{backend/autoevaluacion/views.py}: cálculo del puntaje ponderado por sección, con manejo por tipo de pregunta y \emph{snapshot} del peso en \texttt{RespuestaSeccion}.
 
 \begin{lstlisting}[language={[3]Python}]
 def _calcular_puntaje(respuesta):
@@ -406,7 +406,7 @@ def _calcular_puntaje(respuesta):
             RespuestaSeccion.objects.update_or_create(
                 respuesta=respuesta, seccion=s["seccion"],
                 defaults={
-                    "puntaje":        s["obtenido"],
+                    "puntaje_obtenido": s["obtenido"],
                     "puntaje_maximo": s["maximo"],
                     "porcentaje":     s["porcentaje"],
                     "peso":           s["peso"],   # snapshot para desglose historico
@@ -429,7 +429,7 @@ class IsOwnerProfesorOrAdminReadOnly(permissions.BasePermission):
         return obj.profesor and obj.profesor.usuario_id == request.user.id
 \end{lstlisting}
 
-\subsubsection{Frontend --- Cliente HTTP con refresh automatico de JWT}\label{lst:jwt-refresh}
+\subsubsection{Frontend --- Cliente HTTP con \emph{refresh} automático de JWT}\label{lst:jwt-refresh}
 
 Fragmento de \texttt{frontend/src/api/client.js}.
 
@@ -483,7 +483,7 @@ export const ProfesorRoute = ({ children }) =>
   <RoleRoute role="PROFESOR" >{children}</RoleRoute>;
 \end{lstlisting}
 
-\subsubsection{Frontend --- Renderizador dinamico de preguntas}\label{lst:renderer_preguntas}
+\subsubsection{Frontend --- Renderizador dinámico de preguntas}\label{lst:renderer_preguntas}
 
 Fragmento de \code{frontend/src/pages/profesor/autoevaluacion/AutoevaluacionFormPage.jsx} que despacha por tipo de pregunta.
 
@@ -503,9 +503,9 @@ function PreguntaRenderer({ pregunta, value, onChange }) {
 }
 \end{lstlisting}
 
-\subsubsection{Backend --- Comando de importacion CSV para UEA}\label{lst:import_csv}
+\subsubsection{Backend --- Comando de importación CSV para UEA}\label{lst:import_csv}
 
-Comando de gestion \texttt{python manage.py cargar\_catalogos\_csv} para carga masiva idempotente. Fragmento simplificado.
+Comando de gestión \texttt{python manage.py cargar\_catalogos\_csv} para carga masiva idempotente. Fragmento simplificado.
 
 \begin{lstlisting}[language={[3]Python}]
 class Command(BaseCommand):
@@ -532,7 +532,7 @@ class Command(BaseCommand):
 
 \subsubsection{Backend --- Constraint XOR y unicidad parcial de UEA}\label{lst:uea_constraints}
 
-Fragmento de \texttt{backend/catalogos/models.py}: reglas de integridad declarativas que fuerzan que una UEA pertenezca a licenciatura \emph{o} a posgrado (nunca a ambos ni a ninguno), y que la clave sea unica dentro de cada programa.
+Fragmento de \texttt{backend/catalogos/models.py}: reglas de integridad declarativas que fuerzan que una UEA pertenezca a licenciatura \emph{o} a posgrado (nunca a ambos ni a ninguno), y que la clave sea única dentro de cada programa.
 
 \begin{lstlisting}[language={[3]Python}]
 class Meta:
@@ -559,7 +559,7 @@ class Meta:
 
 \subsubsection{Backend --- Ciclo de vida de Formulario}\label{lst:formulario_states}
 
-Fragmento de \texttt{backend/autoevaluacion/models.py}: validacion de estructura y transiciones de la maquina de estados \texttt{BORRADOR} $\leftrightarrow$ \texttt{PUBLICADO} $\leftrightarrow$ \texttt{CERRADO}.
+Fragmento de \texttt{backend/autoevaluacion/models.py}: validación de estructura y transiciones de la máquina de estados \texttt{BORRADOR} $\leftrightarrow$ \texttt{PUBLICADO} $\leftrightarrow$ \texttt{CERRADO}.
 
 \begin{lstlisting}[language={[3]Python}]
 def _validar_estructura_para_publicar(self):
@@ -572,30 +572,41 @@ def _validar_estructura_para_publicar(self):
     if self.preguntas.filter(seccion__isnull=True).exists():
         raise ValueError("Hay preguntas sin seccion asignada.")
 
-def publicar(self):
+def publicar(self):                       # BORRADOR -> PUBLICADO
+    if self.estado != self.Estado.BORRADOR:
+        raise ValueError("Solo se puede publicar un formulario en estado BORRADOR.")
     self._validar_estructura_para_publicar()
-    if self.estado == self.Estado.CERRADO and self.respuestas.exists():
-        self.version += 1     # publicar_revision incrementa version
+    # Si ya hay respuestas de la version vigente (se edito tras contestarse),
+    # la nueva publicacion es una version nueva.
+    if self.respuestas.filter(version_formulario=self.version).exists():
+        self.version += 1
     self.estado = self.Estado.PUBLICADO
     self.published_at = timezone.now()
     self.save()
 
-def cerrar(self):
+def cerrar(self):                         # PUBLICADO -> CERRADO
+    if self.estado != self.Estado.PUBLICADO:
+        raise ValueError("Solo se puede cerrar un formulario PUBLICADO.")
     self.estado = self.Estado.CERRADO
     self.closed_at = timezone.now()
     self.save()
 
-def reabrir(self):
+def reabrir(self):                        # CERRADO -> PUBLICADO (misma version)
+    if self.estado != self.Estado.CERRADO:
+        raise ValueError("Solo se puede reabrir un formulario CERRADO.")
     self.estado = self.Estado.PUBLICADO
+    self.closed_at = None
     self.save()
 
-def despublicar(self):
-    # Vuelve a BORRADOR sin cambiar version ni borrar respuestas.
-    self.estado = self.Estado.BORRADOR
+def despublicar(self):                    # PUBLICADO/CERRADO -> BORRADOR
+    if self.estado not in (self.Estado.PUBLICADO, self.Estado.CERRADO):
+        raise ValueError("Solo se puede despublicar un formulario PUBLICADO o CERRADO.")
+    self.estado = self.Estado.BORRADOR    # sin cambiar version ni borrar respuestas
     self.save()
 
-def publicar_revision(self):
-    # CERRADO -> PUBLICADO incrementando version.
+def publicar_revision(self):              # CERRADO -> PUBLICADO (version + 1)
+    if self.estado != self.Estado.CERRADO:
+        raise ValueError("Solo se puede publicar una revision de un formulario CERRADO.")
     self._validar_estructura_para_publicar()
     self.version += 1
     self.estado = self.Estado.PUBLICADO
@@ -603,9 +614,9 @@ def publicar_revision(self):
     self.save()
 \end{lstlisting}
 
-\subsubsection{Backend --- Login con distincion de cuenta desactivada}\label{lst:login_diff}
+\subsubsection{Backend --- \emph{Login} con distinción de cuenta desactivada}\label{lst:login_diff}
 
-Fragmento de \texttt{backend/accounts/serializers.py}. El \emph{serializer} personalizado distingue \emph{credenciales invalidas} de \emph{cuenta desactivada} devolviendo un codigo \texttt{account\_disabled} sin filtrar la existencia del correo.
+Fragmento de \texttt{backend/accounts/serializers.py}. El \emph{serializer} personalizado distingue \emph{credenciales inválidas} de \emph{cuenta desactivada} devolviendo un código \texttt{account\_disabled} sin filtrar la existencia del correo.
 
 \begin{lstlisting}[language={[3]Python}]
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
@@ -627,7 +638,7 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         return data
 \end{lstlisting}
 
-\subsubsection{Frontend --- Generacion de XLSX por periodo}\label{lst:xlsx_por_periodo}
+\subsubsection{Frontend --- Generación de XLSX por periodo}\label{lst:xlsx_por_periodo}
 
 Fragmento simplificado de \code{frontend/src/pages/admin/reportes/ReportesPage.jsx}: descarga en el navegador con \emph{SheetJS}, agrupando las filas por periodo en hojas separadas del mismo libro.
 

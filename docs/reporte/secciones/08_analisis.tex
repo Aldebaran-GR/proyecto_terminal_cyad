@@ -20,7 +20,7 @@ La Tabla~\ref{tab:cumplimiento} sintetiza el grado de cumplimiento de cada compo
     \midrule
     \endhead
 
-    Módulo de autenticación & Completo con matices & Identidad por email en lugar de número económico; \emph{rate limiting} sí; \emph{reset} autoservicio no. \\
+    Módulo de autenticación & Completo con matices & Identidad por email en lugar de número económico; \emph{rate limiting} sí; restablecimiento autoservicio no. \\
     \midrule
     Cartas temáticas (CRUD) & Completo & Ciclo Borrador/Publicado, unicidad, permisos, snapshots de identidad. \\
     \midrule
@@ -32,7 +32,7 @@ La Tabla~\ref{tab:cumplimiento} sintetiza el grado de cumplimiento de cada compo
     \midrule
     Exportación a PDF/DOCX & No entregado & Se implementó exportación a XLSX en el cliente para reportes; documentos usan \texttt{window.print()} del navegador. \\
     \midrule
-    Autoevaluación docente (formulario) & Ampliado & Se entregó un \emph{form-builder} configurable con ocho tipos de pregunta y ocho iteraciones (PR1--PR9). \\
+    Autoevaluación docente (formulario) & Ampliado & Se entregó un \emph{form-builder} configurable con ocho tipos de pregunta y nueve incrementos (PR1--PR9). \\
     \midrule
     Autoevaluación (scoring y observaciones) & Completo & \emph{Scoring} ponderado por sección con niveles de desempeño automáticos. \\
     \midrule
@@ -40,13 +40,13 @@ La Tabla~\ref{tab:cumplimiento} sintetiza el grado de cumplimiento de cada compo
     \midrule
     Autoevaluación (privacidad admin) & Ajustado & El admin ve porcentajes agregados y quién respondió; el detalle cualitativo queda para el propio profesor. \\
     \midrule
-    Reportes de cumplimiento & Completo & Dashboards por departamento y por licenciatura; export XLSX. \\
+    Reportes de cumplimiento & Completo & Dashboards por departamento y por licenciatura; exportación a XLSX. \\
     \midrule
     Reportes en PDF & No entregado & Ver observación de exportación. \\
     \midrule
-    Base de datos PostgreSQL & Completo & 21 migraciones, \emph{constraints} declarativos, fixtures y CSV para catálogos. \\
+    Base de datos PostgreSQL & Completo & 20 migraciones, \emph{constraints} declarativos, fixtures y CSV para catálogos. \\
     \midrule
-    Autenticación JWT + validación de contraseñas + CORS whitelist & Completo & Ver Sección~\ref{sec:seguridad}. \\
+    Autenticación JWT + validación de contraseñas + CORS lista blanca & Completo & Ver Sección~\ref{sec:seguridad}. \\
     \midrule
     Manual de usuario y de instalación & Entregados & Integrados como subsecciones nativas del Apéndice~\ref{sec:apendices} (véanse Subsecciones~\ref{apx:manual-instalacion} y \ref{apx:manual-usuario}). \\
     \midrule
@@ -60,35 +60,39 @@ La Tabla~\ref{tab:cumplimiento} sintetiza el grado de cumplimiento de cada compo
 
 \subsubsection{Identidad por email en lugar de número económico}
 
-La propuesta indicaba autenticación con \texttt{número económico + contraseña}. En el sistema entregado, el \texttt{USERNAME\_FIELD} es \texttt{email} y el número económico existe como campo opcional del perfil \texttt{Profesor}. La decisión se sostuvo por tres razones: (a)~el email institucional es único, garantizado y conocido por todo el personal; (b)~el número económico no siempre está disponible en el momento del alta y varía menos entre trámites; y (c)~el email facilita la comunicación (envío de correos institucionales, futuras notificaciones, reset de contraseña). El impacto para el usuario es mínimo: en la práctica ingresa su email institucional en lugar de su número.
+La propuesta indicaba autenticación con \texttt{número económico + contraseña}. En el sistema entregado, el \texttt{USERNAME\_FIELD} es \texttt{email} y el número económico existe como campo opcional del perfil \texttt{Profesor}. La decisión se sostuvo por tres razones: (a)~el email institucional es único, garantizado y conocido por todo el personal; (b)~el número económico no siempre está disponible en el momento del alta; y (c)~el email facilita la comunicación (envío de correos institucionales, futuras notificaciones y restablecimiento de contraseña). El impacto para el usuario es mínimo: en la práctica ingresa su email institucional en lugar de su número.
 
 \subsubsection{Ausencia de exportación a PDF/DOCX en backend}
 
 Ésta es la brecha de mayor visibilidad. La propuesta prometía generación de PDFs y DOCXs para cartas, requisitos, resultados de autoevaluación y reportes. En el sistema entregado, la única forma de \emph{generar un PDF} de una carta o requisito es abrir la vista pública e imprimir a PDF desde el navegador (\texttt{window.print()}); la única exportación estructurada es la descarga a XLSX de los reportes, generada en el cliente con \emph{SheetJS}. Las razones prácticas fueron: (a)~evitar la dependencia de librerías pesadas (\emph{WeasyPrint} requiere GTK; \emph{ReportLab} requiere maquetación manual); (b)~priorizar el flujo de operación diaria (captura, publicación, reportes en línea) sobre entregables descargables; y (c)~concentrar el esfuerzo en el módulo de autoevaluación, técnicamente más complejo. En la Sección~\ref{sec:conclusiones} se marca la generación nativa de PDFs como trabajo futuro prioritario.
 
-\subsubsection{Sin reset de contraseña autoservicio}
+\subsubsection{Sin restablecimiento de contraseña autoservicio}
 
-Sólo el administrador puede restablecer la contraseña de un profesor. Un flujo de \emph{forgot password} con token por correo se documenta como línea de trabajo futuro pero no se entregó porque el envío de correos requiere infraestructura adicional (SMTP institucional configurado) que no estuvo disponible en el trimestre de desarrollo.
+Solo el administrador puede restablecer la contraseña de un profesor. Un flujo de recuperación de contraseña con token por correo se documenta como línea de trabajo futuro pero no se entregó porque el envío de correos requiere infraestructura adicional (SMTP institucional configurado) que no estuvo disponible en el trimestre de desarrollo.
 
 \subsection{Elementos entregados que no estaban en la propuesta}
 
-Estos componentes se incorporaron a solicitud durante el desarrollo y elevan el valor del sistema:
+Estos componentes se incorporaron durante el desarrollo sin estar comprometidos en la propuesta, y elevan el valor del sistema:
 
 \begin{itemize}
     \item \textbf{Vista pública \emph{Explorar}}: cascada periodo→programa→UEA para consulta de cartas y requisitos publicados. Beneficia a estudiantes y personal externo.
     \item \textbf{Form-builder de autoevaluación}: en lugar de un formulario fijo, el administrador diseña formularios con ocho tipos de pregunta, secciones ponderadas y versionado.
     \item \textbf{Catálogos administrables completos} con importación CSV.
     \item \textbf{Snapshots de identidad del profesor} en los documentos, para preservar autoría aunque el registro sea desactivado.
-    \item \textbf{Suite de pruebas de \(\sim\)4\,200 líneas} en el backend.
+    \item \textbf{Suite de 197 pruebas automatizadas} en el backend.
 \end{itemize}
 
 \subsection{Limitaciones del sistema actual}
 
 \begin{itemize}
-    \item \textbf{Sin pruebas en el frontend}: no hay \emph{Vitest}, \emph{Jest} ni \emph{React Testing Library} configurados. Los flujos críticos se validan sólo por inspección manual y por los tests de la API que consumen.
+    \item \textbf{Sin pruebas en el frontend}: no hay \emph{Vitest}, \emph{Jest} ni \emph{React Testing Library} configurados. Los flujos críticos se validan solo por inspección manual y por los tests de la API que consumen.
     \item \textbf{Sin CI/CD}: no hay pipeline configurado; las pruebas y \emph{lints} se ejecutan manualmente antes de cada \emph{commit}.
     \item \textbf{Sin backups automáticos configurados}: la política de respaldo dependerá de la infraestructura de despliegue.
-    \item \textbf{Sin métricas de uso}: no se registra actividad de usuarios para análisis posterior (no hay dashboard de \emph{engagement} ni logs estructurados).
+    \item \textbf{Sin métricas de uso}: no se registra actividad de usuarios para análisis posterior (no hay tablero de uso ni registros estructurados).
+    \item \textbf{Sin validación con usuarios ni medición de tiempos}: no se realizó una prueba piloto con profesores ni con personal de la Coordinación, por lo que el ahorro de tiempo y la reducción de errores que motivan el proyecto (Sección~\ref{sec:justificacion}) son beneficios esperados, no medidos. Tampoco se aplicó un instrumento de usabilidad como la escala SUS.
+    \item \textbf{Sin despliegue}: el sistema se ejecutó solo en entorno local; no se ha instalado en el servidor institucional.
+    \item \textbf{Tokens en \texttt{localStorage}}: el cliente guarda los \emph{JWT} en el almacenamiento local del navegador, lo que los expone a un ataque XSS~\cite{owaspHtml5}. La mitigación recomendada es emitirlos en \emph{cookies} \texttt{HttpOnly}, lo que requeriría ajustar el \emph{backend} y la política CORS.
+    \item \textbf{Sin paginación en la vista pública ni en los reportes}: los \emph{endpoints} públicos devuelven todas las filas; con volúmenes mucho mayores a los de una división sería necesario paginar.
     \item \textbf{Sin accesibilidad medida}: aunque \emph{Tailwind} y los componentes reutilizables favorecen la accesibilidad, no se realizó una auditoría formal con \emph{Lighthouse} o \emph{axe-core}.
 \end{itemize}
 

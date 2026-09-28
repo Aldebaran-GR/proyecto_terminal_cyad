@@ -2,7 +2,7 @@
 \justifying
 
 \subsubsection{Introducción}
-Este manual describe cómo instalar y ejecutar el \emph{Sistema para la gestión de formularios sobre los cursos y autoevaluaciones docentes} de la División de Ciencias y Artes para el Diseño (CyAD) en un entorno de desarrollo local. La instalación en producción sigue los mismos pasos, cambiando únicamente el archivo \texttt{.env} y el modo de servido (\emph{gunicorn} + \emph{Nginx}, ver Subsubsección~\ref{apx:manual-inst:despliegue-produccion}).
+Este manual describe cómo instalar y ejecutar el \emph{Sistema para la gestión de formularios sobre los cursos y autoevaluaciones docentes} de la División de Ciencias y Artes para el Diseño (CyAD) en un entorno de desarrollo local. La instalación en producción sigue los mismos pasos, cambiando únicamente el archivo \texttt{.env} y la forma de servir la aplicación (\emph{gunicorn} + \emph{Nginx}, ver Subsubsección~\ref{apx:manual-inst:despliegue-produccion}).
 
 \subsubsection{Prerrequisitos}
 
@@ -43,7 +43,7 @@ Las siguientes cifras se derivan de mediciones sobre un entorno con \texttt{seed
     \bottomrule
 \end{longtable}
 
-Sobre CPU: cualquier procesador x86-64 de doble núcleo publicado en la última década es suficiente para el runtime; el cuello de botella es la memoria durante \texttt{npm run build}, que sólo ocurre al desplegar una nueva versión, no en operación diaria. En un servidor dedicado bastan \emph{dos vCPU}; para desarrollo local la máquina que edita el código suele tener recursos de sobra.
+Sobre CPU: cualquier procesador x86-64 de doble núcleo publicado en la última década es suficiente para el runtime; el cuello de botella es la memoria durante \texttt{npm run build}, que solo ocurre al desplegar una nueva versión, no en operación diaria. En un servidor dedicado bastan \emph{dos vCPU}; para desarrollo local la máquina que edita el código suele tener recursos de sobra.
 
 Ancho de banda: al ser una aplicación de tipo formulario, el consumo por sesión es del orden de decenas de KB por interacción. Cualquier enlace institucional (\textgreater\,10~Mbps) resulta holgado.
 
@@ -74,11 +74,11 @@ Esta es la ruta recomendada para un despliegue institucional real. Deja el siste
 cd backend
 python -m venv .venv
 .venv\Scripts\Activate.ps1    # Windows (PowerShell)
-source .venv/bin/activate     # Linux / macOS
+# source .venv/bin/activate   # Linux / macOS (en lugar de la línea anterior)
 pip install -r requirements.txt
 \end{Comandos}
 
-Windows bloquea por defecto la ejecución de \emph{scripts} \texttt{.ps1}. Si al activar aparece un error de \emph{execution policy}, o el símbolo de la terminal no cambia a \texttt{(.venv)}, ejecute lo siguiente una sola vez en esa terminal (no persiste; sólo aplica a la sesión actual) y repita la activación:
+Windows bloquea por defecto la ejecución de \emph{scripts} \texttt{.ps1}. Si al activar aparece un error de \emph{execution policy}, o el símbolo de la terminal no cambia a \texttt{(.venv)}, ejecute lo siguiente una sola vez en esa terminal (no persiste; solo aplica a la sesión actual) y repita la activación:
 
 \begin{Comandos}
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
@@ -200,7 +200,7 @@ El backend queda disponible en \texttt{http://localhost:8000}. La documentación
 \paragraph{10. Crear el formulario de autoevaluación institucional}\mbox{}\\
 Con el backend corriendo (paso 9) y el frontend levantado (Subsubsección~\ref{apx:manual-inst:frontend}), iniciar sesión con el superuser del paso 5 y, desde \texttt{Autoevaluación $\to$ Nuevo formulario}, construir el formulario del periodo vigente (secciones, preguntas, opciones puntuables y niveles de desempeño). Publicarlo cuando la suma de pesos de las secciones alcance 100~\%.
 
-Los usuarios de profesor se crean posteriormente desde \texttt{Profesores $\to$ Nuevo profesor} en la interfaz de administrador; cada creación genera un correo + contraseña temporal que el administrador entrega personalmente al docente.
+Los usuarios de profesor se crean posteriormente desde \texttt{Profesores $\to$ Nuevo profesor} en la interfaz de administrador; en cada alta el administrador captura el correo y una contraseña inicial, que entrega personalmente al docente.
 
 \subsubsection{Datos de demostración (opcional)}
 \label{apx:manual-inst:datos-demo}
@@ -268,7 +268,7 @@ VITE_API_URL=http://tu-servidor:8000/api/v1
     \item Abra \texttt{http://localhost:5173/} — debe mostrarse la portada pública, con accesos a ``Explorar'' por tipo de documento.
     \item Inicie sesión con el superuser creado en el paso 5 de la Subsubsección~\ref{apx:manual-inst:install-limpia} (o, si sembró la demo, con \texttt{admin@cyad.uam.mx / Admin1234!}). Debe redirigir al \emph{dashboard} de administrador.
     \item Si sembró la demo, cierre sesión e inicie con \texttt{profesor@cyad.uam.mx / Profesor1234!}. Debe redirigir al \emph{dashboard} de profesor.
-    \item \emph{Opcional, sólo si sembró la demo de la Subsubsección~\ref{apx:manual-inst:datos-demo}}: con el backend corriendo, ejecute \texttt{python scripts/smoke\_test.py} desde \texttt{backend/}. Verifica de extremo a extremo, vía HTTP, el \emph{login} de \texttt{admin} y \texttt{profesor}, \texttt{/auth/me}, catálogos, formularios disponibles, creación de respuesta, creación de carta temática y los reportes de administrador; no aplica a la instalación limpia porque depende de las cuentas de prueba del seed.
+    \item \emph{Opcional, solo si sembró la demo de la Subsubsección~\ref{apx:manual-inst:datos-demo}}: con el backend corriendo, ejecute \texttt{python scripts/smoke\_test.py} desde \texttt{backend/}. Verifica de extremo a extremo, vía HTTP, el \emph{login} de \texttt{admin} y \texttt{profesor}, \texttt{/auth/me}, catálogos, formularios disponibles, creación de respuesta, creación de carta temática y los reportes de administrador; no aplica a la instalación limpia porque depende de las cuentas de prueba del seed.
 \end{enumerate}
 
 \subsubsection{Comandos administrativos útiles}
@@ -286,7 +286,7 @@ VITE_API_URL=http://tu-servidor:8000/api/v1
     \midrule
     \texttt{python scripts/medir\_hardware.py} & Medir RAM de Django, PostgreSQL y pico de \texttt{npm run build}. \\
     \midrule
-    \texttt{pip install pytest-cov \&\& \allowbreak pytest -{}-cov=. \allowbreak -{}-cov-report=html} & Ejecutar pruebas con cobertura (\texttt{pytest-cov} no está en \texttt{requirements.txt}). \\
+    \texttt{pytest -{}-cov=. \allowbreak -{}-cov-report=html} & Ejecutar pruebas con reporte de cobertura (\texttt{pytest-cov}, incluido en \texttt{requirements.txt}). \\
     \midrule
     \texttt{npm run build} (frontend) & Compilar producción estática (\texttt{dist/}). \\
     \bottomrule
@@ -320,7 +320,7 @@ Esta subsubsección describe el despliegue en un servidor Linux (Ubuntu 22.04 LT
      +--------------------+
 \end{lstlisting}
 
-El Django \emph{admin} (\texttt{/admin/}) no se expone públicamente: el SPA usa esa misma ruta (\texttt{/admin/*}) para su propio panel de administrador (ver \texttt{frontend/src/App.jsx}), así que Nginx no debe proxiarla hacia gunicorn. Si se necesita el admin de Django en producción para depuración puntual, accédase por túnel SSH a \texttt{localhost:8000} en el servidor, no vía Nginx.
+El Django \emph{admin} (\texttt{/admin/}) no se expone públicamente: el SPA usa esa misma ruta (\texttt{/admin/*}) para su propio panel de administrador (ver \texttt{frontend/src/App.jsx}), así que Nginx no debe redirigirla hacia gunicorn. Si se necesita el admin de Django en producción para depuración puntual, accédase por túnel SSH a \texttt{localhost:8000} en el servidor, no vía Nginx.
 
 Todos los servicios corren en la misma máquina en el caso más simple; se pueden separar la BD y el \emph{app server} sin cambios en el código, ajustando \texttt{DB\_HOST} en el \texttt{.env}.
 
@@ -366,7 +366,7 @@ CREATE DATABASE cyad_prod OWNER cyad_prod;
 \q
 \end{Comandos}
 
-Endurecer \texttt{pg\_hba.conf} para permitir sólo conexiones locales autenticadas por contraseña al usuario \texttt{cyad\_prod} (no permita accesos remotos al usuario \texttt{postgres}).
+Endurecer \texttt{pg\_hba.conf} para permitir solo conexiones locales autenticadas por contraseña al usuario \texttt{cyad\_prod} (no permita accesos remotos al usuario \texttt{postgres}).
 
 Respaldo diario recomendado vía \emph{cron}. Cree primero el directorio de respaldos (\texttt{postgres} debe poder escribir en él) y luego la tarea:
 

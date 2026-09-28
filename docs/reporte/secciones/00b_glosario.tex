@@ -1,0 +1,83 @@
+\section*{Glosario y siglas}\label{subsec:glosario}\addcontentsline{toc}{section}{Glosario y siglas}\justifying
+
+Este apartado reúne, como referencia rápida, la terminología institucional UAM-A/CyAD, las siglas técnicas y las bibliotecas mencionadas a lo largo del reporte.
+
+\subsection*{Terminología institucional UAM-A / CyAD}
+
+\begin{description}
+    \item[UAM] Universidad Autónoma Metropolitana
+    \item[División] Nivel organizativo intermedio entre la Unidad y los Departamentos. En este proyecto: División de Ciencias y Artes para el Diseño (\emph{CyAD}).
+    \item[Departamento] Unidad organizativa académica que agrupa profesores por área disciplinar. CyAD tiene cuatro: \emph{Evaluación del Diseño en el Tiempo}, \emph{Investigación y Conocimiento para el Diseño}, \emph{Procesos y Técnicas de Realización} y \emph{Medio Ambiente}.
+    \item[Licenciatura] Programa de estudios de pregrado (ej. Arquitectura, Diseño de la Comunicación Gráfica, Diseño Industrial).
+    \item[Posgrado] Programa de estudios de nivel superior a la licenciatura.
+    \item[Coordinación de Estudios] Instancia académico-administrativa responsable de la operación de un programa docente.
+    \item[Plan de estudios] Documento oficial que fija las UEAs, su secuencia y sus créditos para una licenciatura o posgrado.
+    \item[UEA] \emph{Unidad de Enseñanza-Aprendizaje}; corresponde a una asignatura en otros sistemas académicos. Se identifica por una clave numérica (ej. 1400027).
+    \item[Área de conocimiento] Agrupación temática de las UEAs dentro de un programa (por ejemplo ``Optativas de interés profesional'', subdividida en áreas de concentración como Urbanismo o Diseño Ambiental). Distinta del Departamento.
+    \item[Trimestre] Unidad temporal académica de la UAM. Un plan de estudios se cursa nominalmente en 12 trimestres.
+    \item[Periodo YY-\{I,P,O\}] Nomenclatura del trimestre en el sistema: \texttt{YY} son los dos últimos dígitos del año y la letra codifica Invierno, Primavera u Otoño, respectivamente. Por ejemplo, \texttt{26-P} designa el trimestre de Primavera de 2026.
+    \item[Modalidad] Forma en que se imparte una UEA: presencial, remoto o mixto.
+    \item[Evaluación global] Evaluación única prevista por la normatividad UAM para estudiantes que no aprobaron por vía ordinaria.
+    \item[Número económico] Identificador numérico único que la UAM asigna a cada trabajador académico.
+\end{description}
+
+\subsection*{Siglas técnicas}
+
+\begin{description}
+    \item[ACID] \emph{Atomicity, Consistency, Isolation, Durability} --- propiedades que garantizan la corrección de las transacciones en un RDBMS.
+    \item[API] \emph{Application Programming Interface} --- contrato de operaciones que un componente expone a otros.
+    \item[CI/CD] \emph{Continuous Integration / Continuous Delivery} --- automatización de compilación, pruebas y despliegue tras cada cambio versionado.
+    \item[CORS] \emph{Cross-Origin Resource Sharing} --- protocolo del navegador que autoriza peticiones entre orígenes distintos (ver \S~\ref{subsec:http-cors}).
+    \item[CRUD] \emph{Create, Read, Update, Delete} --- las cuatro operaciones básicas sobre un recurso persistente.
+    \item[CSRF] \emph{Cross-Site Request Forgery} --- ataque en el que un sitio malicioso induce al navegador de una víctima a enviar peticiones autenticadas a otro sitio.
+    \item[DOM] \emph{Document Object Model} --- representación en árbol de un documento HTML manipulable por JavaScript.
+    \item[E2E] \emph{End-to-end} --- prueba que ejercita el sistema completo desde la perspectiva del usuario.
+    \item[FK] \emph{Foreign Key} --- clave foránea; columna que referencia la clave primaria de otra tabla.
+    \item[HMAC] \emph{Hash-based Message Authentication Code} --- construcción que combina una función \emph{hash} (SHA-256 en este proyecto) con una clave secreta para firmar mensajes.
+    \item[HMR] \emph{Hot Module Replacement} --- técnica de Vite que reemplaza módulos en el navegador sin recargar la página.
+    \item[HTTP / HTTPS] \emph{HyperText Transfer Protocol} (y su variante cifrada con TLS) --- protocolo de aplicación de la web.
+    \item[JWT] \emph{JSON Web Token} --- token firmado usado como credencial de sesión sin estado (RFC 7519).
+    \item[KPI] \emph{Key Performance Indicator} --- indicador clave de desempeño mostrado en los \emph{dashboards}.
+    \item[LDAP] \emph{Lightweight Directory Access Protocol} --- protocolo estándar de directorios institucionales de usuarios.
+    \item[ORM] \emph{Object-Relational Mapper} --- capa que traduce entre objetos y filas de una base de datos relacional.
+    \item[PBKDF2] \emph{Password-Based Key Derivation Function 2} --- algoritmo estándar para derivar una huella robusta a partir de una contraseña.
+    \item[PDF] \emph{Portable Document Format} --- formato de documento paginado listo para imprimir.
+    \item[DOCX] Formato de documento de Microsoft Word.
+    \item[RBAC] \emph{Role-Based Access Control} --- control de acceso basado en roles.
+    \item[RDBMS] \emph{Relational Database Management System} --- gestor de base de datos relacional (PostgreSQL en este proyecto).
+    \item[REST] \emph{Representational State Transfer} --- estilo arquitectónico para APIs sobre HTTP.
+    \item[SMTP] \emph{Simple Mail Transfer Protocol} --- protocolo estándar de envío de correo electrónico.
+    \item[SPA] \emph{Single Page Application} --- aplicación web cuya navegación ocurre sin recargar la página.
+    \item[SSO] \emph{Single Sign-On} --- mecanismo de inicio de sesión unificado entre varios sistemas.
+    \item[SQL] \emph{Structured Query Language} --- lenguaje estándar de consulta relacional.
+    \item[TLS] \emph{Transport Layer Security} --- protocolo que cifra el canal HTTP en HTTPS.
+    \item[UI / UX] \emph{User Interface / User Experience} --- interfaz de usuario / experiencia de usuario.
+    \item[URI / URL] \emph{Uniform Resource Identifier / Locator} --- identificador (y localizador) de un recurso en la web.
+    \item[WSGI] \emph{Web Server Gateway Interface} --- especificación de interfaz entre servidores web y aplicaciones Python.
+    \item[XLSX] Formato de libro de Microsoft Excel.
+    \item[XSS] \emph{Cross-Site Scripting} --- inyección de script malicioso en una página vista por otro usuario.
+    \item[YAML] \emph{YAML Ain't Markup Language} --- formato jerárquico textual usado por el esquema OpenAPI.
+\end{description}
+
+\subsection*{Bibliotecas y herramientas mencionadas}
+
+\begin{description}
+    \item[\emph{SheetJS} (\texttt{xlsx})] Genera libros XLSX en el navegador; se usa para descargar reportes desde el rol administrador.
+    \item[\emph{drf-spectacular}] Genera la especificación OpenAPI y la interfaz Swagger UI desde el código de DRF.
+    \item[\emph{django-cors-headers}] Middleware que gestiona la lista blanca de orígenes CORS.
+    \item[\emph{django-filter}] Añade filtros declarativos por \emph{query string} a los \emph{ViewSets} de DRF.
+    \item[\emph{python-decouple}] Lee la configuración desde archivos \texttt{.env}.
+    \item[\emph{psycopg2}] Adaptador PostgreSQL para Python que usa el ORM de Django.
+    \item[\emph{djangorestframework-simplejwt}] Implementación de JWT (\emph{access} + \emph{refresh} con rotación) para DRF.
+    \item[\emph{factory-boy}] Construcción de instancias de prueba con datos consistentes.
+    \item[\emph{coverage.py} y \emph{pytest-cov}] Miden la cobertura de código ejecutado por las pruebas.
+    \item[\emph{pytest-django}] Integración de \emph{pytest} con Django (fixtures de BD, cliente de pruebas, aislamiento).
+    \item[\emph{WeasyPrint} y \emph{ReportLab}] Generadores de PDF del lado del servidor considerados y descartados: el primero por sus dependencias nativas (GTK/Pango) y el segundo por requerir una maquetación programática manual.
+    \item[\emph{Gunicorn} y \emph{Nginx}] \emph{Application server} WSGI y servidor HTTP inverso recomendados para el despliegue productivo (fuera del alcance actual).
+    \item[\emph{Vitest}, \emph{Jest}, \emph{React Testing Library}] Herramientas típicas para probar componentes React; se mencionan como trabajo futuro (el proyecto aún no las incorpora).
+    \item[\emph{Lighthouse} y \emph{axe-core}] Herramientas de auditoría de rendimiento y accesibilidad, mencionadas como línea de trabajo pendiente.
+    \item[\emph{Google Forms} / \emph{Google Sheets}] Combinación que la Coordinación usaba antes del sistema (fuente del formulario ad hoc de autoevaluación y de la hoja de cálculo con los resultados); se referencia como motivación del proyecto.
+\end{description}
+
+
+ewpage
