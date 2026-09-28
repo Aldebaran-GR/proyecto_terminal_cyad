@@ -482,6 +482,22 @@ class TestRefreshToken:
         assert res.status_code == 200
         assert "access" in res.data
 
+    def test_refresh_rotado_invalida_el_anterior(self, client, admin_user):
+        login = client.post(
+            "/api/v1/auth/login/",
+            {"email": "admin_test@cyad.uam.mx", "password": "Admin1234!"},
+            format="json",
+        )
+        viejo = login.data["refresh"]
+        primero = client.post(
+            "/api/v1/auth/refresh/", {"refresh": viejo}, format="json"
+        )
+        assert primero.status_code == 200
+        reuso = client.post(
+            "/api/v1/auth/refresh/", {"refresh": viejo}, format="json"
+        )
+        assert reuso.status_code == 401
+
     def test_refresh_invalido(self, client):
         res = client.post(
             "/api/v1/auth/refresh/",
