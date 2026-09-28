@@ -10,12 +10,16 @@
 %fvextra extiende fancyvrb con breaklines/breakanywhere (corta líneas
 %largas dentro del Verbatim en vez de desbordar la caja del PDF).
 \RequirePackage{fvextra}
-%Entorno para bloques de comandos de terminal. Verbatim no aplica
-%ligaduras tipográficas ni los shorthands activos de babel[spanish]
-%(evita que "--depth" se vea como un guion largo o que "import" con
-%comillas rectas antes se lea como diéresis); breakanywhere corta
-%rutas/comandos largos para que no se salgan del margen del PDF.
-\DefineVerbatimEnvironment{Comandos}{Verbatim}{fontsize=\small,frame=single,breaklines=true,breakanywhere=true}
+%Entorno para bloques de comandos de terminal, sobre listings (estilo
+%mystyle, resaltado bash, sin numeros de linea). A diferencia de
+%Verbatim, listings no aplica ligaduras tipograficas ni los shorthands
+%activos de babel[spanish] (evita que "--depth" se vea como un guion
+%largo o que "import" con comillas rectas antes se lea como dieresis);
+%breakautoindent/breakindent quedan en 0 y basicstyle rompe rutas largas
+%para que no se salgan del margen del PDF.
+\lstnewenvironment{Comandos}[1][]{%
+	\lstset{style=mystyle,style=mystyle-sn,language=bash,#1}%
+}{}
 %Para embeber PDFs externos (manuales de instalación y usuario) como anexos.
 \RequirePackage{pdfpages}
 %Versiones recientes de pdfpages pasan la clave "artifact" a
@@ -85,6 +89,11 @@
 \RequirePackage{enumitem}
 
 \RequirePackage[T1]{fontenc}
+%Comillas rectas (no tipograficas) dentro de listings: sin esto, en T1
+%las comillas simples y los backticks del codigo se componen como ' y `
+%tipograficas (' y `), lo que se ve mal en cadenas Python/JS y en
+%template literals con backticks.
+\RequirePackage{upquote}
 \graphicspath{{./Imagenes/}}
 %\small UAM-Azcapotzalco
 \RequirePackage{fancyhdr}
@@ -101,6 +110,46 @@
 \definecolor{codegray}{rgb}{0.5,0.5,0.5}
 \definecolor{codepurple}{rgb}{0.58,0,0.82}
 \definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+
+%Lenguajes usados en los fragmentos de codigo del reporte que listings
+%no trae predefinidos: JavaScript/JSX, archivos .env, unidades systemd
+%y configuracion de Nginx. Python y bash si vienen incluidos en listings.
+\lstdefinelanguage{JavaScript}{
+	morekeywords={const,let,var,function,return,if,else,for,while,do,switch,%
+	    case,break,continue,new,delete,typeof,instanceof,in,of,class,extends,%
+	    super,this,import,from,export,default,async,await,try,catch,finally,%
+	    throw,yield,static,get,set},
+	morekeywords=[2]{true,false,null,undefined,NaN},
+	sensitive=true,
+	morecomment=[l]{//},
+	morecomment=[s]{/*}{*/},
+	morestring=[b]',
+	morestring=[b]",
+	morestring=[b]`,
+}
+
+\lstdefinelanguage{DotEnv}{
+	morecomment=[l]{\#},
+	morestring=[b]",
+	sensitive=false,
+}
+
+\lstdefinelanguage{SystemdUnit}{
+	morekeywords={Unit,Service,Install,Description,After,Requires,Type,User,%
+	    Group,RuntimeDirectory,WorkingDirectory,Environment,ExecStart,Restart,%
+	    WantedBy},
+	morecomment=[l]{\#},
+	morestring=[b]",
+	sensitive=true,
+}
+
+\lstdefinelanguage{nginx}{
+	morekeywords={server,location,listen,server_name,root,index,try_files,%
+	    proxy_pass,proxy_set_header,alias,expires,client_max_body_size},
+	morecomment=[l]{\#},
+	morestring=[b]",
+	sensitive=false,
+}
 
 \lstdefinestyle{mystyle}{
 	backgroundcolor=\color{backcolour},
@@ -121,11 +170,26 @@
 	tabsize=2,
 	inputencoding=utf8,
 	extendedchars=true,
+	frame=single,
+	rulecolor=\color{codegray},
+	columns=fullflexible,
+	xleftmargin=2.5em,
+	framexleftmargin=2.5em,
+	postbreak=\mbox{\textcolor{codegray}{$\hookrightarrow$}\space},
 	literate=%
 	    {á}{{\'a}}1 {é}{{\'e}}1 {í}{{\'i}}1 {ó}{{\'o}}1 {ú}{{\'u}}1
 	    {Á}{{\'A}}1 {É}{{\'E}}1 {Í}{{\'I}}1 {Ó}{{\'O}}1 {Ú}{{\'U}}1
 	    {ñ}{{\~n}}1 {Ñ}{{\~N}}1 {ü}{{\"u}}1 {Ü}{{\"U}}1
-	    {¿}{{?`}}1 {¡}{{!`}}1
+	    {¿}{{?`}}1 {¡}{{!`}}1 {±}{{\ensuremath{\pm}}}1
+}
+
+%Variante de mystyle sin numeros de linea: para arte ASCII (arbol de
+%directorios, diagramas de topologia) y fragmentos de una sola linea,
+%donde numerar no aporta y un "1" solitario se ve fuera de lugar.
+\lstdefinestyle{mystyle-sn}{
+	numbers=none,
+	xleftmargin=0pt,
+	framexleftmargin=0pt,
 }
 
 \lstdefinestyle{mystyle2}
@@ -141,7 +205,7 @@
 	postbreak=\mbox{\textcolor{codegray}{$\hookrightarrow$}\space},
 }
 
-\lstset{style=mystyle2,inputencoding=utf8,extendedchars=true}
+\lstset{style=mystyle,inputencoding=utf8,extendedchars=true}
 
 
 \def\version#1{\def\@version{#1}}

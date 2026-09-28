@@ -5,7 +5,7 @@ Este apéndice presenta \emph{fragmentos curados} del código fuente que ilustra
 
 \subsubsection{Estructura del repositorio}
 
-\begin{Verbatim}[fontsize=\small, frame=single]
+\begin{lstlisting}[style=mystyle-sn]
 proyecto_terminal_cyad/
 |-- backend/
 |   |-- config/                # settings, urls, wsgi
@@ -38,13 +38,13 @@ proyecto_terminal_cyad/
 |   |-- reporte/               # este documento
 |   `-- manuales/              # instalacion y usuario
 `-- README.md
-\end{Verbatim}
+\end{lstlisting}
 
 \subsubsection{Backend --- Modelo de Usuario con roles}
 
 Fragmento de \texttt{backend/accounts/models.py}: modelo de usuario personalizado con dos roles.
 
-\begin{Verbatim}[fontsize=\small, frame=single]
+\begin{lstlisting}[language={[3]Python}]
 class Usuario(AbstractBaseUser, PermissionsMixin):
     class Rol(models.TextChoices):
         ADMIN    = "ADMIN",    "Administrador"
@@ -60,13 +60,13 @@ class Usuario(AbstractBaseUser, PermissionsMixin):
     REQUIRED_FIELDS = ["nombre"]
 
     objects = UsuarioManager()
-\end{Verbatim}
+\end{lstlisting}
 
 \subsubsection{Backend --- Perfil de Profesor y Periodo}\label{lst:modelos_perfil_periodo}
 
 Fragmento de \texttt{backend/accounts/models.py} y \texttt{backend/catalogos/models.py}: el perfil \texttt{Profesor} sincroniza \texttt{Usuario.is\_active} con \texttt{Profesor.estado} para que desactivar el perfil bloquee el inicio de sesión, y el modelo \texttt{Periodo} garantiza en \texttt{save()} la invariante ``a lo sumo un periodo activo por recurso''.
 
-\begin{Verbatim}[fontsize=\small, frame=single]
+\begin{lstlisting}[language={[3]Python}]
 # backend/accounts/models.py
 class Profesor(TimeStampedModel, EstadoActivoModel):
     usuario = models.OneToOneField(
@@ -122,13 +122,13 @@ class Periodo(TimeStampedModel):
                     .filter(**{field: True}).update(**{field: False})
         self.activo = any(getattr(self, f) for f in per_resource)
         super().save(*args, **kwargs)
-\end{Verbatim}
+\end{lstlisting}
 
 \subsubsection{Backend --- JWT y throttling}
 
 Fragmento de \texttt{backend/config/settings.py}.
 
-\begin{Verbatim}[fontsize=\small, frame=single]
+\begin{lstlisting}[language={[3]Python}]
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework_simplejwt.authentication.JWTAuthentication",
@@ -151,13 +151,13 @@ SIMPLE_JWT = {
     "ROTATE_REFRESH_TOKENS":  True,
     "AUTH_HEADER_TYPES":      ("Bearer",),
 }
-\end{Verbatim}
+\end{lstlisting}
 
 \subsubsection{Backend --- Documento academico base}
 
 Fragmento de \texttt{backend/documentos/models.py}. Clase abstracta con campos comunes y \emph{snapshot} de identidad del profesor.
 
-\begin{Verbatim}[fontsize=\small, frame=single]
+\begin{lstlisting}[language={[3]Python}]
 class DocumentoAcademicoBase(TimeStampedModel):
     class Estado(models.TextChoices):
         BORRADOR   = "BORRADOR",   "Borrador"
@@ -186,13 +186,13 @@ class DocumentoAcademicoBase(TimeStampedModel):
 
     class Meta:
         abstract = True
-\end{Verbatim}
+\end{lstlisting}
 
 \subsubsection{Backend --- Modelos del \emph{form-builder}}\label{lst:modelos_form_builder}
 
 Fragmento de \texttt{backend/autoevaluacion/models.py}: cinco modelos que definen la estructura editable de un formulario. El ciclo de vida de \texttt{Formulario} (\texttt{publicar}/\texttt{cerrar}/\texttt{reabrir}/\texttt{despublicar}/\texttt{publicar\_revision}) se detalla en el listado \hyperref[lst:formulario_states]{``Backend --- Ciclo de vida de Formulario''}.
 
-\begin{Verbatim}[fontsize=\small, frame=single]
+\begin{lstlisting}[language={[3]Python}]
 class Formulario(TimeStampedModel):
     class Estado(models.TextChoices):
         BORRADOR  = "BORRADOR",  "Borrador"
@@ -270,13 +270,13 @@ class FilaCuadricula(models.Model):
                                  related_name="filas")
     texto    = models.CharField(max_length=255)
     orden    = models.PositiveSmallIntegerField(default=0)
-\end{Verbatim}
+\end{lstlisting}
 
 \subsubsection{Backend --- Captura de respuestas y baremo}\label{lst:modelos_respuesta}
 
 Fragmento de \texttt{backend/autoevaluacion/models.py}: modelos que persisten cada envío del profesor y el baremo (\texttt{NivelDesempeno}) contra el que se evalúa. El algoritmo que rellena \texttt{puntaje\_obtenido}, \texttt{porcentaje}, \texttt{nivel\_desempeno} y crea un \texttt{RespuestaSeccion} por sección se muestra en el listado \hyperref[lst:scoring]{``Backend --- Scoring ponderado de autoevaluación''}. El campo \texttt{RespuestaSeccion.peso} es un \emph{snapshot} del peso vigente al enviar, precisamente para que el desglose histórico permanezca estable si el administrador reajusta pesos y publica una revisión.
 
-\begin{Verbatim}[fontsize=\small, frame=single]
+\begin{lstlisting}[language={[3]Python}]
 class NivelDesempeno(models.Model):
     formulario     = models.ForeignKey(Formulario, on_delete=models.CASCADE,
                                        related_name="niveles")
@@ -354,13 +354,13 @@ class RespuestaSeccion(models.Model):
 
     class Meta:
         unique_together = [["respuesta", "seccion"]]
-\end{Verbatim}
+\end{lstlisting}
 
 \subsubsection{Backend --- Scoring ponderado de autoevaluacion}\label{lst:scoring}
 
 Fragmento simplificado de \texttt{backend/autoevaluacion/views.py}: calculo del puntaje ponderado por seccion, con manejo por tipo de pregunta y \emph{snapshot} del peso en \texttt{RespuestaSeccion}.
 
-\begin{Verbatim}[fontsize=\small, frame=single]
+\begin{lstlisting}[language={[3]Python}]
 def _calcular_puntaje(respuesta):
     resultado_secciones = []
     item_by_pregunta = {r.pregunta_id: r for r in respuesta.items.all()}
@@ -412,13 +412,13 @@ def _calcular_puntaje(respuesta):
                     "peso":           s["peso"],   # snapshot para desglose historico
                 },
             )
-\end{Verbatim}
+\end{lstlisting}
 
 \subsubsection{Backend --- Permisos por rol}\label{lst:permissions}
 
 Fragmento del sistema de permisos que garantiza que cada profesor solo edite sus documentos.
 
-\begin{Verbatim}[fontsize=\small, frame=single]
+\begin{lstlisting}[language={[3]Python}]
 class IsOwnerProfesorOrAdminReadOnly(permissions.BasePermission):
     def has_permission(self, request, view):
         return request.user.is_authenticated
@@ -427,13 +427,13 @@ class IsOwnerProfesorOrAdminReadOnly(permissions.BasePermission):
         if request.user.rol == Usuario.Rol.ADMIN:
             return request.method in permissions.SAFE_METHODS
         return obj.profesor and obj.profesor.usuario_id == request.user.id
-\end{Verbatim}
+\end{lstlisting}
 
 \subsubsection{Frontend --- Cliente HTTP con refresh automatico de JWT}\label{lst:jwt-refresh}
 
 Fragmento de \texttt{frontend/src/api/client.js}.
 
-\begin{Verbatim}[fontsize=\small, frame=single]
+\begin{lstlisting}[language=JavaScript]
 const client = axios.create({
   baseURL: import.meta.env.VITE_API_URL,
 });
@@ -462,13 +462,13 @@ client.interceptors.response.use(
     return Promise.reject(error);
   }
 );
-\end{Verbatim}
+\end{lstlisting}
 
 \subsubsection{Frontend --- Guard de rutas por rol}\label{lst:role-route}
 
 Fragmento de \texttt{frontend/src/auth/RoleRoute.jsx}.
 
-\begin{Verbatim}[fontsize=\small, frame=single]
+\begin{lstlisting}[language=JavaScript]
 export function RoleRoute({ role, children }) {
   const { user, isLoading } = useAuth();
   if (isLoading) return <Loading />;
@@ -481,13 +481,13 @@ export const AdminRoute    = ({ children }) =>
   <RoleRoute role="ADMIN"    >{children}</RoleRoute>;
 export const ProfesorRoute = ({ children }) =>
   <RoleRoute role="PROFESOR" >{children}</RoleRoute>;
-\end{Verbatim}
+\end{lstlisting}
 
 \subsubsection{Frontend --- Renderizador dinamico de preguntas}\label{lst:renderer_preguntas}
 
 Fragmento de \code{frontend/src/pages/profesor/autoevaluacion/AutoevaluacionFormPage.jsx} que despacha por tipo de pregunta.
 
-\begin{Verbatim}[fontsize=\small, frame=single]
+\begin{lstlisting}[language=JavaScript]
 function PreguntaRenderer({ pregunta, value, onChange }) {
   switch (pregunta.tipo) {
     case "TEXTO_CORTO":       return <TextInput  {...{value, onChange}} />;
@@ -501,13 +501,13 @@ function PreguntaRenderer({ pregunta, value, onChange }) {
     default:                  return <UnknownType tipo={pregunta.tipo} />;
   }
 }
-\end{Verbatim}
+\end{lstlisting}
 
 \subsubsection{Backend --- Comando de importacion CSV para UEA}\label{lst:import_csv}
 
 Comando de gestion \texttt{python manage.py cargar\_catalogos\_csv} para carga masiva idempotente. Fragmento simplificado.
 
-\begin{Verbatim}[fontsize=\small, frame=single]
+\begin{lstlisting}[language={[3]Python}]
 class Command(BaseCommand):
     help = "Carga catalogos (Areas, Licenciaturas, Posgrados, UEAs) desde CSV"
 
@@ -528,13 +528,13 @@ class Command(BaseCommand):
                         "tipo":      fila["tipo"],
                     },
                 )
-\end{Verbatim}
+\end{lstlisting}
 
 \subsubsection{Backend --- Constraint XOR y unicidad parcial de UEA}\label{lst:uea_constraints}
 
 Fragmento de \texttt{backend/catalogos/models.py}: reglas de integridad declarativas que fuerzan que una UEA pertenezca a licenciatura \emph{o} a posgrado (nunca a ambos ni a ninguno), y que la clave sea unica dentro de cada programa.
 
-\begin{Verbatim}[fontsize=\small, frame=single]
+\begin{lstlisting}[language={[3]Python}]
 class Meta:
     constraints = [
         CheckConstraint(
@@ -555,13 +555,13 @@ class Meta:
             name="uea_clave_unica_por_posgrado",
         ),
     ]
-\end{Verbatim}
+\end{lstlisting}
 
 \subsubsection{Backend --- Ciclo de vida de Formulario}\label{lst:formulario_states}
 
 Fragmento de \texttt{backend/autoevaluacion/models.py}: validacion de estructura y transiciones de la maquina de estados \texttt{BORRADOR} $\leftrightarrow$ \texttt{PUBLICADO} $\leftrightarrow$ \texttt{CERRADO}.
 
-\begin{Verbatim}[fontsize=\small, frame=single]
+\begin{lstlisting}[language={[3]Python}]
 def _validar_estructura_para_publicar(self):
     secciones = list(self.secciones.all())
     if not secciones:
@@ -601,13 +601,13 @@ def publicar_revision(self):
     self.estado = self.Estado.PUBLICADO
     self.published_at = timezone.now()
     self.save()
-\end{Verbatim}
+\end{lstlisting}
 
 \subsubsection{Backend --- Login con distincion de cuenta desactivada}\label{lst:login_diff}
 
 Fragmento de \texttt{backend/accounts/serializers.py}. El \emph{serializer} personalizado distingue \emph{credenciales invalidas} de \emph{cuenta desactivada} devolviendo un codigo \texttt{account\_disabled} sin filtrar la existencia del correo.
 
-\begin{Verbatim}[fontsize=\small, frame=single]
+\begin{lstlisting}[language={[3]Python}]
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     def validate(self, attrs):
         email = (attrs.get(self.username_field) or "").strip().lower()
@@ -625,13 +625,13 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         data["user"] = {"id": u.id, "email": u.email,
                         "nombre": u.nombre, "rol": u.rol}
         return data
-\end{Verbatim}
+\end{lstlisting}
 
 \subsubsection{Frontend --- Generacion de XLSX por periodo}\label{lst:xlsx_por_periodo}
 
 Fragmento simplificado de \code{frontend/src/pages/admin/reportes/ReportesPage.jsx}: descarga en el navegador con \emph{SheetJS}, agrupando las filas por periodo en hojas separadas del mismo libro.
 
-\begin{Verbatim}[fontsize=\small, frame=single]
+\begin{lstlisting}[language=JavaScript]
 async function descargarDocumento(publicPath, fetcher) {
   const params = { estado: "PUBLICADO", page_size: 500 }
   if (periodoId) params.periodo = periodoId
@@ -660,14 +660,14 @@ async function descargarDocumento(publicPath, fetcher) {
   }
   XLSX.writeFile(wb, `${publicPath}-${Date.now()}.xlsx`)
 }
-\end{Verbatim}
+\end{lstlisting}
 
 \subsubsection{Nota sobre el listado completo}
 
 Los archivos aquí incluidos son una selección representativa de los fragmentos más ilustrativos. El código fuente completo (backend, frontend, \emph{tests}, scripts y fixtures) se entrega en el archivo \texttt{codigo\_fuente.zip}. Para regenerarlo desde el repositorio se ejecuta desde la raíz del proyecto:
 
-\begin{quote}
-\ttfamily git archive HEAD -o docs/reporte/entregables/codigo\_fuente.zip
-\end{quote}
+\begin{Comandos}
+git archive HEAD -o docs/reporte/entregables/codigo_fuente.zip
+\end{Comandos}
 
 Adicionalmente, la documentación viva de la API se genera automáticamente vía \emph{drf-spectacular} y se sirve en \texttt{/api/docs/} (interfaz Swagger UI) y \texttt{/api/schema/} (esquema OpenAPI en YAML).

@@ -113,7 +113,7 @@ cp .env.example .env    # desde backend/
 
 Contenido esperado (valores por defecto de la plantilla; ajuste \texttt{DB\_PASSWORD} y \texttt{SECRET\_KEY} a su entorno):
 
-\begin{Verbatim}[fontsize=\small, frame=single]
+\begin{lstlisting}[language=DotEnv]
 SECRET_KEY=cambia-esta-clave-por-una-aleatoria-larga
 DEBUG=True
 ALLOWED_HOSTS=localhost,127.0.0.1
@@ -125,7 +125,7 @@ DB_PORT=5432
 JWT_ACCESS_MINUTES=60
 JWT_REFRESH_DAYS=7
 CORS_ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173,http://localhost:5174
-\end{Verbatim}
+\end{lstlisting}
 
 Para producción se debe establecer \texttt{DEBUG=False}, definir \texttt{ALLOWED\_HOSTS} con el dominio real y generar una \texttt{SECRET\_KEY} nueva (comando en la Subsubsección~\ref{apx:manual-inst:despliegue-produccion}).
 
@@ -258,9 +258,9 @@ El frontend queda disponible en \code{http://localhost:5173}. Si el puerto está
 
 Si el backend no está en \texttt{localhost:8000}, ajuste \texttt{VITE\_API\_URL} en \texttt{frontend/.env} (o cree \texttt{frontend/.env.local}, que Vite prioriza) con:
 
-\begin{Verbatim}[fontsize=\small, frame=single, breaklines=true]
+\begin{lstlisting}[language=DotEnv,style=mystyle-sn]
 VITE_API_URL=http://tu-servidor:8000/api/v1
-\end{Verbatim}
+\end{lstlisting}
 
 \subsubsection{Verificación}
 
@@ -298,7 +298,7 @@ VITE_API_URL=http://tu-servidor:8000/api/v1
 Esta subsubsección describe el despliegue en un servidor Linux (Ubuntu 22.04 LTS o Debian 12) que atienda las peticiones institucionales. El manual asume que ya se cumplen los prerrequisitos (Subsubsección~\ref{apx:manual-inst:install-limpia} inclusive: base limpia, superuser creado, catálogos cargados).
 
 \paragraph{Topología recomendada}\mbox{}\\
-\begin{Verbatim}[fontsize=\small, frame=single]
+\begin{lstlisting}[style=mystyle-sn]
         Internet (HTTPS 443)
                 |
                 v
@@ -318,7 +318,7 @@ Esta subsubsección describe el despliegue en un servidor Linux (Ubuntu 22.04 LT
      +--------------------+
      |    PostgreSQL 17   |    Usuario dedicado cyad_prod
      +--------------------+
-\end{Verbatim}
+\end{lstlisting}
 
 El Django \emph{admin} (\texttt{/admin/}) no se expone públicamente: el SPA usa esa misma ruta (\texttt{/admin/*}) para su propio panel de administrador (ver \texttt{frontend/src/App.jsx}), así que Nginx no debe proxiarla hacia gunicorn. Si se necesita el admin de Django en producción para depuración puntual, accédase por túnel SSH a \texttt{localhost:8000} en el servidor, no vía Nginx.
 
@@ -327,7 +327,7 @@ Todos los servicios corren en la misma máquina en el caso más simple; se puede
 \paragraph{Variables de entorno de producción}\mbox{}\\
 El archivo \texttt{backend/.env} para producción difiere del de desarrollo en varios campos clave:
 
-\begin{Verbatim}[fontsize=\small, frame=single]
+\begin{lstlisting}[language=DotEnv]
 DEBUG=False
 SECRET_KEY=<clave-larga-generada-abajo>
 ALLOWED_HOSTS=cyad.uam.mx
@@ -339,7 +339,7 @@ DB_HOST=localhost
 DB_PORT=5432
 JWT_ACCESS_MINUTES=15
 JWT_REFRESH_DAYS=1
-\end{Verbatim}
+\end{lstlisting}
 
 Generación de \texttt{SECRET\_KEY}:
 
@@ -374,10 +374,10 @@ Respaldo diario recomendado vía \emph{cron}. Cree primero el directorio de resp
 sudo install -d -o postgres -g postgres /var/backups/cyad
 \end{Comandos}
 
-\begin{Verbatim}[fontsize=\small, frame=single, breaklines=true, breakanywhere=true]
+\begin{lstlisting}[language=bash]
 # /etc/cron.d/cyad-backup
 0 3 * * * postgres pg_dump -Fc cyad_prod > /var/backups/cyad/cyad_$(date +\%Y\%m\%d).dump
-\end{Verbatim}
+\end{lstlisting}
 
 Rotar respaldos con \texttt{logrotate} o un simple \texttt{find /var/backups/cyad -mtime +30 -delete}.
 
@@ -390,7 +390,7 @@ pip install gunicorn
 
 Crear la unidad \texttt{/etc/systemd/system/cyad-backend.service}:
 
-\begin{Verbatim}[fontsize=\small, frame=single]
+\begin{lstlisting}[language=SystemdUnit]
 [Unit]
 Description=CyAD Django backend (gunicorn)
 After=network.target postgresql.service
@@ -413,7 +413,7 @@ Restart=on-failure
 
 [Install]
 WantedBy=multi-user.target
-\end{Verbatim}
+\end{lstlisting}
 
 \texttt{RuntimeDirectory=cyad} hace que systemd cree \texttt{/run/cyad/} (propiedad de \texttt{www-data}) antes de arrancar el servicio, para que gunicorn pueda crear ahí el \emph{socket}; sin esta línea, \texttt{www-data} normalmente no tiene permiso de escritura directa en \texttt{/run/}.
 
@@ -449,14 +449,14 @@ npm run build
 
 Antes de compilar, crear \texttt{frontend/.env.production} con la URL pública de la API:
 
-\begin{Verbatim}[fontsize=\small, frame=single]
+\begin{lstlisting}[language=DotEnv,style=mystyle-sn]
 VITE_API_URL=https://cyad.uam.mx/api/v1
-\end{Verbatim}
+\end{lstlisting}
 
 \paragraph{Nginx como reverse proxy}\mbox{}\\
 Crear \texttt{/etc/nginx/sites-available/cyad.conf}:
 
-\begin{Verbatim}[fontsize=\small, frame=single]
+\begin{lstlisting}[language=nginx]
 server {
     listen 80;
     server_name cyad.uam.mx;
@@ -488,7 +488,7 @@ server {
 
     client_max_body_size 10M;
 }
-\end{Verbatim}
+\end{lstlisting}
 
 Habilitar y recargar:
 

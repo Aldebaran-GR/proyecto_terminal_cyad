@@ -232,7 +232,7 @@ La app \texttt{catalogos} expone \emph{ViewSets} de CRUD completo para \texttt{D
 
 Cuatro \emph{fixtures} JSON (en \texttt{backend/catalogos/fixtures/}) precargan los catálogos institucionales estables: los cuatro departamentos de CyAD, las licenciaturas y posgrados activos, y las áreas de conocimiento. Se aplican con el comando \texttt{loaddata} de Django. Es necesario situarse primero en el directorio del proyecto Django (\texttt{backend/}, donde vive \texttt{manage.py}), activar el entorno virtual que aísla las dependencias (para que \texttt{python} y \texttt{manage.py} usen la versión de Django instalada por \texttt{pip install -r requirements.txt}, no el intérprete del sistema) y respetar el orden que dictan las claves foráneas (departamentos antes que licenciaturas y posgrados):
 
-\begin{Verbatim}[fontsize=\small, frame=single]
+\begin{Comandos}
 cd backend
 .\.venv\Scripts\activate       # Windows (PowerShell / CMD)
 # source .venv/bin/activate    # Linux / macOS
@@ -241,7 +241,7 @@ python manage.py loaddata \
     catalogos/fixtures/licenciaturas.json \
     catalogos/fixtures/posgrados.json \
     catalogos/fixtures/areas.json
-\end{Verbatim}
+\end{Comandos}
 
 Las rutas indicadas son relativas a \texttt{backend/}. El comando \texttt{loaddata} es idempotente (usa la clave primaria de cada registro), por lo que se puede re-ejecutar sin duplicar datos: si un registro ya existe, lo actualiza. Esto reduce el tiempo de puesta en marcha del sistema a minutos, sin capturar manualmente los mismos datos.
 
@@ -269,7 +269,7 @@ El modelo \texttt{UEA} refuerza dos reglas del dominio como \emph{constraints} d
 
 Estas reglas se validan además en el \emph{serializer} para producir mensajes de error legibles.
 
-La Figura~\ref{fig:admin_uea} ilustra la modal de importación de UEAs desde CSV en \texttt{/admin/catalogos/uea}, con el formato de columnas aceptado.
+La Figura~\ref{fig:admin_uea} ilustra la modal de importación de UEAs desde CSV en \code{/admin/catalogos/uea}, con el formato de columnas aceptado.
 
 \begin{figure}[!ht]
     \centering
