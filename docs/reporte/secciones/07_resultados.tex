@@ -108,7 +108,7 @@ Las siguientes capturas se tomaron con el sistema ejecutándose localmente contr
 
 La Figura~\ref{fig:login} muestra la pantalla de acceso, punto de entrada de los roles administrador y docente (objetivo específico~1). Tras validar el correo y la contraseña, el sistema redirige al tablero que corresponde al rol de la cuenta; ante un intento fallido o una cuenta desactivada muestra un mensaje distinto sin revelar si el correo existe.
 
-\begin{figure}[!ht]
+\begin{figure}[!htbp]
     \centering
     \captura[0.75\textwidth]{screenshots/login}
     \caption{Pantalla de inicio de sesión.}
@@ -119,28 +119,28 @@ La Figura~\ref{fig:login} muestra la pantalla de acceso, punto de entrada de los
 
 Las Figuras~\ref{fig:docente_dashboard} a~\ref{fig:docente_autoevaluacion} cubren el trabajo del profesor (objetivos específicos~2 y~3). El tablero (Figura~\ref{fig:docente_dashboard}) resume, para el periodo activo, los documentos pendientes y publicados; los formularios de carta temática y de requisitos de recuperación (Figuras~\ref{fig:docente_carta_form} y~\ref{fig:docente_requisito_form}) asignan el periodo activo automáticamente y permiten guardar como borrador o publicar; y el formulario de autoevaluación (Figura~\ref{fig:docente_autoevaluacion}) se construye dinámicamente a partir de la definición hecha por el administrador.
 
-\begin{figure}[!ht]
+\begin{figure}[!htbp]
     \centering
     \captura[0.9\textwidth]{screenshots/docente_dashboard}
     \caption{\emph{Dashboard} del profesor: tarjetas de resumen y listas agrupadas por periodo.}
     \label{fig:docente_dashboard}
 \end{figure}
 
-\begin{figure}[!ht]
+\begin{figure}[!htbp]
     \centering
     \captura[0.9\textwidth]{screenshots/docente_carta_form}
     \caption{Formulario de creación/edición de carta temática.}
     \label{fig:docente_carta_form}
 \end{figure}
 
-\begin{figure}[!ht]
+\begin{figure}[!htbp]
     \centering
     \captura[0.9\textwidth]{screenshots/docente_requisito_form}
     \caption{Formulario de requisitos de recuperación.}
     \label{fig:docente_requisito_form}
 \end{figure}
 
-\begin{figure}[!ht]
+\begin{figure}[!htbp]
     \centering
     \captura[0.9\textwidth]{screenshots/docente_autoevaluacion_contestar}
     \caption{Formulario de autoevaluación con renderizado dinámico de preguntas.}
@@ -151,28 +151,28 @@ Las Figuras~\ref{fig:docente_dashboard} a~\ref{fig:docente_autoevaluacion} cubre
 
 Las Figuras~\ref{fig:admin_dashboard} a~\ref{fig:admin_reportes} muestran las herramientas del administrador (objetivos específicos~1 y~4). El tablero concentra los indicadores globales y el cumplimiento por departamento (Figura~\ref{fig:admin_dashboard}); la gestión de profesores cubre el alta, la edición y el restablecimiento de contraseña (Figura~\ref{fig:admin_profesores}); el constructor de formularios permite definir secciones ponderadas y preguntas (Figura~\ref{fig:admin_formulario_builder}); y el panel de reportes genera las descargas en XLSX (Figura~\ref{fig:admin_reportes}).
 
-\begin{figure}[!ht]
+\begin{figure}[!htbp]
     \centering
     \captura[0.9\textwidth]{screenshots/admin_dashboard}
     \caption{\emph{Dashboard} del administrador: KPIs globales y cumplimiento por departamento.}
     \label{fig:admin_dashboard}
 \end{figure}
 
-\begin{figure}[!ht]
+\begin{figure}[!htbp]
     \centering
     \captura[0.9\textwidth]{screenshots/admin_profesores_lista}
     \caption{Gestión de profesores: crear, editar, restablecer contraseña.}
     \label{fig:admin_profesores}
 \end{figure}
 
-\begin{figure}[!ht]
+\begin{figure}[!htbp]
     \centering
     \captura[0.9\textwidth]{screenshots/admin_autoevaluacion_preguntas}
     \caption{Constructor de formularios de autoevaluación (\emph{form-builder}) con secciones y preguntas ponderadas.}
     \label{fig:admin_formulario_builder}
 \end{figure}
 
-\begin{figure}[!ht]
+\begin{figure}[!htbp]
     \centering
     \captura[0.9\textwidth]{screenshots/admin_reportes}
     \caption{Panel de reportes con descarga en XLSX.}
@@ -183,21 +183,21 @@ Las Figuras~\ref{fig:admin_dashboard} a~\ref{fig:admin_reportes} muestran las he
 
 Las Figuras~\ref{fig:publico_home} a~\ref{fig:publico_carta} ilustran la consulta sin iniciar sesión. La portada ofrece los dos tipos de documento; la cascada periodo $\rightarrow$ programa $\rightarrow$ UEA (Figura~\ref{fig:publico_explorar}) evita mostrar opciones vacías, y la vista de detalle (Figura~\ref{fig:publico_carta}) está preparada para imprimirse a PDF desde el navegador, que es el sustituto adoptado para la exportación de documentos (Sección~\ref{sec:analisis}).
 
-\begin{figure}[!ht]
+\begin{figure}[!htbp]
     \centering
     \captura[0.9\textwidth]{screenshots/publico_home}
     \caption{Portada pública: elección del tipo de documento a consultar.}
     \label{fig:publico_home}
 \end{figure}
 
-\begin{figure}[!ht]
+\begin{figure}[!htbp]
     \centering
     \captura[0.9\textwidth]{screenshots/publico_explorar_cartas_seleccion}
     \caption{Vista pública \emph{Explorar}: cascada periodo→programa→UEA con acordeón de documentos.}
     \label{fig:publico_explorar}
 \end{figure}
 
-\begin{figure}[!ht]
+\begin{figure}[!htbp]
     \centering
     \captura[0.85\textwidth]{screenshots/publico_carta}
     \caption{Vista pública de una carta temática publicada, con formato imprimible.}

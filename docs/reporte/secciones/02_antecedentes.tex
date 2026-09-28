@@ -3,31 +3,31 @@
 
 \subsection{Trabajos relacionados}
 
-A continuación se revisan seis trabajos que abordan, desde ángulos distintos, la captura digital de información académica, la autoevaluación docente o la gestión escolar. Para cada uno se indica el problema que atiende, la solución adoptada y su relación con el sistema aquí desarrollado.
+\subsubsection{Google Forms en la evaluación diagnóstica como apoyo en las actividades docentes. Caso con estudiantes de la Licenciatura en Turismo \cite{leyva2018google}.}
 
-\subsubsection{Uso de formularios digitales en la evaluación diagnóstica}
+Google Forms atiende la necesidad de recopilar, organizar y analizar información de manera eficiente. Permite crear encuestas y formularios sin conocimientos técnicos, con almacenamiento automático en Google Sheets e integración con otros servicios de Google. Además, permite utilizar plantillas prediseñadas o imágenes y logos propios.
 
-Leyva, Pérez y Pérez~\cite{leyva2018google} emplean Google Forms para aplicar evaluaciones diagnósticas a estudiantes de la Licenciatura en Turismo. Su interés es mostrar que una herramienta gratuita y sin requisitos técnicos basta para recolectar respuestas, concentrarlas de forma automática en una hoja de cálculo y analizarlas sin capturarlas de nuevo. Es, precisamente, el tipo de herramienta que la División de CyAD utilizaba antes de este proyecto, con la limitación de que no distingue perfiles de usuario ni valida los datos contra catálogos institucionales.
 
-\subsubsection{La autoevaluación como estrategia de mejora docente}
+\subsubsection{La autoevaluación docente de aula: un camino para mejorar la práctica educativa \cite{echeverria2011autoevaluacion}.}
 
-Echeverría~\cite{echeverria2011autoevaluacion} estudia la autoevaluación desde la pedagogía: la plantea como un ejercicio de reflexión con el que el profesor reconoce sus fortalezas y sus áreas de oportunidad en el aula. No propone una herramienta informática, pero aporta el fundamento conceptual para que la autoevaluación trimestral del sistema no sea solo un trámite administrativo, sino un insumo de mejora.
+El artículo aborda la temática de la autoevaluación docente como estrategia que permite recoger información relevante acerca del desempeño docente del aula. Se analiza la autoevaluación docente como una estrategia constructiva de mejora profesional. Se promueve la reflexión crítica sobre el desempeño en el aula, enfocándose en identificar fortalezas y áreas de oportunidad.
 
-\subsubsection{Configuración de formularios para evaluar atributos de egreso}
+\subsubsection{Sistema para la configuración de formularios y captura de los resultados de la evaluación de Atributos de Egreso en un proceso de mejora continua \cite{Cuautle2022}.}
 
-Cuautle~\cite{Cuautle2022} desarrolló, como proyecto terminal en la UAM Azcapotzalco, un sistema que permite configurar formularios y registrar los resultados de la evaluación de atributos de egreso por UEA. Se trata de un proceso que antes era manual y, por ello, propenso a errores de captura. Su solución precarga datos, valida al usuario y arma el formulario según la UEA y los atributos elegidos. Es el antecedente más cercano a este trabajo por su contexto institucional y por la configuración dinámica de formularios; difiere en que se orienta a la evaluación de atributos y no a los documentos que cada profesor entrega por trimestre.
+ La evaluación de los Atributos de Egreso requiere información precisa en cada una de las evaluaciones. No obstante, al ser un proceso manual, es propenso a errores. El sistema automatiza la captura de información en procesos de evaluación académica. Incluye módulos que permiten precargar datos, validar usuarios y estructurar formularios según la UEA y los atributos a evaluar.
 
-\subsubsection{Gestión escolar por trimestres en una unidad educativa}
+\subsubsection{Sistema académico de gestión escolar trimestralizado \cite{callisaya2024sistema}.}
 
-Callisaya y Aland~\cite{callisaya2024sistema} parten de un diagnóstico en una unidad educativa de El Alto, Bolivia, donde no existía un registro virtual de la información escolar. Construyen una aplicación que concentra los datos pedagógicos y permite consultarlos desde cualquier dispositivo, lo que mejora su disponibilidad y su trazabilidad. Su foco es el seguimiento de los estudiantes, no la documentación que produce el profesorado.
+Mediante un análisis preliminar realizado en la Unidad Educativa Técnico Humanístico "José Luis Suárez Guzmán" ubicada en la ciudad de El Alto, se observó que la institución no dispone de un sistema de monitoreo y registro virtual. El sistema propuesto centraliza la gestión académica, permitiendo consultar y registrar información pedagógica desde cualquier dispositivo. Mejora la trazabilidad y disponibilidad de los registros escolares.
 
-\subsubsection{Gestión académica con el patrón Modelo--Vista--Controlador}
+\subsubsection{Sistema de Gestión Académica a través del desarrollo 
+de Modelo-Vista-Controlador \cite{Rojas2019}.}
 
-Rojas et al.~\cite{Rojas2019} construyen módulos para administrar planes de estudio, carga académica y disponibilidad docente, y organizan el desarrollo con el patrón MVC para separar datos, lógica e interfaz. De este trabajo se retoma la idea de estructurar el sistema por dominios; se diferencia en que su alcance es la planeación académica y no la captura de formularios.
+La gestión administrativa suele manejar grandes volúmenes de datos, que sin el tratamiento correcto crean dificultades en las tareas. Este proyecto implementa módulos específicos para la gestión académica: planes de estudio, carga académica y disponibilidad docente. Utiliza una arquitectura Modelo-Vista-Controlador (MVC) para mejorar la organización del desarrollo.
 
-\subsubsection{Gestión administrativa en una escuela secundaria}
+\subsubsection{Sistema de Gestión Administrativa para la Escuela Secundaria No. 44 "Jorge Luis Borges" \cite{gonzalez2017sistema}.}
 
-González~\cite{gonzalez2017sistema} atiende el crecimiento de la matrícula de una escuela secundaria, que había multiplicado los documentos manejados a mano y, con ellos, los errores de registro. Desarrolló un sistema que centraliza y automatiza los registros escolares, siguiendo la metodología de programación extrema (XP). Comparte con este proyecto la motivación de reducir la captura manual, aunque está dirigido al personal administrativo y no a los profesores.
+El incremento significativo de la matrícula y del personal de la escuela produce un aumento en la cantidad de la documentación que se administra en forma manual, lo que origina errores en el registro de los datos. El sistema atiende el incremento de la carga administrativa,automatiza registros escolares y centraliza la información institucional. Fue construido con metodología XP, optimizando procesos en un entorno de cambio constante.
 
 Las similitudes y diferencias con el sistema desarrollado se presentan en la Tabla \ref{table:trabajosRelacionados}.
 

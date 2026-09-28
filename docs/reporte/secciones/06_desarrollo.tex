@@ -15,14 +15,14 @@ El sistema sigue una arquitectura cliente--servidor de tres capas:
 
 La Figura~\ref{fig:arquitectura} muestra el diagrama de arquitectura y la Figura~\ref{fig:casos_uso} el diagrama de casos de uso, con los actores \emph{Administrador}, \emph{Profesor} y \emph{Público} y sus interacciones con los módulos funcionales.
 
-\begin{figure}[!ht]
+\begin{figure}[!htbp]
     \centering
     \input{Imagenes/arquitectura}
     \caption{Arquitectura de tres capas del sistema.}
     \label{fig:arquitectura}
 \end{figure}
 
-\begin{figure}[!ht]
+\begin{figure}[!htbp]
     \centering
     \resizebox{0.95\textwidth}{!}{\input{Imagenes/casos_uso}}
     \caption{Diagrama de casos de uso del sistema.}
@@ -54,7 +54,7 @@ La configuración por entorno se distribuye en un archivo \texttt{.env} local, l
 
 El modelo de datos se distribuye por app siguiendo la separación de dominios. Un diagrama entidad-relación completo se muestra en la Figura~\ref{fig:er}. En total, el sistema cuenta con 20 migraciones propias distribuidas entre las apps (\texttt{accounts}: 3, \texttt{autoevaluacion}: 5, \texttt{catalogos}: 7 y \texttt{documentos}: 5; \texttt{core} y \texttt{reportes} no definen tablas y por ello no tienen migraciones), además de las que aportan bibliotecas de terceros (por ejemplo, la lista negra de \emph{simplejwt}).
 
-\begin{figure}[!ht]
+\begin{figure}[!htbp]
     \centering
     \resizebox{\textwidth}{!}{\input{Imagenes/er}}
     \caption{Diagrama Entidad-Relación del sistema (agrupado por app Django).}
@@ -209,7 +209,7 @@ La misma tabla ofrece acciones adicionales por fila, además de \emph{Editar} (q
 
 La Figura~\ref{fig:admin_crear_profesor} muestra la ventana modal ``Nuevo Profesor'' con los campos que consume el formulario descrito arriba.
 
-\begin{figure}[!ht]
+\begin{figure}[!htbp]
     \centering
     \captura[0.9\textwidth]{screenshots/admin_profesor_nuevo}
     \caption{Modal ``Nuevo Profesor'' desde \texttt{/admin/profesores}.}
@@ -272,7 +272,7 @@ Estas reglas se validan además en el \emph{serializer} para producir mensajes d
 
 La Figura~\ref{fig:admin_uea} ilustra la ventana modal de importación de UEAs desde CSV en \code{/admin/catalogos/uea}, con el formato de columnas aceptado.
 
-\begin{figure}[!ht]
+\begin{figure}[!htbp]
     \centering
     \captura[0.9\textwidth]{screenshots/admin_catalogo_uea_csv}
     \caption{Importación masiva de UEAs desde CSV en \texttt{/admin/catalogos/uea}.}
@@ -321,7 +321,7 @@ Como \texttt{Periodo} es referenciado por múltiples entidades con FK \texttt{PR
 
 La Figura~\ref{fig:admin_periodos} muestra la tabla de periodos con los tres \emph{chips} por fila (Cartas, Requisitos, Autoevaluación) que reflejan el estado activo/inactivo, junto con la ventana modal de alta.
 
-\begin{figure}[!ht]
+\begin{figure}[!htbp]
     \centering
     \captura[0.9\textwidth]{screenshots/admin_catalogo_periodo_nuevo}
     \caption{\texttt{/admin/catalogos/periodos}: tabla con \emph{chips} de banderas por recurso y modal ``Nuevo periodo''.}
@@ -408,7 +408,7 @@ La estructura del formulario (secciones, preguntas, opciones, pesos y niveles) s
     \item \texttt{duplicar}: clona la estructura completa (secciones, preguntas, opciones, filas y niveles) a otro periodo, dentro de una transacción atómica, sin arrastrar respuestas. Puede ejecutarse desde cualquier estado y facilita reutilizar un formulario ya afinado en trimestres sucesivos.
 \end{itemize}
 
-\begin{figure}[!ht]
+\begin{figure}[!htbp]
     \centering
     \input{Imagenes/estados_formulario}
     \caption{Máquina de estados del \texttt{Formulario} de autoevaluación. Las transiciones que preservan la versión se dibujan a la izquierda entre \texttt{PUBLICADO} y \texttt{CERRADO}; la revisión con incremento de versión (\texttt{publicar\_revision}) se traza como arista externa.}
@@ -451,14 +451,14 @@ El sistema separa dos \emph{serializers} de \texttt{OpcionPregunta}: \texttt{Opc
 
 Además del constructor completo (Figura~\ref{fig:admin_formulario_builder}) y del formulario contestado por el profesor (Figura~\ref{fig:docente_autoevaluacion}) que se muestran en la Sección~\ref{sec:resultados}, la Figura~\ref{fig:admin_niveles_desempeno} presenta el panel de \emph{Niveles de Desempeño} con los rangos configurables por el administrador, y las estadísticas agregadas por formulario se ilustran en la Figura~\ref{fig:admin_estadisticas_autoeval} más adelante en esta sección.
 
-\begin{figure}[!ht]
+\begin{figure}[!htbp]
     \centering
     \captura[0.9\textwidth]{screenshots/admin_autoevaluacion_niveles}
     \caption{Panel ``Niveles de Desempeño'' del constructor de autoevaluaciones.}
     \label{fig:admin_niveles_desempeno}
 \end{figure}
 
-\begin{figure}[!ht]
+\begin{figure}[!htbp]
     \centering
     \captura[0.9\textwidth]{screenshots/admin_autoevaluacion_estadisticas}
     \caption{Pestaña ``Estadísticas'' del constructor con las respuestas ya enviadas: promedio general, porcentaje por sección, distribución por nivel de desempeño y por pregunta.}
