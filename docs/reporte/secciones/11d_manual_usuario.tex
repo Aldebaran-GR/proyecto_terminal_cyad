@@ -1,8 +1,20 @@
 \subsection{Manual de usuario}\label{apx:manual-usuario}
 \justifying
 
-% Cita una captura de la galería final con su número y página.
+% Cita una figura con su número y página.
 \newcommand{\verfig}[1]{Figura~\ref{#1}, pág.~\pageref{#1}}
+
+% Inserta una captura en el punto del texto donde se menciona.
+% Uso: \figmanual{archivo_en_screenshots}{pie de figura}{etiqueta}
+\newcommand{\figmanual}[3]{%
+    \par\medskip
+    \noindent\begin{minipage}{\textwidth}
+        \centering
+        \captura[0.9\textwidth]{screenshots/#1}
+        \captionof{figure}{#2}\label{#3}
+    \end{minipage}
+    \par\medskip
+}
 
 \subsubsection{Introducción}
 Este manual explica, paso a paso, cómo usar el sistema. No hace falta saber nada de computación ni haber visto el sistema antes: basta con saber usar un navegador de internet (Chrome, Edge, Firefox o Safari). Está dirigido a tres tipos de personas:
@@ -13,7 +25,7 @@ Este manual explica, paso a paso, cómo usar el sistema. No hace falta saber nad
     \item \textbf{Administrador de la División de CyAD}: quien da de alta a los profesores, mantiene las listas de la División, abre y cierra los periodos y prepara la autoevaluación.
 \end{itemize}
 
-Cada persona solo necesita leer la sección de su tipo de usuario. Las tareas están escritas como listas numeradas: se sigue un paso a la vez, en orden. El nombre de cada botón o menú aparece en \textbf{negritas}, exactamente como se ve en la pantalla. Las capturas de todas las pantallas están reunidas al final del manual (Subsubsección~\ref{apx:manual-user:capturas}); el texto indica, en cada paso, el número de figura y la página donde se encuentra.
+Cada persona solo necesita leer la sección de su tipo de usuario. Las tareas están escritas como listas numeradas: se sigue un paso a la vez, en orden. El nombre de cada botón o menú aparece en \textbf{negritas}, exactamente como se ve en la pantalla. Cada paso va acompañado de la captura de la pantalla correspondiente; cuando esa pantalla ya se mostró antes en el reporte, el texto indica el número de figura y la página donde se encuentra.
 
 Las pantallas que se muestran usan datos de ejemplo; los nombres, correos y contenidos no corresponden a personas reales. En la parte pública, los requisitos de recuperación se presentan con el nombre ``Evaluación de Recuperación''; ambos nombres se refieren al mismo documento. La dirección de internet definitiva del sistema la comunicará la División de CyAD; en este manual se usa como ejemplo \texttt{https://cyad.uam.mx}.
 
@@ -34,37 +46,12 @@ Las pantallas que se muestran usan datos de ejemplo; los nombres, correos y cont
 \end{description}
 
 % ═══════════════════════════════════════════════════════════════
-\subsubsection{¿Qué quiero hacer?}\label{apx:manual-user:tareas}
-
-\begin{center}
-\begin{tabular}{p{0.46\textwidth} p{0.44\textwidth}}
-\toprule
-\textbf{Quiero\ldots} & \textbf{Leer\ldots} \\
-\midrule
-Consultar una carta temática o una evaluación de recuperación & Subsubsección~\ref{apx:manual-user:publico}, pág.~\pageref{apx:manual-user:publico} \\
-Entrar al sistema o salir de él & Subsubsección~\ref{apx:manual-user:acceso}, pág.~\pageref{apx:manual-user:acceso} \\
-Dar de alta a un profesor o cambiar su contraseña & apartado ``Profesores'', pág.~\pageref{apx:manual-user:admin-profesores} \\
-Agregar una UEA, un departamento o una licenciatura & apartado ``Catálogos'', pág.~\pageref{apx:manual-user:admin-catalogos} \\
-Abrir o cerrar un periodo para que los profesores trabajen & apartado ``Periodos'', pág.~\pageref{apx:manual-user:admin-periodos} \\
-Preparar y publicar la autoevaluación & apartado ``Autoevaluación'', pág.~\pageref{apx:manual-user:admin-autoeval} \\
-Ver qué han publicado todos los profesores & apartado ``Documentos'', pág.~\pageref{apx:manual-user:admin-documentos} \\
-Bajar un reporte en Excel & apartado ``Reportes'', pág.~\pageref{apx:manual-user:admin-reportes} \\
-Crear y publicar mi carta temática & apartado ``Crear y publicar una Carta Temática'', pág.~\pageref{apx:manual-user:profesor-carta} \\
-Crear y publicar mi evaluación de recuperación & apartado ``Crear y publicar una Evaluación de Recuperación'', pág.~\pageref{apx:manual-user:profesor-requisito} \\
-Corregir, ver o borrar un documento que ya creé & apartado ``Ver, corregir o borrar lo que ya creé'', pág.~\pageref{apx:manual-user:profesor-gestion} \\
-Contestar mi autoevaluación y ver mi resultado & apartado ``Contestar la autoevaluación y ver mi resultado'', pág.~\pageref{apx:manual-user:profesor-autoeval} \\
-Resolver un problema & Subsubsección~\ref{apx:manual-user:problemas}, pág.~\pageref{apx:manual-user:problemas} \\
-\bottomrule
-\end{tabular}
-\end{center}
-
-% ═══════════════════════════════════════════════════════════════
 \subsubsection{Consultar documentos (sin iniciar sesión)}\label{apx:manual-user:publico}
 
 Esta parte del sistema está abierta a cualquier persona: no se necesita cuenta ni contraseña. Sirve para buscar una carta temática o una evaluación de recuperación que un profesor ya haya publicado.
 
 \paragraph{Elegir qué documento consultar}\mbox{}\\
-Al abrir la dirección del sistema aparece la pantalla de inicio con dos tarjetas: \textbf{Carta Temática} y \textbf{Evaluación de Recuperación} (\verfig{fig:m-publico-home}).
+Al abrir la dirección del sistema aparece la pantalla de inicio con dos tarjetas: \textbf{Carta Temática} y \textbf{Evaluación de Recuperación} (\verfig{fig:publico_home}).
 
 \begin{enumerate}
     \item Elija la tarjeta del documento que busca.
@@ -72,24 +59,30 @@ Al abrir la dirección del sistema aparece la pantalla de inicio con dos tarjeta
 \end{enumerate}
 
 \paragraph{Encontrar el documento paso a paso}\mbox{}\\
-La pantalla que se abre lo guía de arriba hacia abajo (\verfig{fig:m-publico-explorar-inicial}):
+La pantalla que se abre lo guía de arriba hacia abajo (Figura~\ref{fig:m-publico-explorar-inicial}):
 
 \begin{enumerate}
     \item \textbf{Paso 1. Selecciona el periodo.} Abra la lista que dice ``-- Selecciona --'' y elija el trimestre. Solo aparecen trimestres que ya tienen documentos publicados.
     \item \textbf{Paso 2.} Aparece una lista de licenciaturas y posgrados en el costado izquierdo; haga clic en el programa que le interesa.
-    \item \textbf{Paso 3.} A la derecha se muestran las UEA de ese programa, agrupadas por trimestre. Haga clic sobre el nombre de la UEA para abrirla (\verfig{fig:m-publico-explorar-cartas}).
+    \item \textbf{Paso 3.} A la derecha se muestran las UEA de ese programa, agrupadas por trimestre. Haga clic sobre el nombre de la UEA para abrirla (\verfig{fig:publico_explorar}).
     \item Dentro de la UEA aparece una tarjeta por cada grupo, con el nombre del profesor, el grupo y la fecha de publicación. Haga clic en \textbf{Ver documento}.
 \end{enumerate}
 
-Para las evaluaciones de recuperación los pasos son exactamente los mismos (\verfig{fig:m-publico-explorar-req}); solo cambian los títulos.
+\figmanual{publico_explorar_cartas_inicial}{Búsqueda de documentos, primer paso: elegir el periodo.}{fig:m-publico-explorar-inicial}
+
+Para las evaluaciones de recuperación los pasos son exactamente los mismos (Figura~\ref{fig:m-publico-explorar-req}); solo cambian los títulos.
+
+\figmanual{publico_explorar_requisitos_seleccion}{Búsqueda de evaluaciones de recuperación con el periodo, la licenciatura y una UEA ya elegidos.}{fig:m-publico-explorar-req}
 
 \paragraph{Leer, imprimir y compartir el documento}\mbox{}\\
-Al hacer clic en \textbf{Ver documento} se muestra el documento completo (\verfig{fig:m-publico-carta} para una carta temática y \verfig{fig:m-publico-requisito} para una evaluación de recuperación).
+Al hacer clic en \textbf{Ver documento} se muestra el documento completo (\verfig{fig:publico_carta} para una carta temática y Figura~\ref{fig:m-publico-requisito} para una evaluación de recuperación).
 
 \begin{itemize}
     \item Para \textbf{imprimirlo} o guardarlo como PDF, haga clic en el botón \textbf{Imprimir} de la parte superior. Al imprimir se ocultan los botones y solo queda el documento.
     \item Para \textbf{compartirlo}, copie la dirección que aparece en la barra del navegador y envíela por correo o mensaje. Esa dirección es propia de cada documento y no cambia aunque el profesor lo corrija después.
 \end{itemize}
+
+\figmanual{publico_requisito}{Evaluación de recuperación publicada, lista para leer o imprimir.}{fig:m-publico-requisito}
 
 % ═══════════════════════════════════════════════════════════════
 \subsubsection{Entrar al sistema y salir de él}\label{apx:manual-user:acceso}
@@ -99,7 +92,7 @@ Los profesores y el administrador necesitan una cuenta. La cuenta la crea el adm
 \paragraph{Para entrar}\mbox{}\\
 \begin{enumerate}
     \item Abra la dirección del sistema y haga clic en \textbf{Iniciar sesión}, en la esquina superior derecha.
-    \item Escriba su \textbf{Correo electrónico} y su \textbf{Contraseña} (\verfig{fig:m-login}).
+    \item Escriba su \textbf{Correo electrónico} y su \textbf{Contraseña} (\verfig{fig:login}).
     \item Haga clic en \textbf{Iniciar sesión}.
 \end{enumerate}
 
@@ -122,7 +115,7 @@ Haga clic en \textbf{Cerrar sesión}, al final del menú de la izquierda.
 Al entrar como administrador aparece, a la izquierda, un menú con estas opciones: \textbf{Dashboard}, \textbf{Profesores}, el grupo \textbf{Catálogos} (Departamentos, Licenciaturas, Posgrados, Áreas, UEA y Periodos), el grupo \textbf{Documentos} (Cartas Temáticas y Requisitos de Rec.), \textbf{Autoevaluación} y \textbf{Reportes}. Si su pantalla es pequeña y no ve todas las opciones, desplace el menú hacia abajo.
 
 \paragraph{La pantalla de inicio (Dashboard)}\mbox{}\\
-Es lo primero que se ve al entrar (\verfig{fig:m-admin-dash}). No hay que hacer nada en ella; sirve para ver de un vistazo cómo va el periodo activo:
+Es lo primero que se ve al entrar (\verfig{fig:admin_dashboard}). No hay que hacer nada en ella; sirve para ver de un vistazo cómo va el periodo activo:
 
 \begin{itemize}
     \item En la parte superior, cuatro cuadros con cifras: profesores activos, cartas publicadas, requisitos publicados y formularios de autoevaluación publicados.
@@ -133,11 +126,11 @@ Es lo primero que se ve al entrar (\verfig{fig:m-admin-dash}). No hay que hacer 
 Si dice ``Sin periodo activo'', significa que aún no se ha encendido ese periodo (véase el apartado ``Periodos'', pág.~\pageref{apx:manual-user:admin-periodos}).
 
 \paragraph{Profesores}\label{apx:manual-user:admin-profesores}\mbox{}\\
-Al elegir \textbf{Profesores} aparece la lista de docentes con su nombre, número económico, departamento, correo y estado (Activo o Inactivo) (\verfig{fig:m-admin-prof-lista}). Para encontrar a alguien, escriba su nombre, correo o número económico en el buscador de arriba. Cada renglón tiene tres botones: \textbf{Editar}, \textbf{Contraseña} y \textbf{Eliminar}.
+Al elegir \textbf{Profesores} aparece la lista de docentes con su nombre, número económico, departamento, correo y estado (Activo o Inactivo) (\verfig{fig:admin_profesores}). Para encontrar a alguien, escriba su nombre, correo o número económico en el buscador de arriba. Cada renglón tiene tres botones: \textbf{Editar}, \textbf{Contraseña} y \textbf{Eliminar}.
 
 \textit{Para dar de alta a un profesor:}
 \begin{enumerate}
-    \item Haga clic en \textbf{+ Nuevo Profesor}. Se abre una ventana (\verfig{fig:m-admin-prof-nuevo}).
+    \item Haga clic en \textbf{+ Nuevo Profesor}. Se abre una ventana (\verfig{fig:admin_crear_profesor}).
     \item En \emph{Datos del profesor}, escriba el \textbf{Nombre completo}, el \textbf{Número económico} y elija su \textbf{Departamento}.
     \item En \emph{Cuenta de acceso}, escriba el \textbf{Correo institucional} y una \textbf{Contraseña inicial}. La contraseña se ve mientras se escribe, para que pueda anotarla.
     \item Haga clic en \textbf{Crear Profesor}.
@@ -146,24 +139,30 @@ Al elegir \textbf{Profesores} aparece la lista de docentes con su nombre, númer
 
 \textit{Para corregir los datos de un profesor o suspender su acceso:}
 \begin{enumerate}
-    \item En su renglón, haga clic en \textbf{Editar} (\verfig{fig:m-admin-prof-editar}).
+    \item En su renglón, haga clic en \textbf{Editar} (Figura~\ref{fig:m-admin-prof-editar}).
     \item Cambie lo que necesite.
     \item Para impedir temporalmente que entre al sistema, desmarque la casilla \textbf{Cuenta activa}. No se borra nada: sus documentos se conservan y puede reactivarla cuando quiera.
     \item Haga clic en \textbf{Guardar}.
 \end{enumerate}
 
+\figmanual{admin_profesor_editar}{Ventana para corregir los datos de un profesor o suspender su cuenta.}{fig:m-admin-prof-editar}
+
 \textit{Para cambiar la contraseña de un profesor} (por ejemplo, si la olvidó):
 \begin{enumerate}
-    \item En su renglón, haga clic en \textbf{Contraseña} (\verfig{fig:m-admin-prof-pass}).
+    \item En su renglón, haga clic en \textbf{Contraseña} (Figura~\ref{fig:m-admin-prof-pass}).
     \item Escriba la nueva contraseña.
     \item Haga clic en \textbf{Guardar nueva contraseña}.
     \item Comunique la nueva contraseña al profesor.
 \end{enumerate}
 
+\figmanual{admin_profesor_contrasena}{Ventana para asignar una nueva contraseña a un profesor.}{fig:m-admin-prof-pass}
+
 \textit{Para eliminar a un profesor:} haga clic en \textbf{Eliminar} en su renglón y confirme en el aviso que aparece. Si solo desea que deje de entrar al sistema, es preferible suspender la cuenta como se explicó arriba.
 
 \paragraph{Catálogos: las listas de la División}\label{apx:manual-user:admin-catalogos}\mbox{}\\
-El grupo \textbf{Catálogos} contiene las listas que el sistema usa como base: Departamentos, Licenciaturas, Posgrados, Áreas, UEA y Periodos. Todas funcionan igual (\verfig{fig:m-admin-cat-lista}): muestran una tabla, un botón \textbf{+ Nuevo} arriba a la derecha, y en cada renglón los botones \textbf{Editar} y \textbf{Eliminar}.
+El grupo \textbf{Catálogos} contiene las listas que el sistema usa como base: Departamentos, Licenciaturas, Posgrados, Áreas, UEA y Periodos. Todas funcionan igual (Figura~\ref{fig:m-admin-cat-lista}): muestran una tabla, un botón \textbf{+ Nuevo} arriba a la derecha, y en cada renglón los botones \textbf{Editar} y \textbf{Eliminar}.
+
+\figmanual{admin_catalogo_departamentos_lista}{Lista de departamentos. Las listas de licenciaturas, posgrados y áreas se ven y se usan igual.}{fig:m-admin-cat-lista}
 
 \textit{Para agregar un elemento a cualquier lista:}
 \begin{enumerate}
@@ -176,36 +175,50 @@ El grupo \textbf{Catálogos} contiene las listas que el sistema usa como base: D
 Los datos que se piden en cada lista son:
 
 \begin{itemize}
-    \item \textbf{Departamento}: clave y nombre (\verfig{fig:m-admin-cat-depto}).
-    \item \textbf{Licenciatura}: clave, nombre y departamento al que pertenece (\verfig{fig:m-admin-cat-lic}).
-    \item \textbf{Posgrado}: clave, nombre y departamento (\verfig{fig:m-admin-cat-pos}).
-    \item \textbf{Área}: nombre y una breve descripción. La descripción sirve para distinguir áreas que tienen el mismo nombre (\verfig{fig:m-admin-cat-area}).
+    \item \textbf{Departamento}: clave y nombre (Figura~\ref{fig:m-admin-cat-depto}).
+    \item \textbf{Licenciatura}: clave, nombre y departamento al que pertenece (Figura~\ref{fig:m-admin-cat-lic}).
+    \item \textbf{Posgrado}: clave, nombre y departamento (Figura~\ref{fig:m-admin-cat-pos}).
+    \item \textbf{Área}: nombre y una breve descripción. La descripción sirve para distinguir áreas que tienen el mismo nombre (Figura~\ref{fig:m-admin-cat-area}).
 \end{itemize}
 
-\textit{UEA: agregar una por una o muchas a la vez.} La lista de UEA es la más grande, por lo que tiene dos botones arriba a la derecha: \textbf{+ Nueva UEA} e \textbf{Importar CSV} (\verfig{fig:m-admin-cat-uea-lista}). Además, tiene un buscador y un filtro por programa para encontrar una UEA con rapidez; el botón \textbf{Limpiar} quita los filtros.
+\figmanual{admin_catalogo_departamento_nuevo}{Ventana para agregar un departamento: se pide su clave y su nombre.}{fig:m-admin-cat-depto}
+
+\figmanual{admin_catalogo_licenciatura_nuevo}{Ventana para agregar una licenciatura: clave, nombre y departamento al que pertenece.}{fig:m-admin-cat-lic}
+
+\figmanual{admin_catalogo_posgrado_nuevo}{Ventana para agregar un posgrado: clave, nombre y departamento.}{fig:m-admin-cat-pos}
+
+\figmanual{admin_catalogo_area_nuevo}{Ventana para agregar un área: nombre y una breve descripción.}{fig:m-admin-cat-area}
+
+\textit{UEA: agregar una por una o muchas a la vez.} La lista de UEA es la más grande, por lo que tiene dos botones arriba a la derecha: \textbf{+ Nueva UEA} e \textbf{Importar CSV} (Figura~\ref{fig:m-admin-cat-uea-lista}). Además, tiene un buscador y un filtro por programa para encontrar una UEA con rapidez; el botón \textbf{Limpiar} quita los filtros.
+
+\figmanual{admin_catalogo_uea_lista}{Lista de UEA, con buscador, filtro por programa y los botones para agregar una o varias.}{fig:m-admin-cat-uea-lista}
 
 \textit{Para agregar una UEA:}
 \begin{enumerate}
-    \item Haga clic en \textbf{+ Nueva UEA} (\verfig{fig:m-admin-cat-uea-nuevo}).
+    \item Haga clic en \textbf{+ Nueva UEA} (Figura~\ref{fig:m-admin-cat-uea-nuevo}).
     \item Elija el programa (licenciatura o posgrado) al que pertenece.
     \item Escriba la clave, el nombre, el tipo, el trimestre, los créditos y elija el área. Si la UEA tiene una página oficial, pegue su enlace en el último campo.
     \item Haga clic en \textbf{Guardar}.
 \end{enumerate}
 
+\figmanual{admin_catalogo_uea_nuevo}{Ventana para agregar una UEA.}{fig:m-admin-cat-uea-nuevo}
+
 \textit{Para agregar muchas UEA de una vez desde una hoja de cálculo:}
 \begin{enumerate}
-    \item Haga clic en \textbf{Importar CSV} (\verfig{fig:m-admin-cat-uea-csv}).
+    \item Haga clic en \textbf{Importar CSV} (\verfig{fig:admin_uea}).
     \item La ventana que se abre explica cómo debe estar organizado el archivo. Léala antes de continuar.
     \item Elija el archivo desde su computadora.
     \item Al terminar, la ventana muestra cuántas UEA se crearon, cuántas se actualizaron y si hubo errores.
 \end{enumerate}
 
 \paragraph{Periodos: decidir cuándo pueden trabajar los profesores}\label{apx:manual-user:admin-periodos}\mbox{}\\
-Los profesores solo pueden capturar documentos en un periodo que usted haya \emph{encendido}. Esto se hace en \textbf{Catálogos $\to$ Periodos} (\verfig{fig:m-admin-cat-periodos-lista}).
+Los profesores solo pueden capturar documentos en un periodo que usted haya \emph{encendido}. Esto se hace en \textbf{Catálogos $\to$ Periodos} (Figura~\ref{fig:m-admin-cat-periodos-lista}).
+
+\figmanual{admin_catalogo_periodos_lista}{Lista de periodos con los tres interruptores para habilitar cartas, evaluaciones de recuperación y autoevaluación.}{fig:m-admin-cat-periodos-lista}
 
 \textit{Para crear un periodo:}
 \begin{enumerate}
-    \item Haga clic en \textbf{+ Nuevo} (\verfig{fig:m-admin-cat-periodo}).
+    \item Haga clic en \textbf{+ Nuevo} (\verfig{fig:admin_periodos}).
     \item Escriba la \textbf{Clave} con el formato que se indica debajo del campo (por ejemplo, \texttt{26-O}).
     \item Elija la \textbf{Fecha de inicio} y la \textbf{Fecha de fin}.
     \item Haga clic en \textbf{Guardar}.
@@ -226,71 +239,87 @@ Un interruptor \textbf{verde} (con un círculo lleno) está encendido; uno \text
 \textit{Para eliminar un periodo:}
 \begin{enumerate}
     \item Apague todos sus interruptores. Mientras alguno esté encendido, el botón \textbf{Eliminar} aparece deshabilitado.
-    \item Haga clic en \textbf{Eliminar}. Se abre una ventana que lista todo lo que se borraría junto con el periodo: cartas, requisitos, formularios y respuestas (\verfig{fig:m-admin-cat-periodo-eliminar}).
+    \item Haga clic en \textbf{Eliminar}. Se abre una ventana que lista todo lo que se borraría junto con el periodo: cartas, requisitos, formularios y respuestas (Figura~\ref{fig:m-admin-cat-periodo-eliminar}).
     \item Si está seguro, haga clic en \textbf{Eliminar periodo y todo lo asociado}. Si no, haga clic en \textbf{Cancelar}.
 \end{enumerate}
+
+\figmanual{admin_catalogo_periodo_eliminar}{Aviso que aparece antes de eliminar un periodo: muestra todo lo que se borraría con él.}{fig:m-admin-cat-periodo-eliminar}
 
 \textbf{Esta acción no se puede deshacer.} Revise con cuidado las cantidades que muestra la ventana antes de confirmar.
 
 \paragraph{Autoevaluación: preparar el cuestionario}\label{apx:manual-user:admin-autoeval}\mbox{}\\
-La opción \textbf{Autoevaluación} del menú muestra los cuestionarios que existen, con su estado (\emph{Borrador} o \emph{Publicado}), el periodo, cuántas preguntas tienen y cuántas respuestas han recibido (\verfig{fig:m-admin-autoeval-lista}). Cada renglón tiene los botones \textbf{Ver}, \textbf{Editar}, \textbf{Duplicar} y \textbf{Eliminar}.
+La opción \textbf{Autoevaluación} del menú muestra los cuestionarios que existen, con su estado (\emph{Borrador} o \emph{Publicado}), el periodo, cuántas preguntas tienen y cuántas respuestas han recibido (Figura~\ref{fig:m-admin-autoeval-lista}). Cada renglón tiene los botones \textbf{Ver}, \textbf{Editar}, \textbf{Duplicar} y \textbf{Eliminar}.
+
+\figmanual{admin_autoevaluacion_lista}{Lista de cuestionarios de autoevaluación con su estado, su periodo y cuántas respuestas han recibido.}{fig:m-admin-autoeval-lista}
 
 \textit{Paso 1: crear el cuestionario.}
 \begin{enumerate}
-    \item Haga clic en \textbf{+ Nuevo Formulario} (\verfig{fig:m-admin-autoeval-nueva}).
+    \item Haga clic en \textbf{+ Nuevo Formulario} (Figura~\ref{fig:m-admin-autoeval-nueva}).
     \item Escriba el título y, si lo desea, una descripción.
     \item Elija el periodo. Solo aparecen periodos que todavía no tienen un cuestionario, para evitar que se mezclen respuestas.
     \item Haga clic en \textbf{Crear borrador}. Se abre la pantalla donde se arma el cuestionario.
 \end{enumerate}
 
+\figmanual{admin_autoevaluacion_nueva}{Ventana para crear un cuestionario nuevo.}{fig:m-admin-autoeval-nueva}
+
 La pantalla de armado tiene tres pestañas: \textbf{Preguntas}, \textbf{Niveles de Desempeño} y \textbf{Estadísticas}.
 
-\textit{Paso 2: agregar secciones y preguntas} (pestaña \textbf{Preguntas}, \verfig{fig:m-admin-autoeval-preg}).
+\textit{Paso 2: agregar secciones y preguntas} (pestaña \textbf{Preguntas}, \verfig{fig:admin_formulario_builder}).
 \begin{enumerate}
     \item Haga clic en \textbf{+ Añadir sección}, escriba el título y su \textbf{Peso (\%)}. El peso indica qué tanta importancia tiene esa sección en el resultado final.
-    \item Dentro de la sección, haga clic en \textbf{+ Añadir pregunta} (\verfig{fig:m-admin-autoeval-pregunta-nueva}).
+    \item Dentro de la sección, haga clic en \textbf{+ Añadir pregunta} (Figura~\ref{fig:m-admin-autoeval-pregunta-nueva}).
     \item Escriba la pregunta y elija su tipo de respuesta: texto corto, texto largo, opción única (se elige una sola), casillas (se pueden elegir varias), sí o no, escala numérica, lista desplegable o cuadrícula.
     \item En las preguntas de opciones, escriba cada opción y los \textbf{puntos} que vale. El sistema suma esos puntos para calcular el resultado.
     \item Haga clic en \textbf{Guardar}. Repita para cada pregunta.
 \end{enumerate}
 
+\figmanual{admin_autoevaluacion_pregunta_nueva}{Ventana para agregar una pregunta: se elige el tipo de respuesta y cuántos puntos vale cada opción.}{fig:m-admin-autoeval-pregunta-nueva}
+
 \textbf{Regla obligatoria:} los pesos de todas las secciones deben sumar exactamente 100~\%. Arriba de las preguntas hay una etiqueta que indica si la suma es correcta o cuánto falta. Tampoco se puede publicar si hay preguntas que no pertenecen a ninguna sección.
 
-\textit{Paso 3: definir los niveles de desempeño} (pestaña \textbf{Niveles de Desempeño}, \verfig{fig:m-admin-autoeval-niv}). Los niveles traducen el porcentaje que obtiene un profesor en una etiqueta con una observación, por ejemplo ``En desarrollo'', ``Satisfactorio'' o ``Sobresaliente''.
+\textit{Paso 3: definir los niveles de desempeño} (pestaña \textbf{Niveles de Desempeño}, \verfig{fig:admin_niveles_desempeno}). Los niveles traducen el porcentaje que obtiene un profesor en una etiqueta con una observación, por ejemplo ``En desarrollo'', ``Satisfactorio'' o ``Sobresaliente''.
 \begin{enumerate}
     \item Haga clic en \textbf{+ Añadir nivel}.
     \item Escriba el nombre, el porcentaje mínimo, el porcentaje máximo, una observación para el profesor y elija un color.
     \item Haga clic en \textbf{Guardar}. Repita hasta cubrir todos los porcentajes de 0 a 100.
 \end{enumerate}
 
-\textit{Paso 4: revisar cómo lo verá el profesor.} Haga clic en \textbf{Vista previa}, en la parte superior (\verfig{fig:m-admin-autoeval-preview}). Se muestra el cuestionario tal como lo verá el profesor, sin que se guarde ninguna respuesta. Use \textbf{Editar} para regresar a corregirlo.
+\textit{Paso 4: revisar cómo lo verá el profesor.} Haga clic en \textbf{Vista previa}, en la parte superior (Figura~\ref{fig:m-admin-autoeval-preview}). Se muestra el cuestionario tal como lo verá el profesor, sin que se guarde ninguna respuesta. Use \textbf{Editar} para regresar a corregirlo.
+
+\figmanual{admin_autoevaluacion_preview}{Vista previa del cuestionario, tal como lo verá el profesor.}{fig:m-admin-autoeval-preview}
 
 \textit{Paso 5: publicar.}
 \begin{enumerate}
-    \item Verifique que la etiqueta verde de la pestaña \textbf{Preguntas} indique que los pesos suman 100.0~\% (\verfig{fig:m-admin-autoeval-publicar}).
+    \item Verifique que la etiqueta verde de la pestaña \textbf{Preguntas} indique que los pesos suman 100.0~\% (Figura~\ref{fig:m-admin-autoeval-publicar}).
     \item Haga clic en \textbf{Publicar}, en la parte superior.
     \item Verifique que, en \textbf{Catálogos $\to$ Periodos}, el interruptor \textbf{Autoevaluación} del periodo esté encendido (véase el apartado ``Periodos'', pág.~\pageref{apx:manual-user:admin-periodos}).
 \end{enumerate}
+
+\figmanual{admin_autoevaluacion_publicar}{Parte superior del cuestionario: el botón ``Publicar'' y la etiqueta verde que confirma que las secciones suman 100~\%.}{fig:m-admin-autoeval-publicar}
 
 Los profesores solo verán el cuestionario cuando se cumplan \emph{las dos cosas}: que esté publicado y que el interruptor del periodo esté encendido.
 
 Para reutilizar un cuestionario en otro trimestre, use \textbf{Duplicar en otro periodo}.
 
-\textit{Ver los resultados} (pestaña \textbf{Estadísticas}, \verfig{fig:m-admin-autoeval-stats}). Muestra cuántas respuestas se han enviado, el promedio general, el promedio de cada sección, cuántos profesores quedaron en cada nivel y el detalle por pregunta. La información se calcula al abrir la pestaña; para ver cambios recientes, recargue la página.
+\textit{Ver los resultados} (pestaña \textbf{Estadísticas}, \verfig{fig:admin_estadisticas_autoeval}). Muestra cuántas respuestas se han enviado, el promedio general, el promedio de cada sección, cuántos profesores quedaron en cada nivel y el detalle por pregunta. La información se calcula al abrir la pestaña; para ver cambios recientes, recargue la página.
 
 \paragraph{Documentos: ver lo que han publicado los profesores}\label{apx:manual-user:admin-documentos}\mbox{}\\
 El grupo \textbf{Documentos} del menú permite al administrador ver, en una sola tabla, todo lo que los profesores han publicado. Es una pantalla de consulta: no se puede modificar nada desde ahí.
 
 \begin{enumerate}
-    \item En el menú, entre a \textbf{Documentos} y elija \textbf{Cartas Temáticas} o \textbf{Requisitos de Rec.} (\verfig{fig:m-admin-doc-cartas} y \verfig{fig:m-admin-doc-req}).
+    \item En el menú, entre a \textbf{Documentos} y elija \textbf{Cartas Temáticas} o \textbf{Requisitos de Rec.} (Figuras~\ref{fig:m-admin-doc-cartas} y~\ref{fig:m-admin-doc-req}).
     \item Con la lista de arriba, elija un periodo, o deje ``Todos los periodos''.
     \item Para leer un documento, haga clic en \textbf{Ver público} en su renglón. Se abre en otra pestaña tal como lo ve el público.
 \end{enumerate}
 
 Solo aparecen los documentos \emph{publicados}; los borradores de los profesores no se muestran.
 
+\figmanual{admin_documentos_cartas}{Cartas temáticas que han publicado todos los profesores.}{fig:m-admin-doc-cartas}
+
+\figmanual{admin_documentos_requisitos}{Evaluaciones de recuperación que han publicado todos los profesores.}{fig:m-admin-doc-req}
+
 \paragraph{Reportes: bajar información a Excel}\label{apx:manual-user:admin-reportes}\mbox{}\\
-La opción \textbf{Reportes} genera un archivo de Excel que indica quién ha cumplido y quién no (\verfig{fig:m-admin-rep}).
+La opción \textbf{Reportes} genera un archivo de Excel que indica quién ha cumplido y quién no (\verfig{fig:admin_reportes}).
 
 \begin{enumerate}
     \item En el menú, elija \textbf{Reportes}.
@@ -300,7 +329,7 @@ La opción \textbf{Reportes} genera un archivo de Excel que indica quién ha cum
     \item Haga clic en \textbf{Descargar Excel}. El archivo se guarda en la carpeta de descargas de su computadora.
 \end{enumerate}
 
-Con ``Todos los periodos'', el archivo trae una hoja por cada periodo, para comparar trimestres en un solo documento. El nombre del archivo incluye el tipo de reporte y la fecha (por ejemplo, \texttt{cumplimiento\_cartas\_2026-08-23.xlsx}). El reporte se calcula en el momento de descargarlo, así que refleja lo que hay en el sistema en ese instante; si después alguien publica algo, es necesario descargarlo de nuevo.
+Con ``Todos los periodos'', el archivo trae una hoja por cada periodo, para comparar trimestres en un solo documento. El nombre del archivo incluye el tipo de reporte y la fecha (por ejemplo, \texttt{cartas\_temaricas\_todos\_2026-09-28.xlsx}). El reporte se calcula en el momento de descargarlo, así que refleja lo que hay en el sistema en ese instante; si después alguien publica algo, es necesario descargarlo de nuevo.
 
 % ═══════════════════════════════════════════════════════════════
 \subsubsection{Guía para el profesor}\label{apx:manual-user:profesor}
@@ -308,11 +337,11 @@ Con ``Todos los periodos'', el archivo trae una hoja por cada periodo, para comp
 Al entrar como profesor aparece a la izquierda un menú con cuatro opciones: \textbf{Mi Dashboard}, \textbf{Cartas Temáticas}, \textbf{Requisitos de Rec.} y \textbf{Autoevaluación}.
 
 \paragraph{La pantalla de inicio (Mi Dashboard)}\mbox{}\\
-Resume su trabajo en el periodo activo (\verfig{fig:m-docente-dash}): cuántas cartas y requisitos tiene, cuántos formularios de autoevaluación le faltan, y una lista de sus documentos más recientes. El botón \textbf{Ver todos} de cada lista lo lleva a la sección completa, y el botón \textbf{Responder} lo lleva directo a su autoevaluación pendiente.
+Resume su trabajo en el periodo activo (\verfig{fig:docente_dashboard}): cuántas cartas y requisitos tiene, cuántos formularios de autoevaluación le faltan, y una lista de sus documentos más recientes. El botón \textbf{Ver todos} de cada lista lo lleva a la sección completa, y el botón \textbf{Responder} lo lleva directo a su autoevaluación pendiente.
 
 \paragraph{Crear y publicar una Carta Temática}\label{apx:manual-user:profesor-carta}\mbox{}\\
 \begin{enumerate}
-    \item En el menú, elija \textbf{Cartas Temáticas} y haga clic en \textbf{+ Nueva Carta} (\verfig{fig:m-docente-carta}).
+    \item En el menú, elija \textbf{Cartas Temáticas} y haga clic en \textbf{+ Nueva Carta} (\verfig{fig:docente_carta_form}).
     \item En \emph{Selección de UEA}, escriba en \textbf{Buscar UEA} la clave o parte del nombre y elija la UEA de la lista que aparece.
     \item El periodo se asigna solo: es el que el administrador dejó encendido para cartas. No hay que elegirlo.
     \item En \emph{Información del grupo}, escriba el \textbf{Nombre del grupo}, el \textbf{ID del grupo} y el \textbf{Horario}, y elija la \textbf{Modalidad}. Los campos con asterisco son obligatorios.
@@ -327,12 +356,20 @@ Resume su trabajo en el periodo activo (\verfig{fig:m-docente-dash}): cuántas c
 Si el botón \textbf{+ Nueva Carta} está gris, o el formulario avisa ``Sin periodo activo'', consulte la Subsubsección~\ref{apx:manual-user:problemas}.
 
 \paragraph{Crear y publicar una Evaluación de Recuperación}\label{apx:manual-user:profesor-requisito}\mbox{}\\
-Los pasos son los mismos que para una carta temática, pero empezando en \textbf{Requisitos de Rec.} $\to$ \textbf{+ Nuevo Requisito} (\verfig{fig:m-docente-req}). Además de la UEA y los datos del grupo, se piden los datos de la evaluación: \textbf{Lugar}, \textbf{Duración aproximada}, \textbf{Fecha y hora}, \textbf{Recursos necesarios}, \textbf{Requisitos} y \textbf{Notas}. Al final se elige entre guardar como borrador o publicar.
+Los pasos son los mismos que para una carta temática, pero empezando en \textbf{Requisitos de Rec.} $\to$ \textbf{+ Nuevo Requisito} (\verfig{fig:docente_requisito_form}). Además de la UEA y los datos del grupo, se piden los datos de la evaluación: \textbf{Lugar}, \textbf{Duración aproximada}, \textbf{Fecha y hora}, \textbf{Recursos necesarios}, \textbf{Requisitos} y \textbf{Notas}. Al final se elige entre guardar como borrador o publicar.
 
 \paragraph{Ver, corregir o borrar lo que ya creé}\label{apx:manual-user:profesor-gestion}\mbox{}\\
-Al entrar a \textbf{Cartas Temáticas} o a \textbf{Requisitos de Rec.} aparece la lista de todo lo que usted ha creado, ordenada por periodo (\verfig{fig:m-docente-cartas-lista} y \verfig{fig:m-docente-req-lista}). El periodo vigente lleva la etiqueta \textbf{Activo}. Cada documento muestra si está en \emph{Borrador} o \emph{Publicado}, y tiene tres botones: \textbf{Ver}, \textbf{Editar} y \textbf{Eliminar}. En los periodos ya cerrados, los botones \textbf{Editar} y \textbf{Eliminar} están deshabilitados y solo puede consultar.
+Al entrar a \textbf{Cartas Temáticas} o a \textbf{Requisitos de Rec.} aparece la lista de todo lo que usted ha creado, ordenada por periodo (Figuras~\ref{fig:m-docente-cartas-lista} y~\ref{fig:m-docente-req-lista}). El periodo vigente lleva la etiqueta \textbf{Activo}. Cada documento muestra si está en \emph{Borrador} o \emph{Publicado}, y tiene tres botones: \textbf{Ver}, \textbf{Editar} y \textbf{Eliminar}. En los periodos ya cerrados, los botones \textbf{Editar} y \textbf{Eliminar} están deshabilitados y solo puede consultar.
 
-\textit{Para ver cómo quedó un documento:} haga clic en \textbf{Ver}. Se muestra el documento completo, y arriba una leyenda que indica si es visible para el público (\verfig{fig:m-docente-carta-preview} y \verfig{fig:m-docente-req-preview}). Si está publicado, el botón \textbf{Ver pública} lo abre tal como lo verá cualquier visitante.
+\figmanual{docente_cartas_lista}{Lista de cartas temáticas del profesor, agrupadas por periodo.}{fig:m-docente-cartas-lista}
+
+\figmanual{docente_requisitos_lista}{Lista de evaluaciones de recuperación del profesor, agrupadas por periodo.}{fig:m-docente-req-lista}
+
+\textit{Para ver cómo quedó un documento:} haga clic en \textbf{Ver}. Se muestra el documento completo, y arriba una leyenda que indica si es visible para el público (Figuras~\ref{fig:m-docente-carta-preview} y~\ref{fig:m-docente-req-preview}). Si está publicado, el botón \textbf{Ver pública} lo abre tal como lo verá cualquier visitante.
+
+\figmanual{docente_carta_preview}{Carta temática vista por su autor, con los botones para verla como visitante, editarla o eliminarla.}{fig:m-docente-carta-preview}
+
+\figmanual{docente_requisito_preview}{Evaluación de recuperación vista por su autor.}{fig:m-docente-req-preview}
 
 \textit{Para corregir un documento:}
 \begin{enumerate}
@@ -347,11 +384,13 @@ Al entrar a \textbf{Cartas Temáticas} o a \textbf{Requisitos de Rec.} aparece l
 \textit{Para borrar un documento:} haga clic en \textbf{Eliminar} y confirme en el aviso. Si el documento estaba publicado, también dejará de ser visible. Esta acción no se puede deshacer.
 
 \paragraph{Contestar la autoevaluación y ver mi resultado}\label{apx:manual-user:profesor-autoeval}\mbox{}\\
-Cuando el administrador publica el cuestionario y enciende el periodo, este aparece en la opción \textbf{Autoevaluación} del menú (\verfig{fig:m-docente-autoeval-lista}). Cada cuestionario muestra una etiqueta con su situación: \textbf{Pendiente} (aún no lo empieza), \textbf{En progreso} (lo empezó y guardó un avance) o \textbf{Respondido}.
+Cuando el administrador publica el cuestionario y enciende el periodo, este aparece en la opción \textbf{Autoevaluación} del menú (Figura~\ref{fig:m-docente-autoeval-lista}). Cada cuestionario muestra una etiqueta con su situación: \textbf{Pendiente} (aún no lo empieza), \textbf{En progreso} (lo empezó y guardó un avance) o \textbf{Respondido}.
+
+\figmanual{docente_autoevaluacion_lista}{Cuestionarios de autoevaluación disponibles para el profesor, con su situación: pendiente, en progreso o respondido.}{fig:m-docente-autoeval-lista}
 
 \textit{Para contestarlo:}
 \begin{enumerate}
-    \item Haga clic en \textbf{Responder} (o en \textbf{Continuar}, si ya había guardado un avance). Se abre el cuestionario (\verfig{fig:m-docente-autoeval}).
+    \item Haga clic en \textbf{Responder} (o en \textbf{Continuar}, si ya había guardado un avance). Se abre el cuestionario (\verfig{fig:docente_autoevaluacion}).
     \item Conteste las preguntas de cada sección. Las preguntas obligatorias deben contestarse antes de enviar.
     \item Si necesita hacer una pausa, haga clic en \textbf{Guardar borrador}. Sus respuestas se conservan y puede volver cuando quiera.
     \item Al terminar, haga clic en \textbf{Enviar autoevaluación}.
@@ -359,7 +398,9 @@ Cuando el administrador publica el cuestionario y enciende el periodo, este apar
 
 \textbf{Antes de enviar, revise sus respuestas:} una vez enviada, la autoevaluación ya no puede modificarse desde el sistema. Si el sistema avisa que faltan preguntas obligatorias, las marca en rojo para que las encuentre.
 
-\textit{Su resultado.} Al enviar, aparece de inmediato la pantalla de resultado (\verfig{fig:m-docente-autoeval-resultado}). Muestra el porcentaje obtenido, los puntos, el \emph{nivel de desempeño} que le corresponde con su observación, y el desglose por sección. Puede volver a verla cuando quiera con el botón \textbf{Ver resultado} de la lista de autoevaluaciones.
+\textit{Su resultado.} Al enviar, aparece de inmediato la pantalla de resultado (Figura~\ref{fig:m-docente-autoeval-resultado}). Muestra el porcentaje obtenido, los puntos, el \emph{nivel de desempeño} que le corresponde con su observación, y el desglose por sección. Puede volver a verla cuando quiera con el botón \textbf{Ver resultado} de la lista de autoevaluaciones.
+
+\figmanual{docente_autoevaluacion_resultado}{Resultado que ve el profesor al enviar su autoevaluación: porcentaje, nivel obtenido y desglose por sección.}{fig:m-docente-autoeval-resultado}
 
 % ═══════════════════════════════════════════════════════════════
 \subsubsection{Si algo no funciona}\label{apx:manual-user:problemas}
@@ -387,324 +428,3 @@ Cuando el administrador publica el cuestionario y enciende el periodo, este apar
     \item[¿El archivo de Excel funciona en otros programas?] Sí, se abre con Microsoft Excel y con LibreOffice Calc.
     \item[¿Cómo activo la autoevaluación para un trimestre?] En \textbf{Catálogos $\to$ Periodos}, haga clic en el interruptor \textbf{Autoevaluación} de ese periodo hasta que quede verde. Se apagará solo en el periodo que lo tuviera antes.
 \end{description}
-
-% ═══════════════════════════════════════════════════════════════
-\subsubsection{Capturas de pantalla}\label{apx:manual-user:capturas}
-
-Esta subsubsección reúne las pantallas del sistema en el mismo orden en que se mencionan en el manual.
-
-\paragraph{Vista pública}\mbox{}\\[0.5em]
-
-\noindent\begin{minipage}{\textwidth}
-    \centering
-    \captura[0.9\textwidth]{screenshots/publico_home}
-    \captionof{figure}{Pantalla de inicio: elección del tipo de documento a consultar.}\label{fig:m-publico-home}
-\end{minipage}
-\par\vspace{1.5em}
-
-\noindent\begin{minipage}{\textwidth}
-    \centering
-    \captura[0.9\textwidth]{screenshots/publico_explorar_cartas_inicial}
-    \captionof{figure}{Paso 1: elegir el periodo.}\label{fig:m-publico-explorar-inicial}
-\end{minipage}
-\par\vspace{1.5em}
-
-\noindent\begin{minipage}{\textwidth}
-    \centering
-    \captura[0.9\textwidth]{screenshots/publico_explorar_cartas_seleccion}
-    \captionof{figure}{Cartas Temáticas: periodo y licenciatura elegidos, con una UEA abierta.}\label{fig:m-publico-explorar-cartas}
-\end{minipage}
-\par\vspace{1.5em}
-
-\noindent\begin{minipage}{\textwidth}
-    \centering
-    \captura[0.9\textwidth]{screenshots/publico_explorar_requisitos_seleccion}
-    \captionof{figure}{Evaluaciones de Recuperación: periodo y licenciatura elegidos, con una UEA abierta.}\label{fig:m-publico-explorar-req}
-\end{minipage}
-\par\vspace{1.5em}
-
-\noindent\begin{minipage}{\textwidth}
-    \centering
-    \captura[0.9\textwidth]{screenshots/publico_carta}
-    \captionof{figure}{Carta temática publicada, lista para leer o imprimir.}\label{fig:m-publico-carta}
-\end{minipage}
-\par\vspace{1.5em}
-
-\noindent\begin{minipage}{\textwidth}
-    \centering
-    \captura[0.9\textwidth]{screenshots/publico_requisito}
-    \captionof{figure}{Evaluación de recuperación publicada, lista para leer o imprimir.}\label{fig:m-publico-requisito}
-\end{minipage}
-\par\vspace{1.5em}
-
-\paragraph{Entrar al sistema}\mbox{}\\[0.5em]
-
-\noindent\begin{minipage}{\textwidth}
-    \centering
-    \captura[0.75\textwidth]{screenshots/login}
-    \captionof{figure}{Pantalla para iniciar sesión.}\label{fig:m-login}
-\end{minipage}
-\par\vspace{1.5em}
-
-\paragraph{Administrador}\mbox{}\\[0.5em]
-
-\noindent\begin{minipage}{\textwidth}
-    \centering
-    \captura[0.9\textwidth]{screenshots/admin_dashboard}
-    \captionof{figure}{Pantalla de inicio del administrador: cifras generales y avance por departamento.}\label{fig:m-admin-dash}
-\end{minipage}
-\par\vspace{1.5em}
-
-\noindent\begin{minipage}{\textwidth}
-    \centering
-    \captura[0.9\textwidth]{screenshots/admin_profesores_lista}
-    \captionof{figure}{Lista de profesores.}\label{fig:m-admin-prof-lista}
-\end{minipage}
-\par\vspace{1.5em}
-
-\noindent\begin{minipage}{\textwidth}
-    \centering
-    \captura[0.9\textwidth]{screenshots/admin_profesor_nuevo}
-    \captionof{figure}{Ventana para dar de alta a un profesor.}\label{fig:m-admin-prof-nuevo}
-\end{minipage}
-\par\vspace{1.5em}
-
-\noindent\begin{minipage}{\textwidth}
-    \centering
-    \captura[0.9\textwidth]{screenshots/admin_profesor_editar}
-    \captionof{figure}{Ventana para editar a un profesor.}\label{fig:m-admin-prof-editar}
-\end{minipage}
-\par\vspace{1.5em}
-
-\noindent\begin{minipage}{\textwidth}
-    \centering
-    \captura[0.9\textwidth]{screenshots/admin_profesor_contrasena}
-    \captionof{figure}{Ventana para cambiar la contraseña de un profesor.}\label{fig:m-admin-prof-pass}
-\end{minipage}
-\par\vspace{1.5em}
-
-\noindent\begin{minipage}{\textwidth}
-    \centering
-    \captura[0.9\textwidth]{screenshots/admin_catalogo_departamentos_lista}
-    \captionof{figure}{Lista de departamentos. Licenciaturas, Posgrados y Áreas tienen la misma forma.}\label{fig:m-admin-cat-lista}
-\end{minipage}
-\par\vspace{1.5em}
-
-\noindent\begin{minipage}{\textwidth}
-    \centering
-    \captura[0.9\textwidth]{screenshots/admin_catalogo_departamento_nuevo}
-    \captionof{figure}{Ventana para agregar un departamento.}\label{fig:m-admin-cat-depto}
-\end{minipage}
-\par\vspace{1.5em}
-
-\noindent\begin{minipage}{\textwidth}
-    \centering
-    \captura[0.9\textwidth]{screenshots/admin_catalogo_licenciatura_nuevo}
-    \captionof{figure}{Ventana para agregar una licenciatura.}\label{fig:m-admin-cat-lic}
-\end{minipage}
-\par\vspace{1.5em}
-
-\noindent\begin{minipage}{\textwidth}
-    \centering
-    \captura[0.9\textwidth]{screenshots/admin_catalogo_posgrado_nuevo}
-    \captionof{figure}{Ventana para agregar un posgrado.}\label{fig:m-admin-cat-pos}
-\end{minipage}
-\par\vspace{1.5em}
-
-\noindent\begin{minipage}{\textwidth}
-    \centering
-    \captura[0.9\textwidth]{screenshots/admin_catalogo_area_nuevo}
-    \captionof{figure}{Ventana para agregar un área.}\label{fig:m-admin-cat-area}
-\end{minipage}
-\par\vspace{1.5em}
-
-\noindent\begin{minipage}{\textwidth}
-    \centering
-    \captura[0.9\textwidth]{screenshots/admin_catalogo_uea_lista}
-    \captionof{figure}{Lista de UEA, con buscador, filtro por programa y botones para agregar.}\label{fig:m-admin-cat-uea-lista}
-\end{minipage}
-\par\vspace{1.5em}
-
-\noindent\begin{minipage}{\textwidth}
-    \centering
-    \captura[0.9\textwidth]{screenshots/admin_catalogo_uea_nuevo}
-    \captionof{figure}{Ventana para agregar una UEA.}\label{fig:m-admin-cat-uea-nuevo}
-\end{minipage}
-\par\vspace{1.5em}
-
-\noindent\begin{minipage}{\textwidth}
-    \centering
-    \captura[0.9\textwidth]{screenshots/admin_catalogo_uea_csv}
-    \captionof{figure}{Ventana para agregar muchas UEA desde un archivo.}\label{fig:m-admin-cat-uea-csv}
-\end{minipage}
-\par\vspace{1.5em}
-
-\noindent\begin{minipage}{\textwidth}
-    \centering
-    \captura[0.9\textwidth]{screenshots/admin_catalogo_periodos_lista}
-    \captionof{figure}{Lista de periodos. En la columna ``Activo para\ldots'' están los tres interruptores.}\label{fig:m-admin-cat-periodos-lista}
-\end{minipage}
-\par\vspace{1.5em}
-
-\noindent\begin{minipage}{\textwidth}
-    \centering
-    \captura[0.9\textwidth]{screenshots/admin_catalogo_periodo_nuevo}
-    \captionof{figure}{Ventana para crear un periodo.}\label{fig:m-admin-cat-periodo}
-\end{minipage}
-\par\vspace{1.5em}
-
-\noindent\begin{minipage}{\textwidth}
-    \centering
-    \captura[0.9\textwidth]{screenshots/admin_catalogo_periodo_eliminar}
-    \captionof{figure}{Aviso que aparece antes de eliminar un periodo: muestra todo lo que se borraría.}\label{fig:m-admin-cat-periodo-eliminar}
-\end{minipage}
-\par\vspace{1.5em}
-
-\noindent\begin{minipage}{\textwidth}
-    \centering
-    \captura[0.9\textwidth]{screenshots/admin_autoevaluacion_lista}
-    \captionof{figure}{Lista de cuestionarios de autoevaluación.}\label{fig:m-admin-autoeval-lista}
-\end{minipage}
-\par\vspace{1.5em}
-
-\noindent\begin{minipage}{\textwidth}
-    \centering
-    \captura[0.9\textwidth]{screenshots/admin_autoevaluacion_nueva}
-    \captionof{figure}{Ventana para crear un cuestionario.}\label{fig:m-admin-autoeval-nueva}
-\end{minipage}
-\par\vspace{1.5em}
-
-\noindent\begin{minipage}{\textwidth}
-    \centering
-    \captura[0.9\textwidth]{screenshots/admin_autoevaluacion_preguntas}
-    \captionof{figure}{Pestaña ``Preguntas'': secciones con su peso y las preguntas de cada una.}\label{fig:m-admin-autoeval-preg}
-\end{minipage}
-\par\vspace{1.5em}
-
-\noindent\begin{minipage}{\textwidth}
-    \centering
-    \captura[0.9\textwidth]{screenshots/admin_autoevaluacion_pregunta_nueva}
-    \captionof{figure}{Ventana para agregar una pregunta: aquí se elige el tipo de respuesta y los puntos de cada opción.}\label{fig:m-admin-autoeval-pregunta-nueva}
-\end{minipage}
-\par\vspace{1.5em}
-
-\noindent\begin{minipage}{\textwidth}
-    \centering
-    \captura[0.9\textwidth]{screenshots/admin_autoevaluacion_niveles}
-    \captionof{figure}{Pestaña ``Niveles de Desempeño''.}\label{fig:m-admin-autoeval-niv}
-\end{minipage}
-\par\vspace{1.5em}
-
-\noindent\begin{minipage}{\textwidth}
-    \centering
-    \captura[0.9\textwidth]{screenshots/admin_autoevaluacion_preview}
-    \captionof{figure}{Vista previa del cuestionario, tal como lo verá el profesor.}\label{fig:m-admin-autoeval-preview}
-\end{minipage}
-\par\vspace{1.5em}
-
-\noindent\begin{minipage}{\textwidth}
-    \centering
-    \captura[0.9\textwidth]{screenshots/admin_autoevaluacion_publicar}
-    \captionof{figure}{Parte superior del cuestionario: el botón ``Publicar'' y la etiqueta que confirma que los pesos suman 100~\%.}\label{fig:m-admin-autoeval-publicar}
-\end{minipage}
-\par\vspace{1.5em}
-
-\noindent\begin{minipage}{\textwidth}
-    \centering
-    \captura[0.9\textwidth]{screenshots/admin_autoevaluacion_estadisticas}
-    \captionof{figure}{Pestaña ``Estadísticas'' con respuestas ya enviadas.}\label{fig:m-admin-autoeval-stats}
-\end{minipage}
-\par\vspace{1.5em}
-
-\noindent\begin{minipage}{\textwidth}
-    \centering
-    \captura[0.9\textwidth]{screenshots/admin_documentos_cartas}
-    \captionof{figure}{Cartas temáticas publicadas por todos los profesores.}\label{fig:m-admin-doc-cartas}
-\end{minipage}
-\par\vspace{1.5em}
-
-\noindent\begin{minipage}{\textwidth}
-    \centering
-    \captura[0.9\textwidth]{screenshots/admin_documentos_requisitos}
-    \captionof{figure}{Evaluaciones de recuperación publicadas por todos los profesores.}\label{fig:m-admin-doc-req}
-\end{minipage}
-\par\vspace{1.5em}
-
-\noindent\begin{minipage}{\textwidth}
-    \centering
-    \captura[0.9\textwidth]{screenshots/admin_reportes}
-    \captionof{figure}{Pantalla para descargar reportes.}\label{fig:m-admin-rep}
-\end{minipage}
-\par\vspace{1.5em}
-
-\paragraph{Profesor}\mbox{}\\[0.5em]
-
-\noindent\begin{minipage}{\textwidth}
-    \centering
-    \captura[0.9\textwidth]{screenshots/docente_dashboard}
-    \captionof{figure}{Pantalla de inicio del profesor.}\label{fig:m-docente-dash}
-\end{minipage}
-\par\vspace{1.5em}
-
-\noindent\begin{minipage}{\textwidth}
-    \centering
-    \captura[0.9\textwidth]{screenshots/docente_carta_form}
-    \captionof{figure}{Formulario para crear una carta temática.}\label{fig:m-docente-carta}
-\end{minipage}
-\par\vspace{1.5em}
-
-\noindent\begin{minipage}{\textwidth}
-    \centering
-    \captura[0.9\textwidth]{screenshots/docente_requisito_form}
-    \captionof{figure}{Formulario para crear una evaluación de recuperación.}\label{fig:m-docente-req}
-\end{minipage}
-\par\vspace{1.5em}
-
-\noindent\begin{minipage}{\textwidth}
-    \centering
-    \captura[0.9\textwidth]{screenshots/docente_cartas_lista}
-    \captionof{figure}{Lista de mis cartas temáticas, agrupadas por periodo.}\label{fig:m-docente-cartas-lista}
-\end{minipage}
-\par\vspace{1.5em}
-
-\noindent\begin{minipage}{\textwidth}
-    \centering
-    \captura[0.9\textwidth]{screenshots/docente_requisitos_lista}
-    \captionof{figure}{Lista de mis evaluaciones de recuperación.}\label{fig:m-docente-req-lista}
-\end{minipage}
-\par\vspace{1.5em}
-
-\noindent\begin{minipage}{\textwidth}
-    \centering
-    \captura[0.9\textwidth]{screenshots/docente_carta_preview}
-    \captionof{figure}{Vista de una carta temática ya publicada, con los botones para verla como visitante, editarla o eliminarla.}\label{fig:m-docente-carta-preview}
-\end{minipage}
-\par\vspace{1.5em}
-
-\noindent\begin{minipage}{\textwidth}
-    \centering
-    \captura[0.9\textwidth]{screenshots/docente_requisito_preview}
-    \captionof{figure}{Vista de una evaluación de recuperación ya publicada.}\label{fig:m-docente-req-preview}
-\end{minipage}
-\par\vspace{1.5em}
-
-\noindent\begin{minipage}{\textwidth}
-    \centering
-    \captura[0.9\textwidth]{screenshots/docente_autoevaluacion_lista}
-    \captionof{figure}{Lista de cuestionarios de autoevaluación disponibles para el profesor.}\label{fig:m-docente-autoeval-lista}
-\end{minipage}
-\par\vspace{1.5em}
-
-\noindent\begin{minipage}{\textwidth}
-    \centering
-    \captura[0.9\textwidth]{screenshots/docente_autoevaluacion_contestar}
-    \captionof{figure}{Cuestionario de autoevaluación.}\label{fig:m-docente-autoeval}
-\end{minipage}
-\par\vspace{1.5em}
-
-\noindent\begin{minipage}{\textwidth}
-    \centering
-    \captura[0.9\textwidth]{screenshots/docente_autoevaluacion_resultado}
-    \captionof{figure}{Pantalla de resultado que aparece al enviar la autoevaluación.}\label{fig:m-docente-autoeval-resultado}
-\end{minipage}
-\par\vspace{1.5em}

@@ -18,14 +18,14 @@ La Figura~\ref{fig:arquitectura} muestra el diagrama de arquitectura y la Figura
 \begin{figure}[!htbp]
     \centering
     \input{Imagenes/arquitectura}
-    \caption{Arquitectura de tres capas del sistema.}
+    \caption{Partes principales del sistema y cómo se comunican entre sí.}
     \label{fig:arquitectura}
 \end{figure}
 
 \begin{figure}[!htbp]
     \centering
     \resizebox{0.95\textwidth}{!}{\input{Imagenes/casos_uso}}
-    \caption{Diagrama de casos de uso del sistema.}
+    \caption{Lo que puede hacer cada tipo de usuario en el sistema.}
     \label{fig:casos_uso}
 \end{figure}
 
@@ -57,7 +57,7 @@ El modelo de datos se distribuye por app siguiendo la separación de dominios. U
 \begin{figure}[!htbp]
     \centering
     \resizebox{\textwidth}{!}{\input{Imagenes/er}}
-    \caption{Diagrama Entidad-Relación del sistema (agrupado por app Django).}
+    \caption{Cómo se organiza y se relaciona la información que guarda el sistema.}
     \label{fig:er}
 \end{figure}
 
@@ -212,7 +212,7 @@ La Figura~\ref{fig:admin_crear_profesor} muestra la ventana modal ``Nuevo Profes
 \begin{figure}[!htbp]
     \centering
     \captura[0.9\textwidth]{screenshots/admin_profesor_nuevo}
-    \caption{Modal ``Nuevo Profesor'' desde \texttt{/admin/profesores}.}
+    \caption{Ventana para dar de alta a un nuevo profesor.}
     \label{fig:admin_crear_profesor}
 \end{figure}
 
@@ -275,7 +275,7 @@ La Figura~\ref{fig:admin_uea} ilustra la ventana modal de importación de UEAs d
 \begin{figure}[!htbp]
     \centering
     \captura[0.9\textwidth]{screenshots/admin_catalogo_uea_csv}
-    \caption{Importación masiva de UEAs desde CSV en \texttt{/admin/catalogos/uea}.}
+    \caption{Ventana para agregar muchas UEA a la vez desde un archivo.}
     \label{fig:admin_uea}
 \end{figure}
 
@@ -319,12 +319,12 @@ Como \texttt{Periodo} es referenciado por múltiples entidades con FK \texttt{PR
     \item Si el usuario confirma, \texttt{perform\_destroy} realiza una cascada manual dentro de una transacción atómica en el orden \emph{Respuesta} $\rightarrow$ \emph{Formulario} $\rightarrow$ \emph{CartaTematica} $\rightarrow$ \emph{RequisitoRecuperacion} $\rightarrow$ \emph{Periodo}.
 \end{enumerate}
 
-La Figura~\ref{fig:admin_periodos} muestra la tabla de periodos con los tres \emph{chips} por fila (Cartas, Requisitos, Autoevaluación) que reflejan el estado activo/inactivo, junto con la ventana modal de alta.
+La Figura~\ref{fig:admin_periodos} muestra la ventana con la que el administrador da de alta un periodo nuevo.
 
 \begin{figure}[!htbp]
     \centering
     \captura[0.9\textwidth]{screenshots/admin_catalogo_periodo_nuevo}
-    \caption{\texttt{/admin/catalogos/periodos}: tabla con \emph{chips} de banderas por recurso y modal ``Nuevo periodo''.}
+    \caption{Ventana para crear un nuevo periodo (trimestre).}
     \label{fig:admin_periodos}
 \end{figure}
 
@@ -411,7 +411,7 @@ La estructura del formulario (secciones, preguntas, opciones, pesos y niveles) s
 \begin{figure}[!htbp]
     \centering
     \input{Imagenes/estados_formulario}
-    \caption{Máquina de estados del \texttt{Formulario} de autoevaluación. Las transiciones que preservan la versión se dibujan a la izquierda entre \texttt{PUBLICADO} y \texttt{CERRADO}; la revisión con incremento de versión (\texttt{publicar\_revision}) se traza como arista externa.}
+    \caption{Etapas por las que pasa un cuestionario de autoevaluación (borrador, publicado y cerrado) y las acciones que lo llevan de una a otra.}
     \label{fig:estados_formulario}
 \end{figure}
 
@@ -454,14 +454,14 @@ Además del constructor completo (Figura~\ref{fig:admin_formulario_builder}) y d
 \begin{figure}[!htbp]
     \centering
     \captura[0.9\textwidth]{screenshots/admin_autoevaluacion_niveles}
-    \caption{Panel ``Niveles de Desempeño'' del constructor de autoevaluaciones.}
+    \caption{Pestaña donde se definen los niveles de desempeño (por ejemplo, ``Satisfactorio'') según el porcentaje obtenido.}
     \label{fig:admin_niveles_desempeno}
 \end{figure}
 
 \begin{figure}[!htbp]
     \centering
     \captura[0.9\textwidth]{screenshots/admin_autoevaluacion_estadisticas}
-    \caption{Pestaña ``Estadísticas'' del constructor con las respuestas ya enviadas: promedio general, porcentaje por sección, distribución por nivel de desempeño y por pregunta.}
+    \caption{Resultados de la autoevaluación: promedio general, promedio por sección y cuántos profesores quedaron en cada nivel.}
     \label{fig:admin_estadisticas_autoeval}
 \end{figure}
 
